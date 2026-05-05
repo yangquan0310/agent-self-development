@@ -1,5 +1,5 @@
 /**
- * 工作记忆模块 —— 面向对象封装
+ * 工作记忆 —— 面向对象封装
  *
  * 核心概念：
  * - 会话（Session）= 任务空间：执行特定任务的内存空间
@@ -13,15 +13,16 @@
 
 import { getToday, getNow, inferTaskFamily } from '../common/utils.js';
 
-export class WorkingMemoryModule {
-  constructor({ api, config, stateAdapter, skillLoader, logger, sessionManager, eventManager }) {
+export class WorkingMemory {
+  constructor({ api, config, state, skills, logger, log, session, events }) {
     this.api = api;
     this.config = config || {};
-    this.stateAdapter = stateAdapter;
-    this.skillLoader = skillLoader;
+    this.state = state;
+    this.skills = skills;
     this.logger = logger;
-    this.sessionManager = sessionManager;
-    this.eventManager = eventManager;
+    this.log = log;
+    this.session = session;
+    this.events = events;
     this.enabled = this.config.enabled !== false;
     this.trackSubagents = this.enabled && this.config.trackSubagents !== false;
     this.autoArchive = this.enabled && this.config.autoArchive !== false;
@@ -62,12 +63,12 @@ export class WorkingMemoryModule {
 
   // ── 辅助：获取 task JSON（不自动创建）──
   async _getTask(runId) {
-    return this.stateAdapter.getTask(runId);
+    return this.state.getTask(runId);
   }
 
   async _saveTask(task) {
     task.updatedAt = getNow();
-    await this.stateAdapter.saveTask(task.runId, task);
+    await this.state.saveTask(task.runId, task);
   }
 
   /**
@@ -84,7 +85,7 @@ export class WorkingMemoryModule {
     const taskFamily = inferTaskFamily(purpose);
 
     // 保存 Session 到全局
-    await this.stateAdapter.saveSession(sessionId, {
+    await this.state.saveSession(sessionId, {
       sessionId,
       taskFamily,
       role: event.params?.role || '助手',
@@ -105,6 +106,15 @@ export class WorkingMemoryModule {
     await this._updateActiveSession(sessionId, taskFamily, 'active');
 
     this.logger.debug(`[WM] 创建任务空间: ${sessionId} (taskFamily=${taskFamily}, parent=${runId})`);
+    if (this.log) {
+      await this.log.write({
+        level: 'INFO',
+        module: 'WM',
+        runId,
+        message: `Session created: ${sessionId}`,
+        extra: { sessionId, taskFamily, role: event.params?.role || '助手', status: 'active' }
+      });
+    }
   }
 
   /**
@@ -142,11 +152,11 @@ export class WorkingMemoryModule {
       });
 
       // 更新 Session 状态
-      const session = await this.stateAdapter.getSession(sessionId);
+      const session = await this.state.getSession(sessionId);
       if (session) {
         session.status = status;
         session.lastActive = getNow();
-        await this.stateAdapter.saveSession(sessionId, session);
+        await this.state.saveSession(sessionId, session);
       }
 
       // 同步更新全局活跃任务空间索引
@@ -157,6 +167,15 @@ export class WorkingMemoryModule {
     }
 
     await this._saveTask(task);
+    if (isError && this.log) {
+      await this.log.write({
+        level: 'ERROR',
+        module: 'WM',
+        runId,
+        message: `Tool error: ${toolName}`,
+        extra: { toolName, error: String(result.error || 'unknown error').slice(0, 200) }
+      });
+    }
   }
 
   /**
@@ -178,7 +197,7 @@ export class WorkingMemoryModule {
     const pausedSessions = [];
 
     for (const sessionId of task.sessionIds) {
-      const session = await this.stateAdapter.getSession(sessionId);
+      const session = await this.state.getSession(sessionId);
       if (!session) continue;
 
       if (session.status === 'completed') {
@@ -206,21 +225,37 @@ export class WorkingMemoryModule {
     await this._saveTask(task);
 
     // 聚合事件到 Memory
-    if (this.eventManager) {
-      const aggResult = await this.eventManager.aggregateEvents(runId);
+    if (this.events) {
+      const aggResult = await this.events.aggregateEvents(runId);
       this.logger.debug(`[WM] 事件聚合: runId=${runId}, transferred=${aggResult.transferred}`);
     }
 
     this.logger.debug(`[WM] 任务归档: runId=${runId}, completed=${completedSessions.length}, killed=${killedSessions.length}`);
 
+    if (this.log) {
+      await this.log.write({
+        level: 'INFO',
+        module: 'WM',
+        runId,
+        message: 'Task archived',
+        extra: {
+          completedSessions: completedSessions.length,
+          killedSessions: killedSessions.length,
+          pausedSessions: pausedSessions.length,
+          toolCount: task.tools.length,
+          taskStatus: task.status
+        }
+      });
+    }
+
     // 将 completed task 移至 archive，保留最近 50 个
-    const archived = await this.stateAdapter.archiveTask(runId);
+    const archived = await this.state.archiveTask(runId);
     if (archived) {
       this.logger.debug(`[WM] Task 已归档: runId=${runId} → archive/tasks_archive.json`);
     }
 
     // 注入 working_memory skill
-    const workingMemorySkill = await this.skillLoader.load('working_memory');
+    const workingMemorySkill = await this.skills.load('working_memory');
     if (workingMemorySkill) {
       return {
         prependSystemContext: `${workingMemorySkill}\n\n【Agent 职责】本次运行已结束。completed 的任务空间已标记为 idle，可供同任务族后续复用。请检查「活跃会话清单」状态。\n`
@@ -232,7 +267,7 @@ export class WorkingMemoryModule {
    * 更新全局活跃任务空间索引
    */
   async _updateActiveSession(sessionId, taskFamily, status) {
-    const activeSessions = await this.stateAdapter.getSession('working_memory:active_sessions') || [];
+    const activeSessions = await this.state.getSession('working_memory:active_sessions') || [];
     const existingIndex = activeSessions.findIndex(s => s.sessionId === sessionId);
 
     if (existingIndex >= 0) {
@@ -251,16 +286,16 @@ export class WorkingMemoryModule {
       });
     }
 
-    await this.stateAdapter.saveSession('working_memory:active_sessions', activeSessions);
+    await this.state.saveSession('working_memory:active_sessions', activeSessions);
   }
 
   /**
    * 从全局活跃索引中移除任务空间
    */
   async _removeActiveSession(sessionId) {
-    const activeSessions = await this.stateAdapter.getSession('working_memory:active_sessions') || [];
+    const activeSessions = await this.state.getSession('working_memory:active_sessions') || [];
     const updated = activeSessions.filter(s => s.sessionId !== sessionId);
-    await this.stateAdapter.saveSession('working_memory:active_sessions', updated);
+    await this.state.saveSession('working_memory:active_sessions', updated);
   }
 
   /**

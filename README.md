@@ -6,6 +6,8 @@ OpenClaw 插件 — Agent 自我发展框架
 >
 > **核心原则**：插件只负责"提醒"（注入 skill），Agent 负责"执行"（自行决策、读写文件、管理任务空间）。
 >
+> **v3.4.1 当前版本**：流式输出适配、任务生命周期日志、防重复注入疲劳、指令强化
+>
 > **v3.4.0 重大变更**：延迟创建 task JSON —— Agent 自主评估任务复杂度，用户确认后才创建 task；简单任务零开销；新增 assessment skill；移除插件端 `_shouldUseMetacognition` 判断。
 
 ---
@@ -57,7 +59,7 @@ Bandura (2001) 的代理理论指出，真正的代理不是简单的刺激-反�
 - **顺应**：新经验与现有人格成分冲突 → 修改/重构该成分
 - **发展**：人格成分的持续同化与顺应，构成 Agent 的**独特发展轨迹**
 
-**PersonalityModule** 的实现：每次任务完成时（agent_end），Agent 回顾本次任务的偏差、归因和结果 → 判断对 6 个维度（自我/风格/信念/身份/技能/程序性记忆）的影响类型（同化/顺应/无影响）→ 自行决定是否更新人格文件
+**Personality** 的实现：每次任务完成时（agent_end），Agent 回顾本次任务的偏差、归因和结果 → 判断对 6 个维度（自我/风格/信念/身份/技能/程序性记忆）的影响类型（同化/顺应/无影响）→ 自行决定是否更新人格文件
 
 ### 4. 理论整合：三层认知架构
 
@@ -206,12 +208,12 @@ Bandura (2001) 的代理理论指出，真正的代理不是简单的刺激-反�
 
 | 存储类型 | 数据库路径 | 格式 | 插件层调用 | 用途 |
 |----------|-----------|------|-----------|------|
-| **Task** | `.openclaw/tasks/runs.sqlite` | SQLite | TaskAdapter | 使用已有系统数据库 |
-| **Flow** | `.openclaw/flows/registry.sqlite` | SQLite | FlowAdapter | 使用已有系统数据库 |
-| **State** | `.openclaw/state/agent-self-development/` | JSON | StateAdapter | Plan/Session/Deviation/Attribution 状态 |
-| **Memory** | `.openclaw/memory/{agentId}.sqlite` | SQLite | MemoryAdapter | 归档、事件记录、历史查询 |
-| **Log** | `.openclaw/logs/{agentId}.log` | 文本 | LogAdapter | 每个代理独立日志文件 |
-| **Hook** | `.openclaw/hooks/agent-self-development/` | MD/TS | HookAdapter | Hook 声明文件（备案与 CLI 发现） |
+| **Task** | `.openclaw/tasks/runs.sqlite` | SQLite | Task | 使用已有系统数据库 |
+| **Flow** | `.openclaw/flows/registry.sqlite` | SQLite | Flow | 使用已有系统数据库 |
+| **State** | `.openclaw/state/agent-self-development/` | JSON | State | Plan/Session/Deviation/Attribution 状态 |
+| **Memory** | `.openclaw/memory/{agentId}.sqlite` | SQLite | Memory | 归档、事件记录、历史查询 |
+| **Log** | `.openclaw/logs/{agentId}.log` | 文本 | Log | 每个代理独立日志文件 |
+| **Hook** | `.openclaw/hooks/agent-self-development/` | MD/TS | Hook | Hook 声明文件（备案与 CLI 发现） |
 
 
 > **兼容性设计**：适配器构造函数接收 `(api, options)`，当 `api` 为 null 时回退到 JSON 文件。若未来 OpenClaw 暴露对应核心 API，传入真实 API 对象即可无缝切换，无需修改业务代码。
@@ -224,47 +226,47 @@ Bandura (2001) 的代理理论指出，真正的代理不是简单的刺激-反�
 
 | 组件 | 职责 | 底层存储 | 兼容性 |
 |------|------|---------|--------|
-| `StateAdapter` | 状态存储适配器 | `state/agent-self-development/` (JSON文件) | 接口兼容核心 State API |
-| `TaskAdapter` | 任务适配器 | `tasks/runs.sqlite` (SQLite) | 接口兼容核心 Task API |
-| `FlowAdapter` | 应用Flow适配器 | `flows/registry.sqlite` (SQLite) | 接口兼容核心 Flow API |
-| `MemoryAdapter` | 记忆存储适配器 | `memory/{agentId}.sqlite` (SQLite) | 接口兼容核心 Memory API |
-| `LogAdapter` | 日志适配器 | `logs/{agentId}.log` (文本) | 接口兼容核心 Log API |
-| `HookAdapter` | Hook 文件生成器 | `hooks/agent-self-development/` (MD/TS) | 生成标准 Hook 声明文件 |
-| `PlanManager` | Plan 业务逻辑 | State + Flow | `state/agent-self-development/` + `flows/registry.sqlite` |
-| `SessionManager` | Session 业务逻辑 | State + Flow | `state/agent-self-development/` + `flows/registry.sqlite` |
+| `State` | 状态存储适配器 | `state/agent-self-development/` (JSON文件) | 接口兼容核心 State API |
+| `Task` | 任务适配器 | `tasks/runs.sqlite` (SQLite) | 接口兼容核心 Task API |
+| `Flow` | 应用Flow适配器 | `flows/registry.sqlite` (SQLite) | 接口兼容核心 Flow API |
+| `Memory` | 记忆存储适配器 | `memory/{agentId}.sqlite` (SQLite) | 接口兼容核心 Memory API |
+| `Log` | 日志适配器 | `logs/{agentId}.log` (文本) | 接口兼容核心 Log API |
+| `Hook` | Hook 文件生成器 | `hooks/agent-self-development/` (MD/TS) | 生成标准 Hook 声明文件 |
+| `Plan` | Plan 业务逻辑 | State + Flow | `state/agent-self-development/` + `flows/registry.sqlite` |
+| `Session` | Session 业务逻辑 | State + Flow | `state/agent-self-development/` + `flows/registry.sqlite` |
 
 
 ---
 
 ## 面向对象模型
 
-框架由三个模块（Module）、一组适配器（Adapter）、一组管理器（Manager）和一组对象（Object）构成。
+框架由三个模块、一组适配器、一组管理器和一组对象构成。
 
-### 1. 适配器层（Adapter Layer）
+### 1. 适配器层
 
 隔离核心系统变化，提供统一接口。
 
 | 适配器 | 核心方法 | 职责 | 底层存储 | 兼容性 |
 |--------|---------|------|----------|--------|
-| **StateAdapter** | `saveTask()`, `getTask()`, `saveSession()`, `getSession()` | 统一 task JSON + Session 存储 | `state/agent-self-development/` (JSON文件) | 接口兼容核心 State API |
-| **TaskAdapter** | `createTask()`, `getTask()`, `updateTask()`, `deleteTask()` | 任务创建、查询、更新、删除 | `tasks/runs.sqlite` (SQLite) | 接口兼容核心 Task API |
-| **FlowAdapter** | `createPlanFlow()`, `advancePhase()`, `waitForApproval()`, `getByRunId()` | 计划工作流、阶段推进、等待确认 | `flows/registry.sqlite` (SQLite) | 接口兼容核心 Flow API |
-| **MemoryAdapter** | `archiveSession()`, `logEvent()`, `queryHistory()` | 归档、事件记录、历史查询 | `memory/{agentId}.sqlite` (SQLite) | 接口兼容核心 Memory API |
-| **LogAdapter** | `write()`, `read()`, `query()` | 日志写入、读取、查询 | `logs/{agentId}.log` (文本) | 接口兼容核心 Log API |
-| **HookAdapter** | `init()`, `updateEvents()`, `readMetadata()` | 生成标准 Hook 声明文件 | `hooks/agent-self-development/` (MD/TS) | 备案与 CLI 发现 |
+| **State** | `saveTask()`, `getTask()`, `saveSession()`, `getSession()` | 统一 task JSON + Session 存储 | `state/agent-self-development/` (JSON文件) | 接口兼容核心 State API |
+| **Task** | `createTask()`, `getTask()`, `updateTask()`, `deleteTask()` | 任务创建、查询、更新、删除 | `tasks/runs.sqlite` (SQLite) | 接口兼容核心 Task API |
+| **Flow** | `createPlanFlow()`, `advancePhase()`, `waitForApproval()`, `getByRunId()` | 计划工作流、阶段推进、等待确认 | `flows/registry.sqlite` (SQLite) | 接口兼容核心 Flow API |
+| **Memory** | `archiveSession()`, `logEvent()`, `queryHistory()` | 归档、事件记录、历史查询 | `memory/{agentId}.sqlite` (SQLite) | 接口兼容核心 Memory API |
+| **Log** | `write()`, `read()`, `query()` | 日志写入、读取、查询 | `logs/{agentId}.log` (文本) | 接口兼容核心 Log API |
+| **Hook** | `init()`, `updateEvents()`, `readMetadata()` | 生成标准 Hook 声明文件 | `hooks/agent-self-development/` (MD/TS) | 备案与 CLI 发现 |
 
-### 2. 管理器层（Manager Layer）
+### 2. 管理器层
 
 实现业务逻辑，组合适配器。
 
 | 管理器 | 核心方法 | 职责 |
 |--------|---------|------|
-| **PlanManager** | `createPlan()`, `approvePlan()`, `completePhase()` | 计划创建、用户确认、阶段推进 |
-| **SessionManager** | `createSession()`, `releaseSession()`, `destroySession()` | 会话创建/复用、释放、销毁 |
-| **DeviationManager** | `createDeviation()`, `acknowledgeDeviation()`, `resolveDeviation()` | 偏差创建、确认、解决 |
-| **AttributionManager** | `analyzeAttribution()`, `completeAttribution()`, `applyAdjustment()` | 归因分析、完成归因、应用调节 |
+| **Plan** | `createPlan()`, `approvePlan()`, `completePhase()` | 计划创建、用户确认、阶段推进 |
+| **Session** | `createSession()`, `releaseSession()`, `destroySession()` | 会话创建/复用、释放、销毁 |
+| **Deviation** | `createDeviation()`, `acknowledgeDeviation()`, `resolveDeviation()` | 偏差创建、确认、解决 |
+| **Attribution** | `analyzeAttribution()`, `completeAttribution()`, `applyAdjustment()` | 归因分析、完成归因、应用调节 |
 
-### 3. 元认知模块（MetacognitionModule）
+### 3. 元认知模块（Metacognition）
 
 管理 **Plan / Deviation / Attribution** 的闭环。复杂任务时注入 planning skill，active 状态时注入 monitoring skill。
 
@@ -403,7 +405,7 @@ Bandura (2001) 的代理理论指出，真正的代理不是简单的刺激-反�
 | `analyzing` | 根因分析和调节方案完成 | `completed` |
 | `completed` | 调节方案已执行 | `executed` |
 
-### 4. 工作记忆模块（WorkingMemoryModule）
+### 4. 工作记忆模块（WorkingMemory）
 
 管理 **Session** 的全生命周期。任务空间跨 runId 复用，completed 归档，killed 销毁。
 
@@ -455,7 +457,7 @@ Bandura (2001) 的代理理论指出，真正的代理不是简单的刺激-反�
 | `active` | 主动暂停 | `paused` |
 | `paused` | 恢复执行 | `active` |
 
-### 5. 人格模块（PersonalityModule）
+### 5. 人格模块（Personality）
 
 基于皮亚杰同化/顺应理论，每次任务完成时（agent_end）驱动 Agent 回顾本次事件、分析 6 维度影响、自行决定是否更新人格文件（SOUL.md / IDENTITY.md / skills/README.md / MEMORY.md）。
 
@@ -540,10 +542,10 @@ agent-self-development/
 ├── src/
 │   ├── index.js                  # 插件入口：依赖注入，创建并注册三大模块 + 适配器 + 管理器
 │   ├── metacognition/            # 元认知模块
-│   │   ├── module.js             # MetacognitionModule（Plan/Deviation/Attribution 调度）
-│   │   ├── plan-manager.js       # PlanManager（计划业务逻辑）
-│   │   ├── deviation-manager.js  # DeviationManager（偏差认知业务逻辑）
-│   │   ├── attribution-manager.js # AttributionManager（归因调节业务逻辑）
+│   │   ├── metacognition.js      # Metacognition（Plan/Deviation/Attribution 调度）
+│   │   ├── plan.js               # Plan（计划业务逻辑）
+│   │   ├── deviation.js          # Deviation（偏差认知业务逻辑）
+│   │   ├── attribution.js         # Attribution（归因调节业务逻辑）
 │   │   ├── planning/             # 计划 skill（Agent 指导文档）
 │   │   │   └── SKILL.md          # Plan 对象操作指南
 │   │   ├── monitoring/           # 偏差认知 skill
@@ -551,24 +553,25 @@ agent-self-development/
 │   │   └── regulation/           # 归因调节 skill
 │   │       └── SKILL.md          # Attribution + Event 撰写指南
 │   ├── working-memory/           # 工作记忆模块
-│   │   ├── module.js             # WorkingMemoryModule（Session 生命周期）
-│   │   ├── session-manager.js    # SessionManager（会话业务逻辑）
+│   │   ├── working-memory.js     # WorkingMemory（Session 生命周期）
+│   │   ├── session.js            # Session（会话业务逻辑）
 │   │   └── SKILL.md              # Session 管理指南
 │   ├── personality/              # 人格模块
-│   │   ├── module.js             # PersonalityModule（development skill 注入）
+│   │   ├── personality.js        # Personality（development skill 注入）
 │   │   └── SKILL.md              # Development skill（同化/顺应指导）
 │   ├── common/                   # 公共组件
-│   │   ├── event-manager.js      # EventManager（事件业务逻辑，跨模块共享）
-│   │   ├── event-template.js     # Event 对象模板
-│   │   ├── skills-loader.js      # SkillLoader（带缓存）
+│   │   ├── events.js             # Events（事件业务逻辑，跨模块共享）
+│   │   ├── event.js              # Event 类（事件对象封装）
+│   │   ├── skills.js             # Skills（skill 加载与缓存）
+│   │   ├── stream.js             # Stream（流式输出处理）
 │   │   ├── utils.js              # 工具函数（日期、任务族推断）
 │   │   └── adapters/             # 适配器层（兼容核心 API 接口）
-│   │       ├── state-adapter.js  # StateAdapter
-│   │       ├── task-adapter.js   # TaskAdapter
-│   │       ├── flow-adapter.js   # FlowAdapter
-│   │       ├── memory-adapter.js # MemoryAdapter
-│   │       ├── log-adapter.js    # LogAdapter
-│   │       ├── hook-adapter.js   # HookAdapter（生成标准 Hook 声明文件）
+│   │       ├── state.js          # State
+│   │       ├── task.js           # Task
+│   │       ├── flow.js           # Flow
+│   │       ├── memory.js         # Memory
+│   │       ├── log.js            # Log
+│   │       ├── hook.js           # Hook（生成标准 Hook 声明文件）
 
 │   ├── SKILL_TEMPLATE.md         # Skill 文档模板（本地生成用，不提交 Git）
 │   └── _meta.json                # Skill 元数据索引
@@ -578,22 +581,24 @@ agent-self-development/
 
 | 类 | 职责 | 方法 |
 |---|------|------|
-| `SkillLoader` | Skill 文件加载与缓存 | `load()`, `clearCache()`, `getAvailableSkills()` |
-| `StateAdapter` | 状态存储适配器（文件系统 + 兼容接口） | `saveTask()`, `getTask()`, `saveSession()`, `getSession()` |
-| `TaskAdapter` | 任务适配器（文件系统 + 兼容接口） | `createTask()`, `getTask()`, `updateTask()`, `deleteTask()` |
-| `FlowAdapter` | 应用Flow适配器（文件系统 + 兼容接口） | `createPlanFlow()`, `advancePhase()`, `waitForApproval()`, `getByRunId()` |
-| `MemoryAdapter` | 记忆存储适配器（文件系统 + 兼容接口） | `archiveSession()`, `logEvent()`, `queryHistory()` |
-| `LogAdapter` | 日志适配器（文件系统 + 兼容接口） | `write()`, `read()`, `query()` |
-| `HookAdapter` | Hook 文件生成器 | `init()`, `updateEvents()`, `readMetadata()` |
+| `Skills` | Skill 文件加载与缓存 | `load()`, `forget()`, `list()` |
+| `Stream` | 流式输出检测与缓冲 | `classify()`, `extract()`, `accumulate()`, `drain()`, `purge()` |
+| `Event` | 事件对象封装 | `validate()`, `toJSON()`, `fromJSON()`, `fromTemplate()` |
+| `State` | 状态存储适配器（文件系统 + 兼容接口） | `saveTask()`, `getTask()`, `saveSession()`, `getSession()` |
+| `Task` | 任务适配器（文件系统 + 兼容接口） | `createTask()`, `getTask()`, `updateTask()`, `deleteTask()` |
+| `Flow` | 应用Flow适配器（文件系统 + 兼容接口） | `createPlanFlow()`, `advancePhase()`, `waitForApproval()`, `getByRunId()` |
+| `Memory` | 记忆存储适配器（文件系统 + 兼容接口） | `archiveSession()`, `logEvent()`, `queryHistory()` |
+| `Log` | 日志适配器（文件系统 + 兼容接口） | `write()`, `read()`, `query()` |
+| `Hook` | Hook 文件生成器 | `init()`, `updateEvents()`, `readMetadata()` |
 
-| `PlanManager` | 计划业务逻辑 | `createPlan()`, `approvePlan()`, `completePhase()` |
-| `DeviationManager` | 偏差认知业务逻辑 | `createDeviation()`, `acknowledgeDeviation()`, `resolveDeviation()` |
-| `AttributionManager` | 归因调节业务逻辑 | `analyzeAttribution()`, `completeAttribution()`, `applyAdjustment()` |
-| `SessionManager` | 会话业务逻辑 | `createSession()`, `releaseSession()`, `destroySession()` |
-| `EventManager` | 事件聚合 | `aggregateEvents()`, `queryEventLog()` |
-| `MetacognitionModule` | 元认知闭环调度 | `onBeforePromptBuild()`, `onLlmOutput()`, `onAgentEnd()` |
-| `WorkingMemoryModule` | 任务空间生命周期管理 | `onBeforeToolCall()`, `onAfterToolCall()`, `onAgentEnd()` |
-| `PersonalityModule` | 任务级人格更新 | `onAgentEnd()` |
+| `Plan` | 计划业务逻辑 | `createPlan()`, `approvePlan()`, `completePhase()` |
+| `Deviation` | 偏差认知业务逻辑 | `createDeviation()`, `acknowledgeDeviation()`, `resolveDeviation()` |
+| `Attribution` | 归因调节业务逻辑 | `analyzeAttribution()`, `completeAttribution()`, `applyAdjustment()` |
+| `Session` | 会话业务逻辑 | `createSession()`, `releaseSession()`, `destroySession()` |
+| `Events` | 事件聚合 | `aggregateEvents()`, `queryEventLog()` |
+| `Metacognition` | 元认知闭环调度 | `onBeforePromptBuild()`, `onLlmOutput()`, `onAgentEnd()` |
+| `WorkingMemory` | 任务空间生命周期管理 | `onBeforeToolCall()`, `onAfterToolCall()`, `onAgentEnd()` |
+| `Personality` | 任务级人格更新 | `onAgentEnd()` |
 
 ### 状态存储键空间
 
@@ -624,7 +629,7 @@ agent-self-development/
 ## 生产环境：从 Git 仓库直装
 openclaw plugins install git:github.com/yangquan0310/openclaw_muti_agent_lab
 ## 安装指定版本
-openclaw plugins install git:github.com/yangquan0310/openclaw_muti_agent_lab@v3.4.0
+openclaw plugins install git:github.com/yangquan0310/openclaw_muti_agent_lab@v3.4.1
 ## 本地开发：从本地目录安装（热更新方便）
 openclaw plugins install /root/openclaw-integration-design/
 ## 或使用 --link 符号链接模式（修改源码即时生效）
@@ -687,7 +692,8 @@ openclaw gateway restart
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
-| **v3.4.0** | 2026-04-29 | 延迟创建 task JSON：Agent 评估 + 用户确认后才创建 task；新增 assessment skill；简单任务不创建 task；移除 `_shouldUseMetacognition` 插件端判断 |
+| **v3.4.1** | 2026-05-04 | 流式 `llm_output` 适配（Stream）；任务生命周期日志（Log 纯文本）；防重复注入疲劳（_injectCount）；skill 加载失败不静默跳过；措辞强制化 + 检查清单；agent_end 职责边界修复 |
+| v3.4.0 | 2026-04-29 | 延迟创建 task JSON：Agent 评估 + 用户确认后才创建 task；新增 assessment skill；简单任务不创建 task；移除 `_shouldUseMetacognition` 插件端判断 |
 | v3.3.0 | 2026-04-29 | 统一 task JSON（`task:{runId}`）取代分散状态键；移除 Cron/Diary 系统；人格更新改为 agent_end 单次任务分析；6 维度扩展（新增程序性记忆）；revising 状态支持 Plan 修改后重新汇报 |
 | v3.2.1 | 2026-05-01 | 修复 `baseDir` 路径解析 bug：固定使用 `/root/.openclaw` 作为基础目录 |
 | v3.2.1 | 2026-04-29 | 插件版本号同步更新 |

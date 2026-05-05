@@ -81,7 +81,7 @@ module: metacognition
    - 确定 `severity`：`minor` / `major` / `critical`
    - 撰写 `description`：描述预期是什么、实际是什么、差距在哪里
    - 将 Deviation 追加到 `task.event.deviations`
-   - 通知插件更新 task（插件通过 `stateAdapter.saveTask()` 保存）
+   - 通知插件更新 task（插件通过 `state.saveTask()` 保存）
    - Deviation 保存后，**触发 regulation**（请求注入 regulation skill）
 
 4. **阶段完成判定**
@@ -93,7 +93,7 @@ module: metacognition
 **插件已自动完成的**（执行层，无需你操作）：
 - 已缓存本次 LLM 输出到 Plan
 - 已确认 Plan.status 为 `"active"` 才注入本 skill
-- 已将 Deviation 追加到 `task.event.deviations`，并通过 `stateAdapter.saveTask()` 保存
+- 已将 Deviation 追加到 `task.event.deviations`，并通过 `state.saveTask()` 保存
 
 **你可以参考的上下文**（注入时附加在 skill 下方）：
 - 当前阶段索引和 ID

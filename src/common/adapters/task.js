@@ -1,5 +1,5 @@
 /**
- * TaskAdapter — 任务适配器（SQLite 版）
+ * Task — 任务存储（SQLite 版）
  * 使用 ~/.openclaw/tasks/runs.sqlite
  */
 
@@ -15,7 +15,7 @@ async function getDatabase() {
   return Database;
 }
 
-export class TaskAdapter {
+export class Task {
   constructor(api, options = {}) {
     this.api = api;
     this.dbPath = options.dbPath || '/root/.openclaw/tasks/runs.sqlite';

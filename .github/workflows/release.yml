@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,8 +23,55 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify syntax
-        run: node --check src/index.js
+      - name: Verify all JS files syntax
+        run: |
+          failed=0
+          for f in $(find src -name '*.js' -not -path '*/node_modules/*'); do
+            echo "Checking: $f"
+            node --check "$f" || failed=1
+          done
+          if [ $failed -ne 0 ]; then
+            echo "Syntax check failed!"
+            exit 1
+          fi
+          echo "All JS files syntax OK"
+
+      - name: Verify package.json version matches openclaw.plugin.json
+        run: |
+          pkg_version=$(node -p "require('./package.json').version")
+          plugin_version=$(node -p "require('./openclaw.plugin.json').version")
+          echo "package.json: $pkg_version"
+          echo "openclaw.plugin.json: $plugin_version"
+          if [ "$pkg_version" != "$plugin_version" ]; then
+            echo "Version mismatch!"
+            exit 1
+          fi
+          echo "Version check OK"
+
+      - name: Verify openclaw.plugin.json is valid JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('./openclaw.plugin.json', 'utf8')); console.log('openclaw.plugin.json valid')"
+
+      - name: Run tests
+        run: npm test
+        continue-on-error: true
+
+      - name: Verify packagable
+        run: npm pack --dry-run
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Pack
         run: npm pack

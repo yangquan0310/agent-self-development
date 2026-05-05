@@ -1,5 +1,5 @@
 /**
- * FlowAdapter — 任务流适配器（SQLite 版）
+ * Flow — 任务流存储（SQLite 版）
  * 使用 ~/.openclaw/flows/registry.sqlite
  */
 
@@ -15,7 +15,7 @@ async function getDatabase() {
   return Database;
 }
 
-export class FlowAdapter {
+export class Flow {
   constructor(api, options = {}) {
     this.api = api;
     this.dbPath = options.dbPath || '/root/.openclaw/flows/registry.sqlite';
@@ -142,7 +142,7 @@ export class FlowAdapter {
   }
 
   async runSubtask(flowId, phase) {
-    console.log(`[FlowAdapter] runSubtask: ${flowId} phase=${phase?.id}`);
+    console.log(`[Flow] runSubtask: ${flowId} phase=${phase?.id}`);
     return null;
   }
 }

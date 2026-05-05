@@ -104,8 +104,8 @@ module: working_memory
    - 如有需要，向用户汇报本次任务空间的使用情况
 
 **插件已自动完成的**（执行层，无需你操作）：
-- 已通过 `stateAdapter.saveSession('working_memory:active_sessions', ...)` 更新全局索引
-- 已通过 `memoryAdapter.archiveSession()` 将 completed Session 写入 SQLite `asd_archives` 表
+- 已通过 `state.saveSession('working_memory:active_sessions', ...)` 更新全局索引
+- 已通过 `memory.archiveSession()` 将 completed Session 写入 SQLite `asd_archives` 表
 - 已从全局索引移除 killed Session
 - 已更新 `task:{runId}` 中的 status、event.outcome、sessionIds
 

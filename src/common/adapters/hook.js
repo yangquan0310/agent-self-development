@@ -1,5 +1,5 @@
 /**
- * HookAdapter — Hook 文件管理适配器
+ * Hook — Hook 文件管理
  * 按照 OpenClaw 官方 Hook 规范，在 ~/.openclaw/hooks/ 下创建标准 Hook 目录结构
  * 实际事件处理仍由 Plugin 的 api.on() 负责，Hook 文件用于备案与 CLI 发现
  */
@@ -60,7 +60,7 @@ const handler: HookHandler = async (event) => {
 export default handler;
 `;
 
-export class HookAdapter {
+export class Hook {
   constructor(api, options = {}) {
     this.api = api;
     this.dir = options.dir || join(DEFAULT_HOOKS_DIR, 'agent-self-development');

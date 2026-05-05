@@ -1,11 +1,11 @@
 {
-  "version": "3.3.0",
+  "version": "3.4.1",
   "skills": {
     "planning": "metacognition/planning/SKILL.md",
     "monitoring": "metacognition/monitoring/SKILL.md",
     "regulation": "metacognition/regulation/SKILL.md",
-    "session": "working_memory/session/SKILL.md",
-    "memory": "working_memory/memory/SKILL.md",
+    "session": "working-memory/session/SKILL.md",
+    "memory": "working-memory/memory/SKILL.md",
     "development": "personality/SKILL.md",
     "belief": "personality/belief/SKILL.md",
     "self": "personality/self/SKILL.md",

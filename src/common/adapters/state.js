@@ -1,5 +1,5 @@
 /**
- * StateAdapter — 状态存储适配器（独立文件版）
+ * State — 状态存储（独立文件版）
  * 使用 ~/.openclaw/state/agent-self-development/{type}/{id}.json
  *
  * 每个任务一个独立 JSON 文件：tasks/{runId}.json
@@ -35,7 +35,7 @@ function saveJson(path, data) {
   writeFileSync(path, JSON.stringify(data, null, 2), 'utf8');
 }
 
-export class StateAdapter {
+export class State {
   constructor(api, options = {}) {
     this.api = api;
     this.dir = options.dir || DEFAULT_DIR;

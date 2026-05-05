@@ -7,31 +7,31 @@
 
 import { dirname } from 'path';
 
-import { StateAdapter } from './common/adapters/state-adapter.js';
-import { TaskAdapter } from './common/adapters/task-adapter.js';
-import { FlowAdapter } from './common/adapters/flow-adapter.js';
-import { MemoryAdapter } from './common/adapters/memory-adapter.js';
-import { LogAdapter } from './common/adapters/log-adapter.js';
-import { HookAdapter } from './common/adapters/hook-adapter.js';
+import { State } from './common/adapters/state.js';
+import { Task } from './common/adapters/task.js';
+import { Flow } from './common/adapters/flow.js';
+import { Memory } from './common/adapters/memory.js';
+import { Log } from './common/adapters/log.js';
+import { Hook } from './common/adapters/hook.js';
 
-import { MetacognitionModule } from './metacognition/module.js';
-import { WorkingMemoryModule } from './working-memory/module.js';
-import { PersonalityModule } from './personality/module.js';
-import { SkillLoader } from './common/skills-loader.js';
+import { Metacognition } from './metacognition/metacognition.js';
+import { WorkingMemory } from './working-memory/working-memory.js';
+import { Personality } from './personality/personality.js';
+import { Skills } from './common/skills.js';
 
 // v3 managers
-import { PlanManager } from './metacognition/plan-manager.js';
-import { DeviationManager } from './metacognition/deviation-manager.js';
-import { AttributionManager } from './metacognition/attribution-manager.js';
-import { SessionManager } from './working-memory/session-manager.js';
-import { EventManager } from './common/event-manager.js';
+import { Plan } from './metacognition/plan.js';
+import { Deviation } from './metacognition/deviation.js';
+import { Attribution } from './metacognition/attribution.js';
+import { Session } from './working-memory/session.js';
+import { Events } from './common/events.js';
 
 const pluginId = 'agent-self-development';
 
 export default {
   id: pluginId,
   name: 'Agent Self-Development',
-  version: '3.4.0',
+  version: '3.4.1',
   description: 'OpenClaw plugin for agent self-development based on Piaget\'s cognitive development theory',
 
   register(api) {
@@ -40,10 +40,9 @@ export default {
     }
 
     const config = api.pluginConfig || {};
-    const skillLoader = new SkillLoader();
     const logger = api.logger || console;
 
-    logger.info(`[${pluginId}] Agent Self-Development Plugin v3.2.1 activated`);
+    logger.info(`[${pluginId}] Agent Self-Development Plugin v3.4.1 activated`);
 
     // 检查 conversation hooks 权限
     // OpenClaw 2026.4.21 版本使用 allowPromptInjection 控制对话访问
@@ -61,40 +60,41 @@ export default {
     
     // 使用当前代理的数据库文件
     // 使用已有的系统数据库
-    const stateAdapter = new StateAdapter(null, {
+    const state = new State(null, {
       dir: `${baseDir}/state/agent-self-development`,
       maxArchivedTasks: config.archive?.maxArchivedTasks
     });
-    const taskAdapter = new TaskAdapter(null, { dbPath: `${baseDir}/tasks/runs.sqlite` });
-    const flowAdapter = new FlowAdapter(null, { dbPath: `${baseDir}/flows/registry.sqlite` });
-    const memoryAdapter = new MemoryAdapter(null, { dbPath: `${baseDir}/memory/${agentId}.sqlite` });
-    const logAdapter = new LogAdapter(null, { 
+    const task = new Task(null, { dbPath: `${baseDir}/tasks/runs.sqlite` });
+    const flow = new Flow(null, { dbPath: `${baseDir}/flows/registry.sqlite` });
+    const memory = new Memory(null, { dbPath: `${baseDir}/memory/${agentId}.sqlite` });
+    const log = new Log(null, { 
       dir: `${baseDir}/logs`, 
       agentId: agentId 
     });
-    const hookAdapter = new HookAdapter(null, { dir: `${baseDir}/hooks/agent-self-development` });
+    const skills = new Skills(undefined, log);
+    const hook = new Hook(null, { dir: `${baseDir}/hooks/agent-self-development` });
     // v3: 初始化业务管理器
-    const planManager = new PlanManager(stateAdapter, flowAdapter);
-    const deviationManager = new DeviationManager(stateAdapter);
-    const attributionManager = new AttributionManager(stateAdapter, flowAdapter);
-    const sessionManager = new SessionManager(stateAdapter, flowAdapter, null);
-    const eventManager = new EventManager(stateAdapter, memoryAdapter);
-    const metacognition = new MetacognitionModule({
-      api, config: config.metacognition, stateAdapter, skillLoader, logger,
-      planManager, deviationManager, attributionManager
+    const plan = new Plan(state, flow);
+    const deviation = new Deviation(state);
+    const attribution = new Attribution(state, flow);
+    const session = new Session(state, flow, null);
+    const events = new Events(state, memory);
+    const metacognition = new Metacognition({
+      api, config: config.metacognition, state, skills, logger, log,
+      plan, deviation, attribution
     });
-    const workingMemory = new WorkingMemoryModule({
-      api, config: config.workingMemory, stateAdapter, skillLoader, logger,
-      sessionManager, eventManager
+    const workingMemory = new WorkingMemory({
+      api, config: config.workingMemory, state, skills, logger, log,
+      session, events
     });
-    const personality = new PersonalityModule({
-      api, config: config.personality, stateAdapter, skillLoader, logger
+    const personality = new Personality({
+      api, config: config.personality, state, skills, logger, log
     });
 
     metacognition.register();
     workingMemory.register();
     personality.register();
 
-    logger.info(`[${pluginId}] 全部模块已注册（元认知 / 工作记忆 / 人格）`);
+    logger.info(`[${pluginId}] 全部已注册（元认知 / 工作记忆 / 人格）`);
   }
 };

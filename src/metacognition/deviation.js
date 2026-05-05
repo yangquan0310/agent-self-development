@@ -1,21 +1,21 @@
 /**
- * DeviationManager — 偏差认知业务逻辑
+ * Deviation — 偏差认知业务
  * 在 monitoring 阶段管理 Deviation 对象的生命周期
  *
  * v3.3.0: 适配统一 task JSON，偏差存储在 task:{runId}.event.deviations
  */
 
-export class DeviationManager {
-  constructor(stateAdapter) {
-    this.stateAdapter = stateAdapter;
+export class Deviation {
+  constructor(state) {
+    this.state = state;
   }
 
   async _getTask(runId) {
-    return this.stateAdapter.getTask(runId);
+    return this.state.getTask(runId);
   }
 
   async _saveTask(task) {
-    return this.stateAdapter.saveTask(task.runId, task);
+    return this.state.saveTask(task.runId, task);
   }
 
   /**

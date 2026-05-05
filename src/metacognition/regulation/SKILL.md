@@ -67,7 +67,7 @@ module: metacognition
 
 ### Event 记录方式
 
-v3.3.0 中不再使用独立的 Event 对象和 `eventManager.recordEvent()`。偏差和归因直接保存在 `task.event` 中，任务结束时由插件自动聚合到 Memory。
+v3.3.0 中不再使用独立的 Event 对象和 `events.record()`。偏差和归因直接保存在 `task.event` 中，任务结束时由插件自动聚合到 Memory。
 
 **Agent 只需**：
 1. 更新 `task.event.deviations[i].status`
@@ -140,7 +140,7 @@ v3.3.0 中不再使用独立的 Event 对象和 `eventManager.recordEvent()`。�
 3. **完成偏差处理**
    - 将 Deviation.status 更新为 `"resolved"`
    - 将 Attribution.status 更新为 `"executed"`
-   - 无需调用 `eventManager.recordEvent()`，所有记录已在 `task.event` 中
+   - 无需调用 `events.record()`，所有记录已在 `task.event` 中
 
 **插件已自动完成的**（执行层，无需你操作）：
 - 统一 task JSON 的保存由插件在 agent_end 时自动完成
@@ -191,5 +191,5 @@ resolved（Deviation）/ executed（Attribution）
 
 | 版本 | 日期 | 更新内容 |
 |------|------|----------|
-| v3.3.0 | 2026-04-29 | 适配统一 task JSON：偏差/归因存储在 task.event 中；移除独立 Event 对象和 eventManager.recordEvent()；planRevisions 直接追加到 task.event |
+| v3.3.0 | 2026-04-29 | 适配统一 task JSON：偏差/归因存储在 task.event 中；移除独立 Event 对象和 events.record()；planRevisions 直接追加到 task.event |
 | v3.0.0 | 2026-04-29 | v3 重构：调节核心从"方案制定"扩展为"Attribution + Event 撰写" |

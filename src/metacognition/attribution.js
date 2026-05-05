@@ -1,22 +1,22 @@
 /**
- * AttributionManager — 归因调节业务逻辑
+ * Attribution — 归因调节业务
  * 在 regulation 阶段管理 Attribution 对象的生命周期
  *
  * v3.3.0: 适配统一 task JSON，归因存储在 task:{runId}.event.attributions
  */
 
-export class AttributionManager {
-  constructor(stateAdapter, flowAdapter) {
-    this.stateAdapter = stateAdapter;
-    this.flowAdapter = flowAdapter;
+export class Attribution {
+  constructor(state, flow) {
+    this.state = state;
+    this.flow = flow;
   }
 
   async _getTask(runId) {
-    return this.stateAdapter.getTask(runId);
+    return this.state.getTask(runId);
   }
 
   async _saveTask(task) {
-    return this.stateAdapter.saveTask(task.runId, task);
+    return this.state.saveTask(task.runId, task);
   }
 
   /**

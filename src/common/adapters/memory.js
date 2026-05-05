@@ -1,5 +1,5 @@
 /**
- * MemoryAdapter — 记忆存储适配器（使用已有数据库）
+ * Memory — 记忆存储（使用已有数据库）
  * 使用 ~/.openclaw/memory/{agentId}.sqlite（每个 Agent 独立数据库）
  */
 
@@ -17,7 +17,7 @@ async function getDatabase() {
   return Database;
 }
 
-export class MemoryAdapter {
+export class Memory {
   constructor(api, options = {}) {
     this.api = api;
     this.dbPath = options.dbPath || DEFAULT_DB;

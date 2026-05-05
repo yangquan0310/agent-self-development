@@ -1,5 +1,5 @@
 /**
- * 人格模块 —— 面向对象封装
+ * 人格 —— 面向对象封装
  *
  * 插件职责：在 agent_end 时读取 task JSON，注入 development skill 指导人格更新
  * Agent 职责：自行阅读 skill、判断同化/顺应、决定是否更新人格文件
@@ -7,13 +7,14 @@
  * 核心原则：Plugin asks, Agent decides, Plugin records
  */
 
-export class PersonalityModule {
-  constructor({ api, config, stateAdapter, skillLoader, logger }) {
+export class Personality {
+  constructor({ api, config, state, skills, logger, log }) {
     this.api = api;
     this.config = config || {};
-    this.stateAdapter = stateAdapter;
-    this.skillLoader = skillLoader;
+    this.state = state;
+    this.skills = skills;
     this.logger = logger;
+    this.log = log;
     this.enabled = this.config.enabled !== false;
   }
 
@@ -37,16 +38,38 @@ export class PersonalityModule {
     const runId = ctx.runId;
     if (!runId) return;
 
-    const task = await this.stateAdapter.getTask(runId);
+    const task = await this.state.getTask(runId);
     if (!task || !task.event || task.event.status !== 'completed') {
       this.logger.debug(`[Personality] runId=${runId} 无 completed event，跳过人格更新`);
       return;
     }
 
-    const developmentSkill = await this.skillLoader.load('development');
+    const developmentSkill = await this.skills.load('development');
     if (!developmentSkill) {
       this.logger.warn('[Personality] development skill 未找到');
+      if (this.log) {
+        await this.log.write({
+          level: 'WARN',
+          module: 'Personality',
+          runId,
+          message: 'Development skill not found, skip personality update'
+        });
+      }
       return;
+    }
+
+    if (this.log) {
+      await this.log.write({
+        level: 'INFO',
+        module: 'Personality',
+        runId,
+        message: 'Inject development skill for personality update',
+        extra: {
+          deviationCount: eventSummary.deviations.length,
+          attributionCount: eventSummary.attributions.length,
+          planRevisionCount: eventSummary.planRevisions.length
+        }
+      });
     }
 
     const eventSummary = {

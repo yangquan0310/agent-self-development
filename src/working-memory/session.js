@@ -1,12 +1,12 @@
 /**
- * SessionManager — 会话管理器
- * 组合 StateAdapter + FlowAdapter + Session API，管理任务空间复用
+ * Session — 会话业务
+ * 组合 State + Flow + Session API，管理任务空间复用
  */
 
-export class SessionManager {
-  constructor(stateAdapter, flowAdapter, sessionAPI) {
-    this.stateAdapter = stateAdapter;
-    this.flowAdapter = flowAdapter;
+export class Session {
+  constructor(state, flow, sessionAPI) {
+    this.state = state;
+    this.flow = flow;
     this.sessionAPI = sessionAPI; // 可能为 undefined
   }
 
@@ -22,10 +22,10 @@ export class SessionManager {
       }
     }
 
-    const existing = await this.stateAdapter.getSession(sessionId);
+    const existing = await this.state.getSession(sessionId);
     if (existing && existing.status === 'idle') {
       existing.status = 'active';
-      await this.stateAdapter.saveSession(sessionId, existing);
+      await this.state.saveSession(sessionId, existing);
       return existing;
     }
 
@@ -36,24 +36,24 @@ export class SessionManager {
       createdAt: Date.now()
     };
 
-    await this.stateAdapter.saveSession(sessionId, session);
+    await this.state.saveSession(sessionId, session);
     if (this.sessionAPI) {
       await this.sessionAPI.create(sessionId, session);
     }
 
-    const flow = await this.flowAdapter.getByPhase(phase.id);
+    const flow = await this.flow.getByPhase(phase.id);
     if (flow) {
-      await this.flowAdapter.runSubtask(flow.flowId, phase);
+      await this.flow.runSubtask(flow.flowId, phase);
     }
 
     return session;
   }
 
   async releaseSession(sessionId) {
-    const session = await this.stateAdapter.getSession(sessionId);
+    const session = await this.state.getSession(sessionId);
     if (session) {
       session.status = 'idle';
-      await this.stateAdapter.saveSession(sessionId, session);
+      await this.state.saveSession(sessionId, session);
       if (this.sessionAPI) {
         await this.sessionAPI.update(sessionId, { status: 'idle' });
       }
@@ -61,7 +61,7 @@ export class SessionManager {
   }
 
   async destroySession(sessionId) {
-    await this.stateAdapter.deleteSession(sessionId);
+    await this.state.deleteSession(sessionId);
     if (this.sessionAPI) {
       await this.sessionAPI.destroy(sessionId);
     }

@@ -1,22 +1,22 @@
 /**
- * PlanManager — 计划管理器
- * 组合 StateAdapter + FlowAdapter，管理 Plan 全生命周期
+ * Plan — 计划业务
+ * 组合 State + Flow，管理 Plan 全生命周期
  *
  * v3.3.0: 适配统一 task JSON，所有 Plan 数据通过 task:{runId}.plan 存取
  */
 
-export class PlanManager {
-  constructor(stateAdapter, flowAdapter) {
-    this.stateAdapter = stateAdapter;
-    this.flowAdapter = flowAdapter;
+export class Plan {
+  constructor(state, flow) {
+    this.state = state;
+    this.flow = flow;
   }
 
   async _getTask(runId) {
-    return this.stateAdapter.getTask(runId);
+    return this.state.getTask(runId);
   }
 
   async _saveTask(task) {
-    return this.stateAdapter.saveTask(task.runId, task);
+    return this.state.saveTask(task.runId, task);
   }
 
   async createPlan(prompt) {
@@ -39,7 +39,7 @@ export class PlanManager {
     };
 
     await this._saveTask(task);
-    await this.flowAdapter.createPlanFlow(task.plan);
+    await this.flow.createPlanFlow(task.plan);
 
     return task;
   }
@@ -53,9 +53,9 @@ export class PlanManager {
     task.updatedAt = Date.now();
     await this._saveTask(task);
 
-    const flow = await this.flowAdapter.getByRunId(runId);
+    const flow = await this.flow.getByRunId(runId);
     if (flow && task.plan.execution.phases[0]) {
-      await this.flowAdapter.advancePhase(flow.flowId, task.plan.execution.phases[0]);
+      await this.flow.advancePhase(flow.flowId, task.plan.execution.phases[0]);
     }
   }
 
@@ -76,9 +76,9 @@ export class PlanManager {
       await this._saveTask(task);
     } else {
       const nextPhase = plan.execution.phases[plan.execution.currentPhase];
-      const flow = await this.flowAdapter.getByRunId(runId);
+      const flow = await this.flow.getByRunId(runId);
       if (flow) {
-        await this.flowAdapter.advancePhase(flow.flowId, nextPhase);
+        await this.flow.advancePhase(flow.flowId, nextPhase);
       }
     }
   }
