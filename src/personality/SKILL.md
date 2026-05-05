@@ -3,8 +3,8 @@ name: development
 description: >
   人格发展模块。指导 Agent 在每次任务完成后，基于本次事件的
   偏差、归因和结果，分析同化/顺应对 6 个维度的影响，决定是否需要更新人格文件。
-version: 3.3.0
-injected_at: agent_end（任务完成后）
+version: 3.5.0
+injected_at: before_prompt_build（task.status === 'completed'）
 module: personality
 ---
 
@@ -18,14 +18,14 @@ module: personality
 
 ## 注入上下文
 
-本 skill 在 **`agent_end`** 触发时注入，触发条件为本次任务的 `task.event.status === 'completed'`。此时插件已完成以下操作：
+本 skill 在 **`before_prompt_build`** 触发时注入，触发条件为本次任务的 `task.status === 'completed'`。此时插件已完成以下操作：
 
 | 时机 | 插件已完成的操作 | 数据来源 |
 |------|-----------------|----------|
-| 注入前 | 聚合本次任务的 Event 到 Memory | `task:{runId}.event` |
+| 注入前 | 归档本次任务到 Memory | `task:{runId}` |
 | 注入前 | 归档所有 completed 的 Session | `task:{runId}.sessionIds` → 全局索引 |
 
-本次任务的 Event 摘要（偏差、归因、计划修订、产出）已由插件附加在上下文里。
+本次任务的摘要（偏差、归因、产出）已由插件附加在上下文里。
 
 ---
 
@@ -75,7 +75,7 @@ module: personality
 
 ### 职责：任务级自我更新流程
 
-**触发条件**：`agent_end` 且本次任务 `event.status === 'completed'`
+**触发条件**：`before_prompt_build` 且本次任务 `status === 'completed'`
 
 **你需要做的**（决策层）：
 
@@ -175,10 +175,10 @@ Agent 回顾本次事件
 | Skill | 注入时机 | 职责边界 |
 |-------|---------|---------|
 | `planning` | `before_prompt_build` | 制定 Plan，加载 `MEMORY.md` 规则 |
-| `monitoring` | `llm_output` | 检测偏差并记录到 `task.event.deviations` |
-| `regulation` | Deviation 创建后 | 归因分析并记录到 `task.event.attributions` |
+| `monitoring` | `before_prompt_build`（active）| 检测偏差并记录到 `task.deviations` |
+| `regulation` | Deviation 创建后 | 归因分析并记录到 `task.attributions` |
 | `working_memory` | `agent_end` | 归档 session，管理任务空间复用 |
-| `development` | `agent_end`（WM 之后）| 分析同化/顺应，更新人格文件 |
+| `development` | `before_prompt_build`（completed）| 分析同化/顺应，更新人格文件 |
 
 ---
 
@@ -186,5 +186,5 @@ Agent 回顾本次事件
 
 | 版本 | 日期 | 更新内容 |
 |------|------|----------|
-| v3.3.0 | 2026-04-29 | 移除 cron/日记系统；改为 agent_end 单次任务分析；扩展为 6 维度（新增程序性记忆）；基于 `task.event` 而非昨日事件日志 |
+| v3.5.0 | 2026-05-04 | 注入时机改为 `before_prompt_build`（completed）；基于 task 顶层字段而非 `task.event`；移除 cron/日记系统；扩展为 6 维度 |
 | v3.0.0 | 2026-04-29 | v3 重构：对象操作移交插件层，skill 变为纯 Agent 指导文档 |

@@ -11,7 +11,7 @@ export class Session {
   }
 
   async createSession(phase, taskFamily) {
-    const sessionId = `session:${taskFamily}:${taskFamily}`;
+    const sessionId = `session:${taskFamily}:${Date.now()}`;
 
     if (this.sessionAPI) {
       const existingSession = await this.sessionAPI.get(sessionId);

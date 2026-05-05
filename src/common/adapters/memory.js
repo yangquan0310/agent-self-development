@@ -129,4 +129,11 @@ export class Memory {
     
     return results;
   }
+
+  close() {
+    if (this._db) {
+      this._db.close();
+      this._db = null;
+    }
+  }
 }

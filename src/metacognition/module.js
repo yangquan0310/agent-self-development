@@ -19,6 +19,10 @@
 import { generatePlan, assignSessionsToPhases, getNow } from '../common/utils.js';
 import { Stream } from '../common/stream.js';
 
+// v3.5.0: 状态标记正则
+const STATUS_PATTERN = /\[STATUS:\s*(\w+)\]/;
+const REASON_PATTERN = /\[REASON:\s*([^\]]+)\]/;
+
 export class Metacognition {
   constructor({ api, config, state, skills, logger, log, plan, deviation, attribution }) {
     this.api = api;
@@ -50,6 +54,7 @@ export class Metacognition {
     this.logger.info('[Meta] 注册元认知 Hooks');
     this._registerPlanning();
     this._registerMonitoring();
+    this._registerFinalize();
     this._registerCleanup();
   }
 
@@ -63,6 +68,11 @@ export class Metacognition {
   _registerMonitoring() {
     if (!this.monitoringEnabled) return;
     this.api.on('llm_output', this.onLlmOutput.bind(this));
+  }
+
+  // ── 决策: before_agent_finalize ──
+  _registerFinalize() {
+    this.api.on('before_agent_finalize', this.onBeforeAgentFinalize.bind(this));
   }
 
   // ── 清理: agent_end ──
@@ -130,7 +140,8 @@ export class Metacognition {
           currentPhase: 0
         }
       },
-      event: { status: 'draft', deviations: [], attributions: [], planRevisions: [], outcome: {} },
+      deviations: [],
+      attributions: [],
       sessionIds: [],
       tools: []
     };
@@ -160,6 +171,12 @@ export class Metacognition {
     if (!runId) return;
 
     const task = await this._getTask(runId);
+
+    // v3.5.0: 保存用户原始 prompt 供 before_agent_finalize 使用
+    if (event.prompt) {
+      ctx.state = ctx.state || {};
+      ctx.state[`prompt:${runId}`] = event.prompt;
+    }
 
     // ── 阶段一：无 task → 注入 planning skill（评估阶段）──
     if (!task) {
@@ -209,6 +226,12 @@ export class Metacognition {
 
     // ── 阶段二：根据 task.status 注入不同的 skill ──
     const planningSkill = await this.skills.load('planning');
+    if (!planningSkill) {
+      this.logger.error(`[Meta] planning skill 加载失败，无法注入: runId=${runId}, status=${task.status}`);
+      return {
+        prependSystemContext: '⚠️ [系统提示] planning skill 加载失败。请根据当前 task 状态自行推进。'
+      };
+    }
 
     if (task.status === 'draft') {
       return this._buildDraftContext(planningSkill, task.plan);
@@ -219,7 +242,11 @@ export class Metacognition {
     }
 
     if (task.status === 'active') {
-      return this._buildExecutionContext(task.plan);
+      return await this._buildExecutionContext(task);
+    }
+
+    if (task.status === 'revising') {
+      return await this._buildRevisingContext(task);
     }
 
     return null;
@@ -274,8 +301,8 @@ export class Metacognition {
     };
   }
 
-  _buildExecutionContext(plan) {
-    const { execution, workspace } = plan;
+  async _buildExecutionContext(task) {
+    const { execution, workspace } = task.plan;
     const currentPhase = execution.phases[execution.currentPhase];
     const completedCount = execution.phases.filter(ph => ph.status === 'completed').length;
 
@@ -304,8 +331,21 @@ export class Metacognition {
 4. 如需调节 Plan，先说明理由并通知插件更新
 `;
 
+    // v3.5.0: active 状态注入 monitoring skill
+    const monitoringSkill = await this.skills.load('monitoring');
+    const monitoringPrefix = monitoringSkill ? `${monitoringSkill}\n\n` : '';
+
     return {
-      prependSystemContext: execContext
+      prependSystemContext: `${monitoringPrefix}${execContext}`
+    };
+  }
+
+  async _buildRevisingContext(task) {
+    const planningSkill = await this.skills.load('planning');
+    const revisionReason = task.revisionReason || '用户要求修改';
+
+    return {
+      prependSystemContext: `${planningSkill}\n\n【Plan 修订】\n当前 Plan：${JSON.stringify(task.plan)}\n修改原因：${revisionReason}\n请重新制定 Plan`
     };
   }
 
@@ -316,77 +356,116 @@ export class Metacognition {
    *
    * v3.4.1: 支持流式输出缓冲聚合
    */
+  /**
+   * llm_output —— v3.5.0：纯观察，禁止返回注入
+   * 1. 聚合流式输出到 Stream
+   * 2. 保存 output 到 task（如果 task 存在）
+   */
   async onLlmOutput(event, ctx) {
     const runId = ctx.runId;
     if (!runId) return;
 
     const resolved = this._resolveOutput(event, runId);
 
-    // 流式 chunk：只缓冲，不检测，不注入
+    // 流式 chunk：只缓冲
     if (resolved.type === 'chunk') {
       return null;
     }
 
-    // 流结束或非流式：获取完整输出继续处理
+    // 流结束或非流式：获取完整输出
     const output = resolved.output || '';
 
-    // ── 检测 [NEED_PLAN] 标记 ──
-    const needPlan = output.includes('[NEED_PLAN]');
-    let task = await this._getTask(runId);
-
-    if (needPlan && !task) {
-      const prompt = event.prompt || '';
-      task = await this._createTask(runId, prompt);
-
-      // 注入 planning skill，让 Agent 在同一次回复中继续制定 Plan
-      const planningSkill = await this.skills.load('planning');
-      if (planningSkill) {
-        const draftContext = this._buildDraftContext(planningSkill, task.plan);
-        this.logger.debug(`[Meta] 检测到 [NEED_PLAN]，创建 task 并注入 planning skill: runId=${runId}`);
-        if (this.log) {
-          await this.log.write({
-            level: 'INFO',
-            module: 'Meta',
-            runId,
-            message: 'Detected [NEED_PLAN], task created and planning skill injected',
-            extra: { taskStatus: 'draft', phaseCount: task.plan.execution.phases.length }
-          });
-        }
-        return draftContext;
-      }
-    }
-
-    // ── 保存 output 到 task（如果 task 存在）──
+    // 保存 output 到 task（如果 task 存在）
+    const task = await this._getTask(runId);
     if (task) {
       task.plan = task.plan || {};
       task.plan.output = output;
       await this._saveTask(task);
     }
+  }
 
-    // ── task=active → 注入 monitoring skill ──
-    if (task && task.status === 'active') {
-      const monitoringSkill = await this.skills.load('monitoring');
-      if (!monitoringSkill) return;
+  /**
+   * before_agent_finalize —— v3.5.0：统一质量检查与状态转换
+   * 1. 解析 Agent 输出的 [STATUS: xxx] 标记 → 写入 State
+   * 2. 检测 [NEED_PLAN] → 创建 draft task
+   * 3. 检测不完整输出 / TODO / 关键步骤缺失
+   */
+  async onBeforeAgentFinalize(event, ctx) {
+    const runId = ctx.runId;
+    if (!runId) return;
 
-      const currentPhase = task.plan.execution?.phases?.[task.plan.execution?.currentPhase];
-      const phaseHint = currentPhase
-        ? `当前阶段：${currentPhase.id}，分配会话：${currentPhase.sessionId || '无'}`
-        : '所有阶段已完成';
+    const output = event.output || '';
 
-      if (this.log) {
-        await this.log.write({
-          level: 'DEBUG',
-          module: 'Meta',
-          runId,
-          message: 'Inject monitoring skill',
-          extra: { taskStatus: task.status, phaseId: currentPhase?.id, phaseHint }
-        });
+    // ── 1. 解析状态标记 ──
+    const statusMatch = output.match(STATUS_PATTERN);
+    const status = statusMatch ? statusMatch[1] : null;
+
+    if (status) {
+      const reasonMatch = output.match(REASON_PATTERN);
+      const reason = reasonMatch ? reasonMatch[1] : '';
+
+      const task = await this._getTask(runId);
+      if (task) {
+        task.status = status;
+        if (status === 'revising' && reason) {
+          task.revisionReason = reason;
+        }
+        await this._saveTask(task);
+        this.logger.debug(`[Meta] 状态转换: runId=${runId}, status=${status}, reason=${reason}`);
       }
+    }
 
+    // ── 2. 检测 [NEED_PLAN] → 创建 draft task ──
+    const needPlan = output.includes('[NEED_PLAN]');
+    if (needPlan) {
+      const existingTask = await this._getTask(runId);
+      if (!existingTask) {
+        // 读取之前保存的原始 prompt
+        const prompt = ctx.state?.[`prompt:${runId}`] || event.prompt || '';
+        const task = await this._createTask(runId, prompt);
+        this.logger.debug(`[Meta] 检测到 [NEED_PLAN]，创建 draft task: runId=${runId}`);
+        if (this.log) {
+          await this.log.write({
+            level: 'INFO',
+            module: 'Meta',
+            runId,
+            message: 'Detected [NEED_PLAN], draft task created',
+            extra: { taskStatus: 'draft', phaseCount: task.plan.execution.phases.length }
+          });
+        }
+        return {
+          action: 'revise',
+          reason: '检测到 [NEED_PLAN]，已创建 draft task，需要重新构建 prompt 注入 planning skill',
+          retry: {
+            instruction: '请根据刚刚注入的 planning skill，继续制定完整的 Plan 并汇报给用户。',
+            idempotencyKey: `need-plan:${runId}`,
+            maxAttempts: 2
+          }
+        };
+      }
+    }
+
+    // ── 3. 质量检查：不完整输出 / TODO ──
+    const hasIncomplete = /\[INCOMPLETE\]/i.test(output);
+    const hasTodo = /TODO:|FIXME:|待完成/i.test(output);
+    if (hasIncomplete || hasTodo) {
+      this.logger.debug(`[Meta] 检测到不完整标记: runId=${runId}`);
       return {
-        prependSystemContext: `${monitoringSkill}\n\n【监控上下文】${phaseHint}\n\n【Agent 职责】请根据上方 monitoring skill 检查当前输出是否与 Plan 一致。关注：阶段目标是否达成、产出物是否完整、任务空间是否正常推进。\n`
+        action: 'revise',
+        reason: `检测到未完成标记（${hasIncomplete ? '[INCOMPLETE]' : 'TODO'}），需要修正`
       };
     }
+
+    return { action: 'finalize' };
+  }
+
+  /**
+   * v3.5.0: Gateway 停止时清理资源
+   */
+  stop() {
+    this.logger.info('[Meta] 元认知模块停止，清理资源');
+    this._injectCount.clear();
+    // Stream 模块如有全局缓冲可在此清理
   }
 
   async onAgentEnd(event, ctx) {

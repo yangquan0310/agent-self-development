@@ -26,6 +26,8 @@ export class WorkingMemory {
     this.enabled = this.config.enabled !== false;
     this.trackSubagents = this.enabled && this.config.trackSubagents !== false;
     this.autoArchive = this.enabled && this.config.autoArchive !== false;
+    // v3.5.0: 标记 subagent hooks 是否可用，避免与 before_tool_call 重复处理
+    this._subagentHooksAvailable = false;
   }
 
   /**
@@ -39,6 +41,7 @@ export class WorkingMemory {
 
     this.logger.info('[WM] 注册工作记忆 Hooks');
     this._registerSessionTracking();
+    this._registerSubagentHooks();
     this._registerToolResult();
     this._registerArchive();
   }
@@ -54,10 +57,26 @@ export class WorkingMemory {
     this.api.on('after_tool_call', this.onAfterToolCall.bind(this));
   }
 
+  // ── 子代理追踪: subagent_* ──
+  _registerSubagentHooks() {
+    if (!this.trackSubagents) return;
+    // v3.5.0: 优先使用原生 subagent hooks，回退到 before_tool_call
+    try {
+      this.api.on('subagent_spawning', this.onSubagentSpawning.bind(this));
+      this.api.on('subagent_spawned', this.onSubagentSpawned.bind(this));
+      this.api.on('subagent_ended', this.onSubagentEnded.bind(this));
+      this._subagentHooksAvailable = true;
+      this.logger.debug('[WM] 已注册 subagent_* hooks');
+    } catch {
+      this.logger.warn('[WM] subagent_* hooks 不可用，回退到 before_tool_call');
+      this._subagentHooksAvailable = false;
+    }
+  }
+
   // ── 归档与状态更新: agent_end ──
   _registerArchive() {
     if (!this.autoArchive) return;
-    // priority 40 > Personality 30，确保 WM 先完成 aggregateEvents
+    // v3.5.0: WM 在 agent_end 只做清理，不返回注入
     this.api.on('agent_end', this.onAgentEnd.bind(this), { priority: 40 });
   }
 
@@ -78,6 +97,9 @@ export class WorkingMemory {
     const toolName = event.toolName;
     const isSpawnTool = toolName === 'sessions_spawn' || toolName === 'agent' || toolName === 'subagent';
     if (!isSpawnTool) return;
+
+    // v3.5.0: 如果 subagent hooks 可用，跳过 tool_call 中的子代理处理，避免重复
+    if (this._subagentHooksAvailable) return;
 
     const runId = ctx.runId;
     const sessionId = event.params?.id || event.params?.name || `sub-${Date.now()}`;
@@ -179,6 +201,79 @@ export class WorkingMemory {
   }
 
   /**
+   * subagent_spawning: 子代理即将创建
+   */
+  async onSubagentSpawning(event, ctx) {
+    const runId = ctx.runId;
+    const sessionId = event.sessionId || event.id || `sub-${Date.now()}`;
+    this.logger.debug(`[WM] subagent_spawning: ${sessionId}, parent=${runId}`);
+  }
+
+  /**
+   * subagent_spawned: 子代理已创建
+   */
+  async onSubagentSpawned(event, ctx) {
+    const runId = ctx.runId;
+    const sessionId = event.sessionId || event.id || `sub-${Date.now()}`;
+    const purpose = event.purpose || event.instruction || '';
+    const taskFamily = inferTaskFamily(purpose);
+
+    await this.state.saveSession(sessionId, {
+      sessionId,
+      taskFamily,
+      role: event.role || '助手',
+      task: purpose,
+      status: 'active',
+      createdAt: getNow(),
+      lastActive: getNow()
+    });
+
+    const task = await this._getTask(runId);
+    if (task && !task.sessionIds.includes(sessionId)) {
+      task.sessionIds.push(sessionId);
+      await this._saveTask(task);
+    }
+
+    await this._updateActiveSession(sessionId, taskFamily, 'active');
+    this.logger.debug(`[WM] subagent_spawned: ${sessionId} (taskFamily=${taskFamily}, parent=${runId})`);
+  }
+
+  /**
+   * subagent_ended: 子代理已结束
+   */
+  async onSubagentEnded(event, ctx) {
+    const runId = ctx.runId;
+    const sessionId = event.sessionId || event.id;
+    const status = event.status || 'completed';
+
+    const session = await this.state.getSession(sessionId);
+    if (session) {
+      session.status = status;
+      session.lastActive = getNow();
+      await this.state.saveSession(sessionId, session);
+    }
+
+    const task = await this._getTask(runId);
+    if (task) {
+      task.tools.push({
+        type: 'subagent_complete',
+        sessionId,
+        resultSummary: this.summarizeResult(event.result),
+        status,
+        timestamp: getNow()
+      });
+      await this._saveTask(task);
+    }
+
+    const taskFamily = session?.taskFamily;
+    if (taskFamily) {
+      await this._updateActiveSession(sessionId, taskFamily, status);
+    }
+
+    this.logger.debug(`[WM] subagent_ended: ${sessionId}, status=${status}`);
+  }
+
+  /**
    * 归档 completed 任务空间，更新 task JSON 状态
    */
   async onAgentEnd(event, ctx) {
@@ -188,6 +283,21 @@ export class WorkingMemory {
     const task = await this._getTask(runId);
     if (!task) {
       this.logger.debug(`[WM] runId=${runId} 无 task，跳过归档`);
+      return;
+    }
+
+    // v3.5.0: 状态转换由 Agent 标记决定，WM 只在 completed 时归档
+    if (task.status !== 'completed') {
+      this.logger.debug(`[WM] runId=${runId}, task.status=${task.status}，不归档，等待 Agent 标记 [STATUS: completed]`);
+      if (this.log) {
+        await this.log.write({
+          level: 'INFO',
+          module: 'WM',
+          runId,
+          message: `Agent ended, task.status=${task.status}, skip archive`,
+          extra: { taskStatus: task.status }
+        });
+      }
       return;
     }
 
@@ -212,22 +322,24 @@ export class WorkingMemory {
       }
     }
 
-    // 更新 task.event.outcome
-    task.event.outcome = {
+    // v3.5.0: 任务归档记录
+    task.outcome = {
       archivedAt: getNow(),
       completedSessions: completedSessions.map(s => s.sessionId),
       killedSessions: killedSessions.map(s => s.sessionId),
       pausedSessions: pausedSessions.map(s => s.sessionId),
       toolCount: task.tools.length
     };
-    task.event.status = 'completed';
-    task.status = 'completed';
     await this._saveTask(task);
 
-    // 聚合事件到 Memory
+    // v3.5.0: 通过 Event 归档任务（打包 deviations/attributions → Memory）
     if (this.events) {
-      const aggResult = await this.events.aggregateEvents(runId);
-      this.logger.debug(`[WM] 事件聚合: runId=${runId}, transferred=${aggResult.transferred}`);
+      try {
+        const archiveResult = await this.events.archiveTask(task);
+        this.logger.debug(`[WM] 事件归档: runId=${runId}, archived=${archiveResult.archived}`);
+      } catch (err) {
+        this.logger.warn(`[WM] 事件归档失败: runId=${runId}, error=${err.message}`);
+      }
     }
 
     this.logger.debug(`[WM] 任务归档: runId=${runId}, completed=${completedSessions.length}, killed=${killedSessions.length}`);
@@ -254,13 +366,8 @@ export class WorkingMemory {
       this.logger.debug(`[WM] Task 已归档: runId=${runId} → archive/tasks_archive.json`);
     }
 
-    // 注入 working_memory skill
-    const workingMemorySkill = await this.skills.load('working_memory');
-    if (workingMemorySkill) {
-      return {
-        prependSystemContext: `${workingMemorySkill}\n\n【Agent 职责】本次运行已结束。completed 的任务空间已标记为 idle，可供同任务族后续复用。请检查「活跃会话清单」状态。\n`
-      };
-    }
+    // v3.5.0: agent_end 纯观察，禁止返回注入
+    this.logger.debug(`[WM] 任务归档完成: runId=${runId}`);
   }
 
   /**
@@ -307,5 +414,12 @@ export class WorkingMemory {
     if (result.summary) return result.summary;
     if (result.status) return `status=${result.status}`;
     return JSON.stringify(result).slice(0, 200);
+  }
+
+  /**
+   * v3.5.0: Gateway 停止时清理资源
+   */
+  stop() {
+    this.logger.info('[WM] 工作记忆模块停止');
   }
 }

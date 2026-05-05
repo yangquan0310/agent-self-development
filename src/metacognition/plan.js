@@ -5,6 +5,8 @@
  * v3.3.0: 适配统一 task JSON，所有 Plan 数据通过 task:{runId}.plan 存取
  */
 
+import { randomUUID } from 'crypto';
+
 export class Plan {
   constructor(state, flow) {
     this.state = state;
@@ -20,7 +22,7 @@ export class Plan {
   }
 
   async createPlan(prompt) {
-    const runId = crypto.randomUUID();
+    const runId = randomUUID();
     const task = {
       runId,
       status: 'draft',
@@ -33,7 +35,8 @@ export class Plan {
         workspace: { sessions: [], artifacts: [], tools: [], skills: [] },
         execution: { phases: [], currentPhase: 0 }
       },
-      event: { status: 'draft', deviations: [], attributions: [], planRevisions: [], outcome: {} },
+      deviations: [],
+      attributions: [],
       sessionIds: [],
       tools: []
     };

@@ -6,7 +6,15 @@ OpenClaw 插件 — Agent 自我发展框架
 >
 > **核心原则**：插件只负责"提醒"（注入 skill），Agent 负责"执行"（自行决策、读写文件、管理任务空间）。
 >
-> **v3.4.1 当前版本**：流式输出适配、任务生命周期日志、防重复注入疲劳、指令强化
+> **v3.5.0 当前版本**：Hooks 合规重构 —— `llm_output`/`agent_end` 纯观察；`before_agent_finalize` 统一质量检查；`before_prompt_build` 按状态分发 skill；Heartbeat 后台监控；`subagent_*` 原生钩子；`gateway_stop` 资源清理
+>
+> **v3.4.1 → v3.5.0 架构变更**：
+> - `llm_output` / `agent_end` 不再返回 `prependSystemContext`，改为纯观察
+> - NEED_PLAN 检测迁移至 `before_agent_finalize`
+> - monitoring / development skill 注入时机改为 `before_prompt_build` 按 task 状态分发
+> - 新增 `Heartbeat` 模块（`heartbeat_prompt_contribution`）
+> - 新增 `subagent_spawning` / `subagent_spawned` / `subagent_ended` 原生钩子
+> - `task.event` 嵌套结构改为顶层 `deviations` / `attributions`
 >
 > **v3.4.0 重大变更**：延迟创建 task JSON —— Agent 自主评估任务复杂度，用户确认后才创建 task；简单任务零开销；新增 assessment skill；移除插件端 `_shouldUseMetacognition` 判断。
 
@@ -463,7 +471,7 @@ Bandura (2001) 的代理理论指出，真正的代理不是简单的刺激-反�
 
 | 对象 | 职责 | 生命周期 | 持久化 |
 |------|------|--------|--------|
-| **Event** | regulation 阶段记录的事件（偏差/归因/计划修订/结果），供 development 任务级回顾 | 单次事件，agent_end 时聚合到 EventLog | `task:{runId}.event`（统一 task JSON）→ Memory.eventlog |
+| **Event** | agent_end 时打包 task JSON 生成的归档事件，供 development 任务级回顾 | 单次事件，agent_end 时生成并写入 EventLog | `memory/{agentId}.sqlite`（EventLog 表） |
 
 
 | 子对象 | 职责 | 对应文件 |
@@ -476,23 +484,28 @@ Bandura (2001) 的代理理论指出，真正的代理不是简单的刺激-反�
 
 #### **Event 对象**
 
+agent_end 时，Event 类将 task JSON 打包成以下结构存入 Memory：
+
 ```json
 {
-  "eventId": "uuid",
   "runId": "uuid",
-  "type": "plan_created|phase_completed|deviation_detected|attribution_completed|tool_called|session_created|session_completed|other",
   "timestamp": "ISO-8601 timestamp",
-  "actor": "Plan|Deviation|Attribution|Session|Tool",
-  "action": "create|advance|detect|acknowledge|resolve|analyze|execute|complete|fail",
-  "targetId": "受影响的对象ID",
-  "details": {
-    "description": "事件描述",
-    "metadata": {}
+  "status": "completed",
+  "taskSnapshot": {
+    "plan": { "prompt", "context", "workspace", "execution" },
+    "sessionIds": ["session:CODE:xxx"],
+    "tools": [ { "toolName", "type", "summary" } ]
+  },
+  "outcome": {
+    "archivedAt": "ISO-8601 timestamp",
+    "completedSessions": ["session-id-1"],
+    "killedSessions": [],
+    "toolCount": 5
   }
 }
 ```
 
-**Event 生命周期**：单次事件，agent_end 时聚合到 EventLog。
+**Event 生命周期**：agent_end 时由 Event 类读取 task JSON → 打包成事件 → 写入 Memory EventLog。
 
 **同化 vs 顺应判定**：
 - **同化**：原有内容的细化 → 调用子对象的 update 方法
@@ -508,25 +521,40 @@ Metacognition.Deviation ──→ WorkingMemory.Session 状态同步
 Metacognition.Attribution ──→ WorkingMemory.Session 暂停/恢复
 
 WorkingMemory.Session.completed ──→ 归档到 Memory SQLite（`asd_archives` 表）
-Event（regulation 阶段撰写）──→ EventLog（按日聚合）──→ Diary（每日回顾原料）
+Event（agent_end 打包 task）──→ EventLog（按日聚合）──→ Diary（每日回顾原料）
 核心 `memory:eventlog:{date}`（regulation 阶段记录的事件）──→ development（任务级回顾）
 ```
 
 ---
 
-## 系统层：Hook 注入映射
+## 系统层：Hook 注入映射（v3.5.0）
 
-| Hook | 条件 | 注入 skill | 操作对象 | 文件系统交互 |
-|------|------|------------|----------|-------------|
-| `before_prompt_build` | 无 task | `planning`（评估阶段）| — | 不创建 task |
-| `before_prompt_build` | task=draft | `planning`（制定阶段）| Plan | State.saveTask() |
-| `before_prompt_build` | task=pending_approval / revising | `planning` | Plan | State.saveTask() |
-| `before_prompt_build` | task=active | 执行上下文 + `monitoring` | Plan | State.getTask() |
-| `llm_output` | 检测到 `[NEED_PLAN]` | `planning` | Plan | State.saveTask()（创建 task） |
-| `llm_output` | task=active | `monitoring` | Deviation | task.event.deviations.push() |
-| `before_tool_call` | 会话工具调用 | —（仅记录） | Session | State.saveSession() |
-| `after_tool_call` | 任意（task 存在时） | —（仅记录工具结果） | Tool | task.tools.push() |
-| `agent_end` | 任意（task 存在时） | `working_memory` + `development` | Task | task.event → Memory.eventlog |
+### 决策/注入型钩子（可返回系统上下文）
+
+| Hook | 条件 | 返回值 | 副作用 |
+|------|------|--------|--------|
+| `before_prompt_build` | 无 task | `prependSystemContext: planningSkill`（评估阶段） | 无 |
+| `before_prompt_build` | 无 task + 有历史经验 | `prependSystemContext: developmentSkill`（可选追加） | 无 |
+| `before_prompt_build` | task=draft | `prependSystemContext: planningSkill`（制定阶段） | 无 |
+| `before_prompt_build` | task=pending_approval / revising | `prependSystemContext: planningSkill`（汇报/修订阶段） | 无 |
+| `before_prompt_build` | task=active | `prependSystemContext: monitoringSkill + 执行上下文` | 无 |
+| `before_agent_finalize` | 含 `[NEED_PLAN]` | `action: "revise"` + planning skill instruction | `State.saveTask()`（创建 draft） |
+| `before_agent_finalize` | 含 TODO/不完整/步骤缺失 | `action: "revise"` + 对应 instruction | 无 |
+| `before_agent_finalize` | 正常 | `action: "finalize"` | 无 |
+| `heartbeat_prompt_contribution` | Heartbeat 回合 | `prependSystemContext: 状态统计` | `State.getActiveTasks()` |
+
+### 观察型钩子（禁止返回系统上下文，仅做副作用）
+
+| Hook | 副作用 |
+|------|--------|
+| `llm_output` | `Stream` 缓冲聚合、保存输出到日志 |
+| `before_tool_call` | `State.saveSession()`、`State.saveTask()` |
+| `after_tool_call` | `State.saveTask()`（记录工具结果）、`State.saveSession()` |
+| `agent_end` | `State.archiveTask()`、`Event.archiveTask()`、`Stream.purge()` |
+| `subagent_spawning` | 记录预期子代理任务空间 |
+| `subagent_spawned` | 关联 sessionKey 到 task |
+| `subagent_ended` | 更新 session 状态 |
+| `gateway_stop` | `Memory.close()`（关闭数据库连接） |
 
 ---
 
@@ -542,10 +570,11 @@ agent-self-development/
 ├── src/
 │   ├── index.js                  # 插件入口：依赖注入，创建并注册三大模块 + 适配器 + 管理器
 │   ├── metacognition/            # 元认知模块
-│   │   ├── metacognition.js      # Metacognition（Plan/Deviation/Attribution 调度）
+│   │   ├── module.js             # Metacognition（注册 hooks：Plan/Deviation/Attribution 调度）
 │   │   ├── plan.js               # Plan（计划业务逻辑）
 │   │   ├── deviation.js          # Deviation（偏差认知业务逻辑）
-│   │   ├── attribution.js         # Attribution（归因调节业务逻辑）
+│   │   ├── attribution.js        # Attribution（归因调节业务逻辑）
+│   │   └── event.js              # Event（agent_end 时打包 task JSON → 写入 Memory EventLog）
 │   │   ├── planning/             # 计划 skill（Agent 指导文档）
 │   │   │   └── SKILL.md          # Plan 对象操作指南
 │   │   ├── monitoring/           # 偏差认知 skill
@@ -553,15 +582,14 @@ agent-self-development/
 │   │   └── regulation/           # 归因调节 skill
 │   │       └── SKILL.md          # Attribution + Event 撰写指南
 │   ├── working-memory/           # 工作记忆模块
-│   │   ├── working-memory.js     # WorkingMemory（Session 生命周期）
+│   │   ├── module.js             # WorkingMemory（注册 hooks：Session 生命周期）
 │   │   ├── session.js            # Session（会话业务逻辑）
 │   │   └── SKILL.md              # Session 管理指南
 │   ├── personality/              # 人格模块
-│   │   ├── personality.js        # Personality（development skill 注入）
+│   │   ├── module.js             # Personality（注册 hooks：development skill 注入）
 │   │   └── SKILL.md              # Development skill（同化/顺应指导）
-│   ├── common/                   # 公共组件
-│   │   ├── events.js             # Events（事件业务逻辑，跨模块共享）
-│   │   ├── event.js              # Event 类（事件对象封装）
+│   ├── common/                   # 公共组件（底层共享，无业务逻辑）
+│   │   ├── heartbeat.js          # Heartbeat（后台状态监控）
 │   │   ├── skills.js             # Skills（skill 加载与缓存）
 │   │   ├── stream.js             # Stream（流式输出处理）
 │   │   ├── utils.js              # 工具函数（日期、任务族推断）
@@ -583,7 +611,6 @@ agent-self-development/
 |---|------|------|
 | `Skills` | Skill 文件加载与缓存 | `load()`, `forget()`, `list()` |
 | `Stream` | 流式输出检测与缓冲 | `classify()`, `extract()`, `accumulate()`, `drain()`, `purge()` |
-| `Event` | 事件对象封装 | `validate()`, `toJSON()`, `fromJSON()`, `fromTemplate()` |
 | `State` | 状态存储适配器（文件系统 + 兼容接口） | `saveTask()`, `getTask()`, `saveSession()`, `getSession()` |
 | `Task` | 任务适配器（文件系统 + 兼容接口） | `createTask()`, `getTask()`, `updateTask()`, `deleteTask()` |
 | `Flow` | 应用Flow适配器（文件系统 + 兼容接口） | `createPlanFlow()`, `advancePhase()`, `waitForApproval()`, `getByRunId()` |
@@ -595,10 +622,11 @@ agent-self-development/
 | `Deviation` | 偏差认知业务逻辑 | `createDeviation()`, `acknowledgeDeviation()`, `resolveDeviation()` |
 | `Attribution` | 归因调节业务逻辑 | `analyzeAttribution()`, `completeAttribution()`, `applyAdjustment()` |
 | `Session` | 会话业务逻辑 | `createSession()`, `releaseSession()`, `destroySession()` |
-| `Events` | 事件聚合 | `aggregateEvents()`, `queryEventLog()` |
-| `Metacognition` | 元认知闭环调度 | `onBeforePromptBuild()`, `onLlmOutput()`, `onAgentEnd()` |
-| `WorkingMemory` | 任务空间生命周期管理 | `onBeforeToolCall()`, `onAfterToolCall()`, `onAgentEnd()` |
-| `Personality` | 任务级人格更新 | `onAgentEnd()` |
+| `Event` | 任务归档：agent_end 时打包 task JSON → 写入 Memory EventLog | `archiveTask()`, `queryEventLog()` |
+| `Heartbeat` | 后台状态监控 | `onHeartbeatPromptContribution()` |
+| `Metacognition` | 元认知闭环调度 | `onBeforePromptBuild()`, `onLlmOutput()`, `onBeforeAgentFinalize()`, `onAgentEnd()` |
+| `WorkingMemory` | 任务空间生命周期管理 | `onBeforeToolCall()`, `onAfterToolCall()`, `onSubagentSpawning()`, `onSubagentSpawned()`, `onSubagentEnded()`, `onAgentEnd()` |
+| `Personality` | 任务级人格更新 | `onBeforePromptBuild()`, `onAgentEnd()` |
 
 ### 状态存储键空间
 
@@ -682,7 +710,8 @@ openclaw gateway restart
 | `workingMemory.enabled` | boolean | `true` | 工作记忆模块总开关 |
 | `workingMemory.trackSubagents` | boolean | `true` | 追踪任务空间创建/完成 |
 | `workingMemory.autoArchive` | boolean | `true` | 任务结束后 Archive → Memory 归档 |
-| `personality.enabled` | boolean | `true` | 人格模块总开关（agent_end 触发） |
+| `personality.enabled` | boolean | `true` | 人格模块总开关（before_prompt_build completed 触发） |
+| `heartbeat.enabled` | boolean | `true` | 心跳模块总开关（heartbeat_prompt_contribution 触发） |
 
 > **向后兼容**：`config.development` 仍可工作，内部映射到 `personality`
 
@@ -692,7 +721,8 @@ openclaw gateway restart
 
 | 版本 | 日期 | 变更内容 |
 |------|------|----------|
-| **v3.4.1** | 2026-05-04 | 流式 `llm_output` 适配（Stream）；任务生命周期日志（Log 纯文本）；防重复注入疲劳（_injectCount）；skill 加载失败不静默跳过；措辞强制化 + 检查清单；agent_end 职责边界修复 |
+| **v3.5.0** | 2026-05-04 | Hooks 合规重构：`llm_output`/`agent_end` 纯观察；`before_agent_finalize` 统一质量检查 + retry 元数据；`before_prompt_build` 按状态分发 skill；Heartbeat 后台监控；`subagent_*` 原生钩子；`gateway_stop` 资源清理；`task.event` → 顶层字段 |
+| v3.4.1 | 2026-05-04 | 流式 `llm_output` 适配（Stream）；任务生命周期日志（Log 纯文本）；防重复注入疲劳（_injectCount）；skill 加载失败不静默跳过；措辞强制化 + 检查清单；agent_end 职责边界修复 |
 | v3.4.0 | 2026-04-29 | 延迟创建 task JSON：Agent 评估 + 用户确认后才创建 task；新增 assessment skill；简单任务不创建 task；移除 `_shouldUseMetacognition` 插件端判断 |
 | v3.3.0 | 2026-04-29 | 统一 task JSON（`task:{runId}`）取代分散状态键；移除 Cron/Diary 系统；人格更新改为 agent_end 单次任务分析；6 维度扩展（新增程序性记忆）；revising 状态支持 Plan 修改后重新汇报 |
 | v3.2.1 | 2026-05-01 | 修复 `baseDir` 路径解析 bug：固定使用 `/root/.openclaw` 作为基础目录 |

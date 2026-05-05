@@ -2,8 +2,8 @@
 name: regulation
 description: >
   元认知调节子模块。指导 Agent 在 Deviation 创建后分析根因（Attribution）、
-  制定调节方案，并将偏差和归因记录到 task.event。
-version: 3.3.0
+  制定调节方案，并将偏差和归因记录到 task 顶层字段。
+version: 3.5.0
 injected_at: Deviation 创建后触发
 module: metacognition
 ---
@@ -11,8 +11,8 @@ module: metacognition
 # Regulation — 归因分析与 Event 记录
 
 > 元认知子模块 - 调节阶段
-> 在 Monitoring 创建 Deviation 后，分析根因、制定调节方案、记录到 task.event
-> **先归因分析，再记录到 task.event；重大偏差需请示用户**
+> 在 Monitoring 创建 Deviation 后，分析根因、制定调节方案、记录到 task 顶层字段
+> **先归因分析，再记录到 task 顶层字段；重大偏差需请示用户**
 
 ---
 
@@ -22,18 +22,18 @@ module: metacognition
 
 | 时机 | 插件已完成的操作 | 存储位置 |
 |------|-----------------|----------|
-| Deviation 创建后 | 将 Deviation 追加到 `task.event.deviations` | `task:{runId}.event.deviations` |
-| 注入前 | 将 Attribution 骨架追加到 `task.event.attributions` | `task:{runId}.event.attributions` |
+| Deviation 创建后 | 将 Deviation 追加到 `task.deviations` | `task:{runId}.deviations` |
+| 注入前 | 将 Attribution 骨架追加到 `task.attributions` | `task:{runId}.attributions` |
 
 当前 Deviation 和 Attribution 对象已由插件创建并保存在统一 task JSON 中，Agent 负责分析内容并做出决策。
 
 ---
 
-## 核心对象（统一 task JSON 中的 event 字段）
+## 核心对象（统一 task JSON 顶层字段）
 
 ### Deviation（偏差记录，由 Monitoring 阶段创建）
 
-**存储位置**：`task:{runId}.event.deviations`（统一 task JSON 内）
+**存储位置**：`task:{runId}.deviations`（统一 task JSON 顶层字段）
 
 ```json
 {
@@ -49,7 +49,7 @@ module: metacognition
 
 ### Attribution（归因分析）
 
-**存储位置**：`task:{runId}.event.attributions`（统一 task JSON 内）
+**存储位置**：`task:{runId}.attributions`（统一 task JSON 顶层字段）
 
 ```json
 {
@@ -67,12 +67,12 @@ module: metacognition
 
 ### Event 记录方式
 
-v3.3.0 中不再使用独立的 Event 对象和 `events.record()`。偏差和归因直接保存在 `task.event` 中，任务结束时由插件自动聚合到 Memory。
+v3.5.0 中不再使用 `task.event` 嵌套结构。偏差和归因直接保存在 task 顶层字段中，任务结束时由插件自动归档到 Memory。
 
 **Agent 只需**：
-1. 更新 `task.event.deviations[i].status`
-2. 更新 `task.event.attributions[i].rootCause` / `adjustmentPlan` / `status`
-3. 如有计划修订，追加到 `task.event.planRevisions`
+1. 更新 `task.deviations[i].status`
+2. 更新 `task.attributions[i].rootCause` / `adjustmentPlan` / `status`
+3. 如有计划修订，追加到 `task.planRevisions`（如存在该字段）
 
 ---
 
@@ -85,7 +85,7 @@ v3.3.0 中不再使用独立的 Event 对象和 `events.record()`。偏差和归
 **你需要做的**（决策层）：
 
 1. **阅读 Deviation 记录**
-   - 从 `task.event.deviations` 中找到最新创建的偏差
+   - 从 `task.deviations` 中找到最新创建的偏差
    - 了解偏差发生的阶段（`phaseId`）、类型（`type`）、严重度（`severity`）
 
 2. **根因分析**
@@ -101,15 +101,15 @@ v3.3.0 中不再使用独立的 Event 对象和 `events.record()`。偏差和归
    | **B. 调整执行** | 执行偏离但计划合理 | 修正当前输出方向、重新执行当前阶段 |
    | **C. 请求用户介入** | critical 级别或需求变更 | 向用户汇报偏差和根因，提供选项，等待决策 |
 
-4. **记录归因分析到 task.event**
+4. **记录归因分析到 task 顶层字段**
    - 更新对应 Attribution 的 `rootCause`（根因分析）
    - 更新对应 Attribution 的 `adjustmentPlan`（调节策略 + 具体行动）
    - 将 Attribution.status 更新为 `"completed"`
    - 将 Deviation.status 更新为 `"acknowledged"`
 
 **插件已自动完成的**（执行层，无需你操作）：
-- 已将 Deviation 追加到 `task.event.deviations`
-- 已将 Attribution 骨架追加到 `task.event.attributions`
+- 已将 Deviation 追加到 `task.deviations`
+- 已将 Attribution 骨架追加到 `task.attributions`
 
 ---
 
@@ -124,9 +124,9 @@ v3.3.0 中不再使用独立的 Event 对象和 `events.record()`。偏差和归
    - 若方案 B（调整执行）：修正当前输出，重新推进当前阶段
    - 若方案 C（用户介入）：向用户清晰呈现偏差、根因、选项，等待决策
 
-2. **记录计划修订到 task.event**（如需调整 Plan）
+2. **记录计划修订到 task 顶层字段**（如需调整 Plan）
 
-   如有 Plan 调整，追加到 `task.event.planRevisions`：
+   如有 Plan 调整，追加到 `task.planRevisions`（如存在该字段）：
 
    ```json
    {
@@ -140,7 +140,7 @@ v3.3.0 中不再使用独立的 Event 对象和 `events.record()`。偏差和归
 3. **完成偏差处理**
    - 将 Deviation.status 更新为 `"resolved"`
    - 将 Attribution.status 更新为 `"executed"`
-   - 无需调用 `events.record()`，所有记录已在 `task.event` 中
+   - 无需调用 `events.record()`，所有记录已在 task 顶层字段中
 
 **插件已自动完成的**（执行层，无需你操作）：
 - 统一 task JSON 的保存由插件在 agent_end 时自动完成
@@ -156,7 +156,7 @@ v3.3.0 中不再使用独立的 Event 对象和 `events.record()`。偏差和归
 - [ ] 若为 major/critical 级别，是否已向用户汇报并获得确认？
 - [ ] Attribution 是否已填写 rootCause 和 adjustmentPlan？
 - [ ] Deviation 和 Attribution 的 status 是否已正确更新？
-- [ ] 如有 Plan 调整，是否已追加到 `task.event.planRevisions`？
+- [ ] 如有 Plan 调整，是否已追加到 `task.planRevisions`？
 
 ---
 
@@ -164,14 +164,14 @@ v3.3.0 中不再使用独立的 Event 对象和 `events.record()`。偏差和归
 
 ```
 Monitoring 检测到重大偏差
-    ↓ 插件自动追加 Deviation + Attribution 到 task.event
+    ↓ 插件自动追加 Deviation + Attribution 到 task 顶层字段
 detected
     ↓ Agent 完成根因分析 + 制定调节方案
 acknowledged
     ├─ 执行调节方案（调整 Plan / 调整执行 / 用户介入）
-    ↓ Agent 更新 task.event 中的 status 和 planRevisions
+    ↓ Agent 更新 task 顶层字段中的 status 和 planRevisions
 resolved（Deviation）/ executed（Attribution）
-    ↓ 插件在 agent_end 时自动聚合 task.event → Memory
+    ↓ 插件在 agent_end 时自动归档 task → Memory
     ↓ 返回 Monitoring 继续追踪 / 或返回 Planning 重新汇报
 ```
 
@@ -183,7 +183,7 @@ resolved（Deviation）/ executed（Attribution）
 |-------|---------|---------|
 | `planning` | `before_prompt_build` | 提供 Plan 基准，调节后可能需要回到 planning 重新汇报 |
 | `monitoring` | `llm_output` | 负责检测偏差并创建 Deviation，触发本 skill 的介入 |
-| `development` | `agent_end` | 任务完成后基于 task.event 分析同化/顺应 |
+| `development` | `before_prompt_build`（completed）| 任务完成后基于 task 分析同化/顺应 |
 
 ---
 
@@ -191,5 +191,5 @@ resolved（Deviation）/ executed（Attribution）
 
 | 版本 | 日期 | 更新内容 |
 |------|------|----------|
-| v3.3.0 | 2026-04-29 | 适配统一 task JSON：偏差/归因存储在 task.event 中；移除独立 Event 对象和 events.record()；planRevisions 直接追加到 task.event |
+| v3.5.0 | 2026-05-04 | 移除 task.event 嵌套结构；偏差/归因改为 task 顶层字段；planRevisions 直接追加到 task 顶层 |
 | v3.0.0 | 2026-04-29 | v3 重构：调节核心从"方案制定"扩展为"Attribution + Event 撰写" |

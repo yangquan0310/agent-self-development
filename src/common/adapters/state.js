@@ -173,7 +173,7 @@ export class State {
 
     if (files.length <= this.maxArchivedTasks) return;
 
-    const toDelete = files.slice(0, files.length - MAX_ARCHIVED_TASKS);
+    const toDelete = files.slice(0, files.length - this.maxArchivedTasks);
     for (const item of toDelete) {
       try { unlinkSync(item.path); } catch {}
     }
@@ -206,5 +206,10 @@ export class State {
   async listSessionsByStatus(status) {
     const all = await this.listSessions();
     return all.filter(s => s.status === status);
+  }
+
+  // v3.5.0: Gateway 停止时清理资源（State 为文件系统操作，无连接需关闭）
+  close() {
+    // no-op for file-based adapter
   }
 }

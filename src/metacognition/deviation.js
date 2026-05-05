@@ -2,7 +2,7 @@
  * Deviation — 偏差认知业务
  * 在 monitoring 阶段管理 Deviation 对象的生命周期
  *
- * v3.3.0: 适配统一 task JSON，偏差存储在 task:{runId}.event.deviations
+ * v3.5.0: 偏差存储在 task:{runId}.deviations（顶层字段，移除了 event 嵌套）
  */
 
 export class Deviation {
@@ -34,9 +34,8 @@ export class Deviation {
       ...deviationData
     };
 
-    task.event = task.event || { deviations: [], attributions: [], planRevisions: [], outcome: {} };
-    task.event.deviations = task.event.deviations || [];
-    task.event.deviations.push(deviation);
+    task.deviations = task.deviations || [];
+    task.deviations.push(deviation);
     task.updatedAt = Date.now();
 
     await this._saveTask(task);
@@ -48,9 +47,9 @@ export class Deviation {
    */
   async acknowledgeDeviation(runId, deviationId, agentAcknowledgment) {
     const task = await this._getTask(runId);
-    if (!task || !task.event || !task.event.deviations) return null;
+    if (!task || !task.deviations) return null;
 
-    const deviation = task.event.deviations.find(d => d.deviationId === deviationId);
+    const deviation = task.deviations.find(d => d.deviationId === deviationId);
     if (!deviation) return null;
 
     deviation.status = 'acknowledged';
@@ -67,9 +66,9 @@ export class Deviation {
    */
   async resolveDeviation(runId, deviationId, resolution) {
     const task = await this._getTask(runId);
-    if (!task || !task.event || !task.event.deviations) return null;
+    if (!task || !task.deviations) return null;
 
-    const deviation = task.event.deviations.find(d => d.deviationId === deviationId);
+    const deviation = task.deviations.find(d => d.deviationId === deviationId);
     if (!deviation) return null;
 
     deviation.status = 'resolved';
@@ -86,6 +85,6 @@ export class Deviation {
    */
   async listDeviations(runId) {
     const task = await this._getTask(runId);
-    return task?.event?.deviations || [];
+    return task?.deviations || [];
   }
 }

@@ -29,10 +29,13 @@ export class Flow {
     db.exec(`
       CREATE TABLE IF NOT EXISTS ${this.tablePrefix}flows (
         flow_id TEXT PRIMARY KEY,
+        run_id TEXT,
         data TEXT NOT NULL,
         created_at INTEGER,
         updated_at INTEGER
       );
+      CREATE INDEX IF NOT EXISTS idx_${this.tablePrefix}flows_run_id ON ${this.tablePrefix}flows(run_id);
+      CREATE INDEX IF NOT EXISTS idx_${this.tablePrefix}flows_phase ON ${this.tablePrefix}flows(data);
     `);
     db.close();
   }
@@ -43,6 +46,14 @@ export class Flow {
       this._db = new Database(this.dbPath);
     }
     return this._db;
+  }
+
+  // v3.5.0: Gateway 停止时关闭数据库连接
+  close() {
+    if (this._db) {
+      this._db.close();
+      this._db = null;
+    }
   }
 
   async createPlanFlow(plan) {
@@ -65,7 +76,8 @@ export class Flow {
     };
     if (this.api?.create) await this.api.create(flow);
     const db = await this._getDb();
-    db.prepare(`INSERT OR REPLACE INTO ${this.tablePrefix}flows (flow_id, data, created_at, updated_at) VALUES (?, ?, ?, ?)`).run(flowId, JSON.stringify(flow), flow.createdAt, flow.updatedAt);
+    const runId = plan.runId || '';
+    db.prepare(`INSERT OR REPLACE INTO ${this.tablePrefix}flows (flow_id, run_id, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`).run(flowId, runId, JSON.stringify(flow), flow.createdAt, flow.updatedAt);
     return flow;
   }
 
@@ -121,17 +133,16 @@ export class Flow {
   async getByRunId(runId) {
     await this._init();
     const db = await this._getDb();
-    const rows = db.prepare(`SELECT data FROM ${this.tablePrefix}flows`).all();
-    for (const row of rows) {
-      const flow = JSON.parse(row.data);
-      if (flow.stateJson?.plan?.runId === runId) return flow;
-    }
+    const row = db.prepare(`SELECT data FROM ${this.tablePrefix}flows WHERE run_id = ?`).get(runId);
+    if (row) return JSON.parse(row.data);
     return null;
   }
 
   async getByPhase(phaseId) {
     await this._init();
     const db = await this._getDb();
+    // 注：phaseId 查询需要反序列化 JSON，索引无法直接优化
+    // v3.5.0 先保留全表扫描，后续如性能瓶颈再考虑添加 phases 索引表
     const rows = db.prepare(`SELECT data FROM ${this.tablePrefix}flows`).all();
     for (const row of rows) {
       const flow = JSON.parse(row.data);
