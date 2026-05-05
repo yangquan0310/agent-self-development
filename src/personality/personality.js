@@ -58,6 +58,13 @@ export class Personality {
       return;
     }
 
+    const eventSummary = {
+      deviations: task.event.deviations || [],
+      attributions: task.event.attributions || [],
+      planRevisions: task.event.planRevisions || [],
+      outcome: task.event.outcome || {}
+    };
+
     if (this.log) {
       await this.log.write({
         level: 'INFO',
@@ -71,13 +78,6 @@ export class Personality {
         }
       });
     }
-
-    const eventSummary = {
-      deviations: task.event.deviations || [],
-      attributions: task.event.attributions || [],
-      planRevisions: task.event.planRevisions || [],
-      outcome: task.event.outcome || {}
-    };
 
     return {
       prependSystemContext: `${developmentSkill}\n\n【任务回顾】本次运行（${runId}）已完成。\n【Event 摘要】\n- 偏差记录：${eventSummary.deviations.length} 条\n- 归因记录：${eventSummary.attributions.length} 条\n- 计划修订：${eventSummary.planRevisions.length} 次\n【Agent 职责】请根据上方 development skill，分析本次任务经验对 6 个维度的影响（自我、风格、信念、身份、技能、程序性记忆），自行决定是否需要更新人格文件。\n`
