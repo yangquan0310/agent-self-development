@@ -655,9 +655,9 @@ agent-self-development/
 ```bash
 # 1. 安装插件
 ## 生产环境：从 Git 仓库直装
-openclaw plugins install git:github.com/yangquan0310/openclaw_muti_agent_lab
+openclaw plugins install git:github.com/yangquan0310/agent-self-development
 ## 安装指定版本
-openclaw plugins install git:github.com/yangquan0310/openclaw_muti_agent_lab@v3.4.1
+openclaw plugins install git:github.com/yangquan0310/agent-self-development@v3.4.0
 ## 本地开发：从本地目录安装（热更新方便）
 openclaw plugins install /root/openclaw-integration-design/
 ## 或使用 --link 符号链接模式（修改源码即时生效）
