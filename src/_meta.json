@@ -1,9 +1,0 @@
-{
-  "version": "3.6.0",
-  "skills": {
-    "planning": "metacognition/planning/SKILL.md",
-    "monitoring": "metacognition/monitoring/SKILL.md",
-    "regulation": "metacognition/regulation/SKILL.md",
-    "development": "personality/SKILL.md"
-  }
-}
