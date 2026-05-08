@@ -1,3 +1,13 @@
+---
+name: project-conventions
+description: >
+  Coding conventions, hook compliance rules, data model specifications, and
+  development standards for the agent-self-development plugin project.
+  Use this skill when writing or reviewing code for the project,
+  or when adding new hooks, modules, or skills.
+---
+
+
 # Agent Self-Development — Agent 开发指南
 
 > 本文档面向 coding agent，记录项目背景、架构决策、编码规范与开发偏好。
