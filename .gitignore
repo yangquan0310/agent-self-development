@@ -1,4 +1,2 @@
 *.tgz
-SKILL_TEMPLATE.md
 node_modules/
-state/

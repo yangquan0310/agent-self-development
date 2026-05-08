@@ -1,119 +1,91 @@
 ---
 name: project-conventions
 description: >
-  Coding conventions, hook compliance rules, data model specifications, and
-  development standards for the agent-self-development plugin project.
-  Use this skill when writing or reviewing code for the project,
-  or when adding new hooks, modules, or skills.
+  Coding conventions, hook compliance rules, and data model standards
+  for the agent-self-development plugin project.
+  Use when: (1) Writing or reviewing JavaScript code for this project,
+  (2) Adding new hooks, modules, or skills,
+  (3) Refactoring existing hook registration logic,
+  (4) Updating SKILL.md frontmatter or data model documentation.
 ---
 
+# Project Conventions
 
-# Agent Self-Development — Agent 开发指南
+Apply these standards when writing code for agent-self-development.
 
-> 本文档面向 coding agent，记录项目背景、架构决策、编码规范与开发偏好。
+## Hook Compliance — Red Lines
 
----
+**Never** return `prependSystemContext` or `action` from pure observation hooks.
 
-## 1. 项目背景
+| Hook Type | Hooks | Can Inject | Can Return Action |
+|-----------|-------|------------|-------------------|
+| Decision/Injection | `before_prompt_build` | Yes | No |
+| Decision/Injection | `before_agent_finalize` | No | Yes `{action, reason, retry?}` |
+| Decision/Injection | `heartbeat_prompt_contribution` | Yes (`prependContext`) | No |
+| Pure Observation | `llm_output` | **No** | **No** |
+| Pure Observation | `agent_end` | **No** | **No** |
+| Pure Observation | `before_tool_call` / `after_tool_call` | No | No |
+| Pure Observation | `subagent_spawning` / `subagent_spawned` / `subagent_ended` | **No** | No |
 
-OpenClaw 插件，基于皮亚杰认知发展理论的 Agent 自我发展框架。
+**Violation fix**: If a skill currently injects at `llm_output` or `agent_end`, refactor it to `before_prompt_build` with a status condition.
 
-**核心原则**：用户领航 → Agent 执行 → 插件书记员只记录（Plugin asks, Agent decides, Plugin records）
+## Skill Injection Mapping
 
-**三层认知架构**：
-- 元认知层（Metacognition）：计划 → 监控 → 调节
-- 工作记忆层（Working Memory）：Session = 情景缓冲器
-- 人格发展层（Personality）：同化 / 顺应 → 人格文件更新
+Register skills in `src/{module}/module.js` according to this mapping:
 
----
+| Task Status | Skill to Inject at `before_prompt_build` |
+|-------------|------------------------------------------|
+| No task | `planning` (assessment phase) |
+| `draft` | `planning` (planning phase) |
+| `pending_approval` | `planning` (reporting/handling feedback) |
+| `revising` | `planning` + revision context |
+| `active` | `monitoring` + execution context |
+| `completed` | `development` (personality review) |
 
-## 2. 架构决策（v3.5.0）
+**Keep frontmatter aligned**: The `injected_at` field in every SKILL.md must match the actual hook registration in code. After changing hook registration, update the skill's frontmatter and its "Related Skills" cross-reference table.
 
-### 2.1 钩子合规规范（强制执行）
+## Naming Conventions
 
-| 类型 | 钩子 | 能否返回 `prependSystemContext` | 能否返回 `action` |
-|------|------|-------------------------------|------------------|
-| **决策/注入型** | `before_prompt_build` | ✅ 可返回 | — |
-| **决策/注入型** | `before_agent_finalize` | — | ✅ 可返回 `{action, reason, retry?}` |
-| **决策/注入型** | `heartbeat_prompt_contribution` | ✅ 可返回 `prependContext` | — |
-| **纯观察型** | `llm_output` | ❌ 禁止 | ❌ 禁止 |
-| **纯观察型** | `agent_end` | ❌ 禁止 | ❌ 禁止 |
-| **纯观察型** | `before_tool_call` / `after_tool_call` | — | — |
-| **纯观察型** | `subagent_spawning` / `subagent_spawned` / `subagent_ended` | ❌ 禁止 | — |
+| Element | Rule | Example |
+|---------|------|---------|
+| Class name | Single noun, PascalCase | `Metacognition`, `WorkingMemory` |
+| Method name | Verb prefix, camelCase | `createPlan()`, `onBeforePromptBuild()` |
+| File name | Lowercase, match class | `module.js`, `plan.js` |
+| Module entry | Always `module.js` | `metacognition/module.js` |
+| Skill name | snake_case in frontmatter | `planning`, `monitoring` |
 
-> **红线**：`llm_output` 和 `agent_end` 中如果出现 `return { prependSystemContext: ... }`，必须立即重构到 `before_prompt_build` 或 `before_agent_finalize`。
+## Module Structure
 
-### 2.2 Skill 注入时机映射
-
-| Task 状态 | `before_prompt_build` 注入的 skill |
-|-----------|-----------------------------------|
-| 无 task | `planning`（评估阶段） |
-| `draft` | `planning`（制定阶段） |
-| `pending_approval` | `planning`（汇报/处理反馈） |
-| `revising` | `planning` + 修改原因 |
-| `active` | `monitoring` + 执行上下文 |
-| `completed` | `development`（人格回顾） |
-
-### 2.3 状态转换机制
-
-Agent 输出标记 → `before_agent_finalize` 解析 → 写入 State
-
-```
-[STATUS: pending_approval]
-[STATUS: active]
-[STATUS: revising] [REASON: xxx]
-[STATUS: completed]
-```
-
-### 2.4 Prompt 暂存
-
-`before_prompt_build` 把用户原始 prompt 存 `ctx.state.set('prompt:${runId}', prompt)` → `before_agent_finalize` 读取用于创建 draft task。
-
----
-
-## 3. 编码规范
-
-### 3.1 命名规范
-
-| 层级 | 规范 | 示例 |
-|------|------|------|
-| 类名 | 单一非复合名词，PascalCase | `Metacognition`, `WorkingMemory`, `Heartbeat` |
-| 方法名 | 动词开头，camelCase | `createPlan()`, `onBeforePromptBuild()`, `archiveTask()` |
-| 文件名 | 与类名一致，小写 | `module.js`, `plan.js`, `event.js` |
-| 模块入口 | 统一为 `module.js` | `metacognition/module.js` |
-
-### 3.2 模块结构
-
-每个业务模块遵循统一结构：
+Every new business module must follow this exact structure:
 
 ```javascript
 export class ModuleName {
   constructor({ api, config, state, skills, logger, log, ...deps }) {
-    // 依赖注入
+    // Dependency injection
   }
 
   register() {
-    // 注册所有 hooks
+    // Register all hooks here
   }
 
-  // v3.5.0: 统一清理接口
+  // Unified cleanup interface (v3.5.0+)
   stop() {
-    // Gateway 停止时释放资源
+    // Release resources when Gateway stops
   }
 }
 ```
 
-### 3.3 错误处理
+## Error Handling
 
-- 适配器方法使用 try-catch，失败时记录日志但不阻断流程
-- Hook 处理器内部错误不应导致 OpenClaw 崩溃
-- 数据库操作后必须关闭连接（`gateway_stop` 中统一处理）
+- Wrap adapter methods in try-catch. Log failures but do not block the flow.
+- Protect hook handlers so internal errors do not crash OpenClaw.
+- Close database connections in `gateway_stop` or `stop()`.
 
----
+## Data Model
 
-## 4. 数据模型
+### Task JSON (v3.5.0+)
 
-### 4.1 Task JSON（v3.5.0）
+Use flat top-level fields. Never nest under `event`.
 
 ```json
 {
@@ -130,48 +102,55 @@ export class ModuleName {
 }
 ```
 
-> ❌ 已移除 `event` 嵌套字段。`deviations` / `attributions` / `outcome` 为顶层字段。
+### Status Markers
 
-### 4.2 EventLog（Memory）
+Agent outputs these markers at the end of responses. `before_agent_finalize` parses them:
 
-```json
-{
-  "runId": "uuid",
-  "status": "completed",
-  "deviations": [],
-  "attributions": [],
-  "outcome": {},
-  "plan": { "prompt", "phaseCount" },
-  "archivedAt": 1234567890000
-}
+```
+[STATUS: pending_approval]
+[STATUS: active]
+[STATUS: revising] [REASON: xxx]
+[STATUS: completed]
 ```
 
----
+## Development Principles
 
-## 5. 开发偏好
+- **Minimal changes**: Only modify what is necessary. Do not refactor unrelated code.
+- **Backward compatibility**: Adapters must fall back to file system when `api === null`.
+- **Defensive programming**: Wrap optional hooks in try-catch or flag checks — they may not exist.
+- **Logging**: Use `[Module] message` prefix. Levels: `logger.debug/info/warn/error`.
+- **Version comments**: Add `// v3.x.y: description` for significant changes.
 
-- **最小修改原则**：只做必要的变更，不重构无关代码
-- **向后兼容**：适配器支持 `api === null` 时回退到文件系统
-- **防御性编程**：OpenClaw 钩子可能不存在，使用 try-catch 或标志位保护
-- **日志规范**：所有模块使用 `[Module] message` 前缀，`logger.debug/info/warn/error`
-- **版本注释**：重大变更添加 `// v3.5.0: description` 注释
+## State Keys
 
----
+| Key | Domain | Type | Lifecycle | Storage |
+|-----|--------|------|-----------|---------|
+| `task:{runId}` | State | Task JSON | runId | `state/tasks/{runId}.json` |
+| `session:{sessionId}` | State | Session | Long-term | `state/sessions.json` |
+| `working_memory:active_sessions` | State | Session[] | Global | `state/sessions.json` |
+| `prompt:${runId}` | State | String | runId | Cached by `before_prompt_build` |
 
-## 6. 文件清单
+## File Map
 
-| 路径 | 职责 | 修改频率 |
-|------|------|----------|
-| `src/index.js` | 插件入口，依赖注入 | 低 |
-| `src/metacognition/module.js` | 元认知 hooks 注册与调度 | 中 |
-| `src/metacognition/plan.js` | Plan 业务逻辑 | 低 |
-| `src/metacognition/deviation.js` | Deviation 业务逻辑 | 低 |
-| `src/metacognition/attribution.js` | Attribution 业务逻辑 | 低 |
-| `src/metacognition/event.js` | Event 归档逻辑 | 低 |
-| `src/working-memory/module.js` | 工作记忆 hooks 注册 | 中 |
-| `src/working-memory/session.js` | Session 业务逻辑 | 低 |
-| `src/personality/module.js` | 人格 hooks 注册 | 中 |
-| `src/common/heartbeat.js` | Heartbeat 后台监控 | 低 |
-| `src/common/skills.js` | Skill 加载 | 低 |
-| `src/common/stream.js` | 流式输出处理 | 低 |
-| `src/common/adapters/*.js` | 适配器层 | 低 |
+| Path | Responsibility | Change Frequency |
+|------|---------------|------------------|
+| `src/index.js` | Plugin entry, dependency injection | Low |
+| `src/metacognition/module.js` | Hook registration and dispatch | Medium |
+| `src/metacognition/plan.js` | Plan business logic | Low |
+| `src/metacognition/deviation.js` | Deviation business logic | Low |
+| `src/metacognition/attribution.js` | Attribution business logic | Low |
+| `src/working-memory/module.js` | Session lifecycle hooks | Medium |
+| `src/working-memory/session.js` | Session business logic | Low |
+| `src/personality/module.js` | Personality hook registration | Medium |
+| `src/common/heartbeat.js` | Background monitoring | Low |
+| `src/common/adapters/*.js` | Adapter layer | Low |
+
+## External References
+
+For detailed technical documentation beyond this skill, see:
+
+- `../../docs/reference/data-model.md` — complete JSON schemas and state transition rules for all data objects
+- `../../docs/reference/hook-reference.md` — full hook type matrix and injection mapping by task status
+- `../../docs/reference/state-keys.md` — complete `ctx.state` key space reference
+- `../../docs/reference/object-model.md` — adapter layer, manager layer, and module class design
+
