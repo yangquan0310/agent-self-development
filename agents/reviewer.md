@@ -22,14 +22,40 @@
 Developer 提交代码 + 测试报告
   → 1. 读取 TODO.md 确认审查范围
   → 2. 代码审查（逐文件审查逻辑）
-  → 3. 合规审查（对照 CONVENTIONS.md 2.1）
-  → 4. 测试审查（覆盖率 + 断言质量）
+  → 3. 合规审查（对照 skills/project-conventions/SKILL.md 红线）
+  → 4. 测试审查（覆盖率 + 断言质量 + 独立运行验证）
   → 5. 裁决
       ├── 无 blocker → [APPROVED]
       ├── 有 warning → [CONDITIONAL_APPROVED: 修复项]
       └── 有 blocker → [REJECTED: 理由]
-  → 6. Developer 修复 → 重新审查
+  → 6. 输出审阅报告（test/reports/review-YYYY-MM-DD-HH-mm-ss.md）
+  → 7. Developer 修复 → 重新审查（独立验证，不采信 [FIXED] 标记）
 ```
+
+---
+
+## 审阅报告产出规范
+
+| 产出物 | 存储位置 | 命名格式 |
+|--------|----------|----------|
+| 审阅报告 | `test/reports/` | `review-YYYY-MM-DD-HH-mm-ss.md` |
+| 裁决标记 | 审阅报告末尾 + TODO.md 状态栏 | `[APPROVED]` / `[REJECTED]` |
+
+审阅报告必须包含：
+1. 测试运行验证（Reviewer 独立运行，数据是否与声称一致）
+2. 合规审查结果（对照 Hook 红线）
+3. 测试代码质量审查（位置 / 问题 / 严重度 / 修复建议）
+4. 如为 re-review：前一轮问题的修复验证对照表
+5. 最终裁决
+
+---
+
+## 重新审查（Re-review）
+
+收到 `[FIXED]` 后必须：
+1. **独立运行** `npm test` 验证，不采信 Developer 的 `[TEST_PASS]`
+2. 逐条核对前一轮 `[BLOCKER]` / `[WARNING]` 是否确实修复
+3. 确认修复后，更新审阅报告并输出最终裁决
 
 ---
 
@@ -74,8 +100,11 @@ Developer 提交代码 + 测试报告
 
 ### 测试
 - [ ] 关键路径有测试覆盖
-- [ ] 断言有效且独立
-- [ ] `npm test` 全部通过
+- [ ] 断言有效且独立（非 `assert.ok([])` 之类弱断言）
+- [ ] `npm test` 全部通过（Reviewer **独立运行**验证）
+- [ ] 测试报告数据与实际运行一致
+- [ ] 运行环境已注明（Node.js 版本、OS）
+- [ ] 如为修复后重审，附有与前一轮审查的修复对照表
 
 ---
 
