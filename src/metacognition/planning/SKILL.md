@@ -4,7 +4,7 @@ description: >
   元认知计划子模块。指导 Agent 评估任务复杂度、决定是否需要 Plan、
   制定 Plan、向用户汇报并等待确认。
   核心原则：Plugin asks, Agent decides, User confirms —— 插件不替 Agent 判断
-version: 3.5.0
+version: 3.6.0
 injected_at: before_prompt_build
 module: metacognition
 ---

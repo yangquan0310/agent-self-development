@@ -3,7 +3,7 @@ name: regulation
 description: >
   元认知调节子模块。指导 Agent 在 Deviation 创建后分析根因（Attribution）、
   制定调节方案，并将偏差和归因记录到 task 顶层字段。
-version: 3.5.0
+version: 3.6.0
 injected_at: Deviation 创建后触发
 module: metacognition
 ---

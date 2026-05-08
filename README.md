@@ -4,7 +4,7 @@ OpenClaw 插件 — Agent 自我发展框架
 
 > **核心原则**：用户领航 → Agent 执行 → 插件书记员只记录（Plugin asks, Agent decides, Plugin records）
 >
-> **当前版本**：v3.5.0（Hooks 合规重构）
+> **当前版本**：v3.6.0（多 Agent 协作体系、文档分层重构）
 
 ---
 

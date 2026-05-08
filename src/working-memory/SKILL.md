@@ -3,7 +3,7 @@ name: working_memory
 description: >
   工作记忆模块（参考文档，不再自动注入）。包含 Session 复用策略、任务空间管理规范。
   核心原则：completed 的任务空间标记为 idle 供复用，killed 的任务空间清理释放。
-version: 3.5.0
+version: 3.6.0
 injected_at: reference_only
 module: working_memory
 ---

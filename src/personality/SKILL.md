@@ -3,7 +3,7 @@ name: development
 description: >
   人格发展模块。指导 Agent 在每次任务完成后，基于本次事件的
   偏差、归因和结果，分析同化/顺应对 6 个维度的影响，决定是否需要更新人格文件。
-version: 3.5.0
+version: 3.6.0
 injected_at: before_prompt_build（task.status === 'completed'）
 module: personality
 ---

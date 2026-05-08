@@ -3,7 +3,7 @@ name: monitoring
 description: >
   元认知监控子模块。指导 Agent 在 Plan active 阶段检测偏差并创建 Deviation 对象。
   核心原则：发现预期与实际的差距时，创建 Deviation 记录并触发调节。
-version: 3.5.0
+version: 3.6.0
 injected_at: before_prompt_build
 module: metacognition
 ---
