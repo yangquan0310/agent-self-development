@@ -1,5 +1,9 @@
 /**
  * 测试辅助工具 —— Mock 工厂
+ *
+ * createMockLogger() 返回的 logger 包含 `_calls` 数组，
+ * 用于追踪所有日志调用（调用追踪）。测试可通过 `_calls` 验证日志行为。
+ * 示例：assert.ok(logger._calls.length > 0)
  */
 
 export function createMockLogger() {

@@ -15,7 +15,7 @@ describe('Heartbeat', () => {
     const memory = createMockMemory();
     const date = new Date().toISOString().slice(0, 10);
     for (const log of eventLogs) {
-      memory.appendEventLog(date, log);
+      await memory.appendEventLog(date, log);
     }
     const hb = new Heartbeat({
       api, config: {}, state, memory,

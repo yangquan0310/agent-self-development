@@ -1,9 +1,9 @@
 ---
 name: development
 description: >
-  人格发展模块。指导 Agent 在每次任务完成后，基于本次事件的
+  人格发展模块。指导 Agent 在每次任务完成后，基于本次事件文件中的
   偏差、归因和结果，分析同化/顺应对 6 个维度的影响，决定是否需要更新人格文件。
-version: 3.6.0
+version: 4.0.0
 injected_at: before_prompt_build（task.status === 'completed'）
 module: personality
 ---
@@ -13,19 +13,18 @@ module: personality
 > 人格模块 - Agent 的持续自我发展系统
 > 基于皮亚杰认知发展理论：同化（强化现有）/ 顺应（重构更新）
 > **单次任务回顾 → 分析影响 → 决定更新**
+>
+> v4.0.0 数据供给改为事件文件驱动（向后兼容回退到 task 顶层字段）
 
 ---
 
 ## 注入上下文
 
-本 skill 在 **`before_prompt_build`** 触发时注入，触发条件为本次任务的 `task.status === 'completed'`。此时插件已完成以下操作：
+本 skill 在 **`before_prompt_build`** 触发时注入，触发条件为本次任务的 `task.status === 'completed'`。
 
-| 时机 | 插件已完成的操作 | 数据来源 |
-|------|-----------------|----------|
-| 注入前 | 归档本次任务到 Memory | `task:{runId}` |
-| 注入前 | 归档所有 completed 的 Session | `task:{runId}.sessionIds` → 全局索引 |
-
-本次任务的摘要（偏差、归因、产出）已由插件附加在上下文里。
+**数据来源**：
+- **优先**：当前任务的事件文件（`.openclaw/events/{YYYY-MM-DD}/{HH-MM-SS}.md`）中的「偏差」+「归因」+「结果」章节
+- **回退**：`task.deviations` / `task.attributions` / `task.outcome`（旧任务兼容）
 
 ---
 
@@ -33,28 +32,18 @@ module: personality
 
 ### Event（单次任务的事件聚合）
 
-**存储位置**：`~/.openclaw/state/agent-self-development/tasks.json`（临时）→ `~/.openclaw/memory/{agentId}.sqlite`（归档）
+**存储位置**：`.openclaw/events/{YYYY-MM-DD}/{HH-MM-SS}.md`（项目级）
 
-```json
-{
-  "status": "completed",
-  "deviations": [
-    { "deviationId": "dev-xxx", "severity": "minor|major|critical", "type": "plan|tool|session", "description": "..." }
-  ],
-  "attributions": [
-    { "attributionId": "attr-xxx", "rootCause": "...", "adjustmentPlan": "..." }
-  ],
-  "planRevisions": [
-    { "phaseId": "...", "reason": "...", "changes": [...] }
-  ],
-  "outcome": {
-    "archivedAt": "...",
-    "completedSessions": ["..."],
-    "killedSessions": ["..."],
-    "toolCount": 5
-  }
-}
-```
+事件文件包含以下章节：
+1. **元信息**：runId、agentId、role
+2. **计划**：执行计划、验收标准
+3. **执行**：实际完成的工作
+4. **变更记录**：文件编辑审计
+5. **偏差**：发现的偏差（类型、描述）
+6. **归因**：根本原因、策略更新
+7. **结果**：最终状态
+
+插件读取事件文件的「偏差」+「归因」+「结果」章节，提取为经验输入。
 
 ### 人格文件（由 Agent 直接维护）
 
@@ -80,7 +69,8 @@ module: personality
 **你需要做的**（决策层）：
 
 1. **回顾本次任务事件**
-   - 阅读插件附加的 Event 摘要
+   - 阅读插件附加的 Event 摘要（从事件文件提取的偏差+归因+结果）
+   - 如事件文件不存在，回退到 `task.deviations` / `task.attributions`
    - 分类：成功经验 / 失败/挫折 / 常规操作 / 计划修订
 
 2. **6 维度同化/顺应分析**
@@ -96,14 +86,6 @@ module: personality
    | **技能** | `skills/README.md` | 现有技能成功处理 → 记录使用经验 | 需新技能或现有技能升级 → 更新索引 |
    | **程序性记忆** | `MEMORY.md` | 规则有效 → 确认并保留 | 规则失效/未覆盖 → 新增/修改 If-Then |
 
-   **同化示例**：
-   - "Git 推送成功" → 符合现有工作流 → 同化
-   - "按 monitoring skill 检测到偏差并修正" → 符合现有规则 → 同化
-
-   **顺应示例**：
-   - "老板指出元数据.json 不应移到临时数据/" → 与现有 manage-project 技能冲突 → 顺应（修复脚本、更新 If-Then 规则）
-   - "发现新类型任务需要新的处理方式" → 现有规则未覆盖 → 顺应（新增 If-Then 规则）
-
 3. **更新触发检测**
 
    逐条检查以下触发条件（满足任一即需更新对应文件）：
@@ -114,13 +96,6 @@ module: personality
    | `IDENTITY.md` | 新角色被赋予、现有角色期望变化、边界扩展 | 新增/修改角色集、更新身份边界表 |
    | `skills/README.md` | 新技能创建、现有技能升级/修复 | 更新技能索引表、补充说明 |
    | `MEMORY.md` | If-Then 规则失效、未覆盖新场景 | 新增/修改/删除条件-行动规则 |
-
-   **判定流程**：
-   1. 读取对应人格文件的当前内容
-   2. 将事件与文件中现有规则/描述对比
-   3. 判断：兼容（同化）/ 冲突（顺应）/ 无关
-   4. 若为顺应，确定需要修改的具体段落
-   5. 评估修改范围：微调（补充一句话）/ 中调（新增段落或规则）/ 重构（重写章节）
 
 4. **执行更新**
 
@@ -158,7 +133,7 @@ module: personality
 
 ```
 agent_end 触发
-    ↓ 插件注入本 skill + 本次 Event 摘要
+    ↓ 插件读取事件文件 → 提取偏差+归因+结果 → 注入本 skill + Event 摘要
 Agent 回顾本次事件
     ↓
 6 维度同化/顺应分析（对照 SOUL.md / IDENTITY.md / skills/README.md / MEMORY.md）
@@ -175,9 +150,9 @@ Agent 回顾本次事件
 | Skill | 注入时机 | 职责边界 |
 |-------|---------|---------|
 | `planning` | `before_prompt_build` | 制定 Plan，加载 `MEMORY.md` 规则 |
-| `monitoring` | `before_prompt_build`（active）| 检测偏差并记录到 `task.deviations` |
-| `regulation` | Deviation 创建后 | 归因分析并记录到 `task.attributions` |
-| `working_memory` | `agent_end` | 归档 session，管理任务空间复用 |
+| `monitoring` | `before_prompt_build`（active）| 检测偏差并记录到事件文件 |
+| `regulation` | `before_prompt_build`（条件注入）| 归因分析并记录到事件文件 |
+| `working_memory` | `before_prompt_build`（active，条件）| 文件系统上下文管理 |
 | `development` | `before_prompt_build`（completed）| 分析同化/顺应，更新人格文件 |
 
 ---
@@ -186,5 +161,6 @@ Agent 回顾本次事件
 
 | 版本 | 日期 | 更新内容 |
 |------|------|----------|
+| v4.0.0 | 2026-05-08 | 数据供给从 task.deviations 改为事件文件读取；向后兼容回退到 task 顶层字段 |
 | v3.5.0 | 2026-05-04 | 注入时机改为 `before_prompt_build`（completed）；基于 task 顶层字段而非 `task.event`；移除 cron/日记系统；扩展为 6 维度 |
 | v3.0.0 | 2026-04-29 | v3 重构：对象操作移交插件层，skill 变为纯 Agent 指导文档 |

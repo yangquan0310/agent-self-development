@@ -4,7 +4,7 @@ description: >
   元认知计划子模块。指导 Agent 评估任务复杂度、决定是否需要 Plan、
   制定 Plan、向用户汇报并等待确认。
   核心原则：Plugin asks, Agent decides, User confirms —— 插件不替 Agent 判断
-version: 3.6.0
+version: 4.0.0
 injected_at: before_prompt_build
 module: metacognition
 ---
@@ -27,6 +27,7 @@ module: metacognition
 | task=draft | Plan 草稿已创建 | 制定完整 Plan 并汇报 |
 | task=pending_approval | 等待用户确认 | 处理用户反馈（确认/修改/取消） |
 | task=active | 执行中 | 接收执行上下文，按阶段推进 |
+| task=revising | 修订中 | 重新制定 Plan |
 
 ---
 
@@ -48,7 +49,6 @@ module: metacognition
       "successCriteria": ["标准1", "标准2"]
     },
     "workspace": {
-      "sessions": [],
       "artifacts": [],
       "tools": ["editor", "git", "test_framework"],
       "skills": []
@@ -59,8 +59,6 @@ module: metacognition
           "id": "p1",
           "name": "阶段名",
           "goal": "阶段目标（'达成XX'而非'做XX'）",
-          "sessionId": "session:PROJECT:CODE",
-          "taskFamily": "CODE",
           "outputs": ["预期产出"],
           "status": "pending"
         }
@@ -72,7 +70,6 @@ module: metacognition
   "attributions": [],
   "planRevisions": [],
   "outcome": {},
-  "sessionIds": [],
   "tools": []
 }
 ```
@@ -144,9 +141,9 @@ module: metacognition
    - 阅读用户当前 prompt 中的任务需求
    - 识别核心诉求和隐含需求
 
-2. **加载个人记忆配置**
-   - 读取 `memory.md` 中的条件-行动规则
-   - 若用户任务满足某条规则的条件，在 Plan 中执行对应的行动（添加约束、阶段、验收标准等）
+2. **读取项目上下文**
+   - 读取 `metadata.json` 了解项目结构
+   - 读取 `.openclaw/tasks/{runId}.json` 了解该任务已涉及的文件（如有）
 
 3. **完善 task.plan.context**
    - `goal`：用一句话明确最终交付物
@@ -157,17 +154,12 @@ module: metacognition
    - 每个阶段必须有明确的 `goal`（"达成XX"而非"做XX"）
    - 定义每阶段的预期 `outputs`
    - 如需增删改阶段，说明理由
+   - 如有前置文件，在阶段描述中标注文件路径
 
-5. **分配任务空间（Session）并执行复用策略**
-
-   Session 标识格式：`session:{TYPE}:{任务族}`（如 `session:PROJECT:CODE`）
-
-   **复用规则**（插件自动执行，但 Agent 需在 Plan 中正确指定）：
-   - 同一 `taskFamily` 优先复用状态为 `idle` 的现有 Session
-   - 不同 `taskFamily` 必须创建独立 Session
-   - 需要任务空间的阶段必须在 `phase.sessionId` 中指定
-
-   **任务族（taskFamily）分类**：`CODE` / `RESEARCH` / `ANALYSIS` / `WRITING` / `TEST` / `DESIGN` / `TASK`
+5. **文件上下文提示**
+   - 制定 Plan 前读取 `.openclaw/tasks/{runId}.json`
+   - 如该任务已有历史文件，在 Plan 中引用已有文件
+   - 子代理协作改为文件交接：产出文件 → 下阶段读取文件
 
 6. **向用户汇报**
    ```markdown
@@ -178,8 +170,8 @@ module: metacognition
    ▸ 验收标准：[successCriteria]
 
    ▸ 执行阶段：
-     1. [阶段名] — [目标] [任务空间]
-     2. [阶段名] — [目标] [任务空间]
+     1. [阶段名] — [目标] [前置文件]
+     2. [阶段名] — [目标] [前置文件]
      ...
 
    ▸ 预期产出：[artifacts]
@@ -187,7 +179,7 @@ module: metacognition
    **计划已制定完毕，请确认或提出修改意见。**
    ```
 
-6. **通知插件状态变更**
+7. **通知插件状态变更**
    - 汇报完成后，告知插件将 task.status 更新为 `"pending_approval"`
 
 **插件已自动完成的**（执行层，无需你操作）：
@@ -214,7 +206,7 @@ module: metacognition
    - 保持 task.status 为 `"pending_approval"`（或 `"revising"`）
 
 4. **如果用户取消任务**：
-   - 告知插件将 task.status 更新为 `"completed"`
+   - 将 task.status 更新为 `"completed"`
    - 说明取消原因
 
 ---
@@ -234,9 +226,7 @@ module: metacognition
 - [ ] `plan.context.constraints` 是否列出了所有已知限制？
 - [ ] `plan.context.successCriteria` 是否可验证？
 - [ ] 每个阶段的 `goal` 是否以"达成"开头？
-- [ ] 需要任务空间的阶段是否已分配 `sessionId`？
-- [ ] 同任务族的阶段是否复用了同一 session？
-- [ ] 是否已加载 `memory.md` 条件-行动规则并应用？
+- [ ] 是否已读取 `.openclaw/tasks/{runId}.json` 了解已有文件？
 - [ ] 是否已向用户汇报并请求确认？
 
 ---
@@ -277,9 +267,9 @@ module: metacognition
 | Skill | 注入时机 | 职责边界 |
 |-------|---------|---------|
 | `planning` | `before_prompt_build` | 评估任务 → 制定 Plan → 处理确认（本 skill） |
-| `monitoring` | `before_prompt_build`（task=active）| 检查执行偏差 |
-| `regulation` | Deviation 创建后 | 归因分析 |
-| `working_memory` | `agent_end`（纯观察，不再注入 skill）| 归档 session |
+| `monitoring` | `before_prompt_build`（task=active）| 偏差预防提醒 + 自我监控指引 |
+| `regulation` | `before_prompt_build`（条件：事件文件中有未处理偏差）| 归因分析 |
+| `working_memory` | `before_prompt_build`（task=active，条件：有历史文件）| 文件系统上下文管理 |
 | `development` | `before_prompt_build`（task=completed）| 人格更新 |
 
 ---
@@ -288,6 +278,7 @@ module: metacognition
 
 | 版本 | 日期 | 更新内容 |
 |------|------|----------|
+| v4.0.0 | 2026-05-08 | 移除 Session 分配规则；新增文件上下文提示；子代理协作改为文件交接；planning skill 与文件系统协作协议对齐 |
 | v3.4.0 | 2026-04-29 | 合并 assessment + planning；延迟创建 task；Agent 评估 + 用户确认后才创建 task |
 | v3.3.0 | 2026-04-29 | 适配统一 task JSON；状态流转增加 revising |
 | v3.0.0 | 2026-04-29 | v3 重构 |

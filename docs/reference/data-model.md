@@ -13,7 +13,6 @@
     "successCriteria": ["成功标准：创建/修改哪些文档"]
   },
   "workspace": {
-    "sessions": [],
     "artifacts": ["预期产出文档"],
     "tools": ["所用工具"],
     "skills": ["所用技能"]
@@ -24,8 +23,6 @@
         "id": "phase1",
         "name": "子任务名称",
         "goal": "子任务目标",
-        "sessionId": "session:CODE:task-family",
-        "taskFamily": "CODE",
         "tools": ["所需工具"],
         "skills": ["所需技能"],
         "outputs": ["产出文档"],
@@ -53,85 +50,103 @@
 
 ---
 
-## Deviation 对象
+## Deviation 对象（v4.0.0 偏差类型统一）
 
-```json
-{
-  "deviationId": "uuid",
-  "runId": "uuid",
-  "phaseId": "phase1",
-  "status": "detected",
-  "detectedAt": "ISO-8601 timestamp",
-  "type": "scope_creep|tool_failure|logic_error|user_intervention|other",
-  "expected": {
-    "description": "预期行为/输出",
-    "criteria": "引用的 Plan.successCriteria"
-  },
-  "actual": {
-    "description": "实际行为/输出",
-    "evidence": "截图/日志/输出片段"
-  },
-  "gap": {
-    "description": "差距描述",
-    "severity": "low|medium|high|critical"
-  },
-  "acknowledgedAt": "ISO-8601 timestamp|null",
-  "resolvedAt": "ISO-8601 timestamp|null",
-  "resolution": "解决方式描述|null"
-}
-```
+v4.0.0 中偏差记录已迁移到**事件文件**（`.openclaw/events/{YYYY-MM-DD}/{HH-MM-SS}.md`）的「偏差」章节。
+系统级 `task.deviations` 字段保留但不再作为主要存储（向后兼容）。
 
-**Deviation 状态转换规则**：
+**偏差类型规范（v4.0.0 统一）**：
 
-| 当前状态 | 触发条件 | 新状态 |
-|----------|----------|--------|
-| 不存在 | LLM 输出与 Plan 偏离 | `detected` |
-| `detected` | Agent 确认偏差 | `acknowledged` |
-| `acknowledged` | 执行 Attribution 调节方案 | `resolved` |
+| 类型 | 定义 | 典型场景 |
+|------|------|----------|
+| `output_mismatch` | 实际输出与 Plan 预期不符 | 代码未按设计实现、文档遗漏关键章节 |
+| `doc_lag` | 文档/代码不同步 | 代码已改但 README/SKILL.md 未更新 |
+| `context_loss` | 文件系统上下文丢失 | Agent 未读取历史文件、重复劳动、遗漏前置文件 |
+| `file_mismatch` | 文件路径或内容错误 | 写入错误路径、覆盖他人文件、文件格式不符规范 |
+| `other` | 其他未分类偏差 | 用户临时变更需求、外部依赖问题 |
 
 ---
 
 ## Attribution 对象
 
-```json
-{
-  "attributionId": "uuid",
-  "runId": "uuid",
-  "deviationId": "uuid",
-  "status": "analyzing",
-  "createdAt": "ISO-8601 timestamp",
-  "rootCause": {
-    "category": "planning|execution|tool|skill|knowledge|other",
-    "description": "根因分析",
-    "evidence": "支持证据"
-  },
-  "adjustment": {
-    "type": "modify_plan|skip_phase|create_session|update_criteria|other",
-    "description": "调节方案描述",
-    "targetId": "Plan.runId 或 Session.sessionId",
-    "changes": {
-      "phases": [],
-      "artifacts": [],
-      "tools": [],
-      "skills": []
-    }
-  },
-  "executedAt": "ISO-8601 timestamp|null",
-  "result": "执行结果描述|null"
-}
-```
-
-**Attribution 状态转换规则**：
-
-| 当前状态 | 触发条件 | 新状态 |
-|----------|----------|--------|
-| 不存在 | Deviation 已确认 | `analyzing` |
-| `analyzing` | 根因分析和调节方案完成 | `completed` |
-| `completed` | 调节方案已执行 | `executed` |
+v4.0.0 中归因记录已迁移到**事件文件**的「归因」章节。
+系统级 `task.attributions` 字段保留但不再作为主要存储（向后兼容）。
 
 ---
 
-## Session 对象
+## 项目级 Task 索引（v4.0.0 新增）
+
+**存储位置**：`.openclaw/tasks/{runId}.json`
+
+```json
+{
+  "runId": "uuid",
+  "status": "active",
+  "agentId": "main",
+  "role": "primary",
+  "createdAt": "ISO-8601",
+  "updatedAt": "ISO-8601",
+  "files": [
+    {"path": "manuscripts/plan.md", "agentId": "main", "role": "primary", "type": "draft"},
+    {"path": "src/index.js", "agentId": "coder", "role": "subagent", "type": "artifact"}
+  ]
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `agentId` / `role` | 负责该任务的主 Agent ID 及其角色（primary/subagent） |
+| `files[].agentId` / `files[].role` | 产出该文件的 Agent 信息 |
+| `files[].type` | `draft`（草稿）或 `artifact`（定稿） |
+
+**索引文件**：`.openclaw/tasks/INDEX.md` 按日期分组列出所有任务摘要。
+
+---
+
+## 事件文件（v4.0.0 新增）
+
+**存储位置**：`.openclaw/events/{YYYY-MM-DD}/{HH-MM-SS}.md`
+
+事件文件包含 7 个必选部分：
+1. **元信息（Metadata）**：runId、agentId、role、createdAt
+2. **计划（Plan）**：执行计划、验收标准、预估时间
+3. **执行（Execution）**：实际完成的工作、产出文件
+4. **变更记录（ChangeLog）**：`- {HH:MM} {agent-id} {write|edit} {filePath} — {摘要}`
+5. **偏差（Deviation）**：发现的偏差（类型、描述、影响范围）
+6. **归因（Attribution）**：根本原因、影响评估、策略更新
+7. **结果（Outcome）**：最终状态（完成/修正/放弃）
+
+---
+
+## Event 对象（系统级，[占位符]）
+
+agent_end 时，插件将项目级事件文件和 task 索引归档到系统层 Memory：
+
+```json
+{
+  "runId": "uuid",
+  "timestamp": "ISO-8601 timestamp",
+  "status": "completed",
+  "eventContent": "事件文件内容摘要（限制 5000 字符）",
+  "projectTaskIndex": { "files": [...] },
+  "outcome": {
+    "archivedAt": "ISO-8601 timestamp",
+    "toolCount": 5
+  }
+}
+```
+
+**Event 生命周期**：
+1. Agent 在任务期间写入项目级事件文件（`.openclaw/events/...`）
+2. agent_end 时插件读取项目级事件文件和 task 索引
+3. 插件将内容归档到系统层 Memory SQLite（`asd_eventlogs` 表）
+4. 历史查询功能为 [占位符]，待后续按需实现
+
+---
+
+## Session 对象（[占位符]）
+
+v4.0.0 中 Session 追踪保留但不再维护全局活跃索引。文件系统上下文替代 Session 内存复用。
 
 ```json
 {
@@ -151,45 +166,9 @@
 }
 ```
 
-**Session 状态转换规则**：
-
-| 当前状态 | 触发条件 | 新状态 |
-|----------|----------|--------|
-| 不存在 | 需要新任务空间 | `pending` |
-| `pending` | 开始执行 | `active` |
-| `active` | 阶段完成 | `completed` |
-| `completed` | agent_end | `idle`（可复用） |
-| `active` | 工具报错 | `killed`（销毁） |
-| `active` | 主动暂停 | `paused` |
-| `paused` | 恢复执行 | `active` |
-
 ---
 
-## Event 对象
+## 同化 vs 顺应判定
 
-agent_end 时，Event 类将 task JSON 打包成以下结构存入 Memory：
-
-```json
-{
-  "runId": "uuid",
-  "timestamp": "ISO-8601 timestamp",
-  "status": "completed",
-  "taskSnapshot": {
-    "plan": { "prompt", "context", "workspace", "execution" },
-    "sessionIds": ["session:CODE:xxx"],
-    "tools": [ { "toolName", "type", "summary" } ]
-  },
-  "outcome": {
-    "archivedAt": "ISO-8601 timestamp",
-    "completedSessions": ["session-id-1"],
-    "killedSessions": [],
-    "toolCount": 5
-  }
-}
-```
-
-**Event 生命周期**：agent_end 时由 Event 类读取 task JSON → 打包成事件 → 写入 Memory EventLog。
-
-**同化 vs 顺应判定**：
 - **同化**：原有内容的细化 → 调用子对象的 update 方法
 - **顺应**：新结构的出现 → 调用子对象的 create 方法

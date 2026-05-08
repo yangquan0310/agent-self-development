@@ -4,10 +4,11 @@
  * 插件职责：在合适的时机将对应的 skill 文档注入 Agent 的 system context
  * Agent 职责：自行阅读 skill、判断偏差、决定是否 revise
  *
- * v3.4.0 变更：
- * - 移除插件自动创建 task JSON，改为 Agent 评估 + 用户确认后延迟创建
- * - 新增 assessment 阶段：before_prompt_build（无 task）→ 注入 assessment skill
- * - llm_output 检测 [NEED_PLAN] 标记后创建 task，再注入 planning skill
+ * v4.0.0 变更：
+ * - 修复 regulation 注入：从事件文件读取未处理偏差，条件注入 regulation skill
+ * - 修复 monitoring 职责：从"偏差检测器"重定义为"偏差预防提醒 + 自我监控指引"
+ * - 新增文件上下文提示：从 tasks/{runId}.json 读取历史文件列表注入 planning skill
+ * - 移除 Session 复用相关描述，改为文件系统上下文保持
  *
  * Plan 状态机：
  *   draft → pending_approval → active → completed
@@ -16,7 +17,8 @@
  *   └─ active: 用户确认后按 phases 执行
  */
 
-import { generatePlan, assignSessionsToPhases, getNow } from '../common/utils.js';
+import { promises as fs } from 'fs';
+import { generatePlan, assignSessionsToPhases, getNow, getToday } from '../common/utils.js';
 import { Stream } from '../common/stream.js';
 
 // v3.5.0: 状态标记正则
@@ -159,12 +161,66 @@ export class Metacognition {
     return task;
   }
 
+  // v4.0.0: 根据 task 推断事件文件路径
+  _resolveEventFilePath(task) {
+    const createdAt = task.createdAt;
+    if (!createdAt) return null;
+    const date = new Date(createdAt);
+    const dateStr = date.toISOString().slice(0, 10);
+    // 尝试从 task.eventFilePath 直接获取
+    if (task.eventFilePath) {
+      return task.eventFilePath;
+    }
+    // 根据 createdAt 推断：HH-MM-SS.md
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    const ss = String(date.getSeconds()).padStart(2, '0');
+    return `.openclaw/events/${dateStr}/${hh}-${mm}-${ss}.md`;
+  }
+
+  // v4.0.0: 读取事件文件，提取偏差和归因信息
+  async _readEventFile(eventFilePath) {
+    try {
+      const content = await fs.readFile(eventFilePath, 'utf-8');
+      const hasDeviation = content.includes('## 5. 偏差（Deviation）');
+      const hasAttribution = content.includes('## 6. 归因（Attribution）');
+
+      let deviationSection = '';
+      if (hasDeviation) {
+        const match = content.match(/## 5\. 偏差[\s\S]*?(?=## 6\. |## 7\. |$)/);
+        if (match) deviationSection = match[0];
+      }
+
+      let attributionSection = '';
+      if (hasAttribution) {
+        const match = content.match(/## 6\. 归因[\s\S]*?(?=## 7\. |$)/);
+        if (match) attributionSection = match[0];
+      }
+
+      return { content, hasDeviation, hasAttribution, deviationSection, attributionSection };
+    } catch {
+      return { content: '', hasDeviation: false, hasAttribution: false, deviationSection: '', attributionSection: '' };
+    }
+  }
+
+  // v4.0.0: 从 tasks/{runId}.json 读取文件列表
+  async _getTaskFilePaths(runId) {
+    try {
+      const content = await fs.readFile(`.openclaw/tasks/${runId}.json`, 'utf-8');
+      const taskIndex = JSON.parse(content);
+      return taskIndex.files ? taskIndex.files.map(f => f.path) : [];
+    } catch {
+      return [];
+    }
+  }
+
   /**
    * before_prompt_build 逻辑：
-   * 1. 无 task → 注入 assessment skill（Agent 评估 + 询问用户）
-   * 2. task=draft → 注入 planning skill（制定 Plan）
+   * 1. 无 task → 注入 planning skill（评估阶段）
+   * 2. task=draft → 注入 planning skill（制定阶段）+ 文件上下文提示
    * 3. task=pending_approval → 注入 planning skill（处理用户反馈）
-   * 4. task=active → 注入执行上下文 + monitoring
+   * 4. task=active → 注入 monitoring（偏差预防）+ 执行上下文 + regulation（条件）+ WM文件上下文（条件）
+   * 5. task=revising → 注入 planning skill（修订阶段）+ regulation（条件）
    */
   async onBeforePromptBuild(event, ctx) {
     const runId = ctx.runId;
@@ -233,26 +289,32 @@ export class Metacognition {
       };
     }
 
+    // v4.0.0: 文件上下文提示（从 tasks/{runId}.json 读取）
+    const filePaths = await this._getTaskFilePaths(runId);
+    const fileContext = filePaths.length > 0
+      ? `\n【文件上下文】当前任务已涉及以下文件（从 .openclaw/tasks/${runId}.json 读取）：\n${filePaths.map(p => `- ${p}`).join('\n')}\n如需了解文件详情，请自行读取。\n`
+      : '';
+
     if (task.status === 'draft') {
-      return this._buildDraftContext(planningSkill, task.plan);
+      return this._buildDraftContext(planningSkill, task.plan, fileContext);
     }
 
     if (task.status === 'pending_approval') {
-      return this._buildPendingApprovalContext(planningSkill, task.plan);
+      return this._buildPendingApprovalContext(planningSkill, task.plan, fileContext);
     }
 
     if (task.status === 'active') {
-      return await this._buildExecutionContext(task);
+      return await this._buildExecutionContext(task, fileContext);
     }
 
     if (task.status === 'revising') {
-      return await this._buildRevisingContext(task);
+      return await this._buildRevisingContext(task, fileContext);
     }
 
     return null;
   }
 
-  _buildDraftContext(planningSkill, plan) {
+  _buildDraftContext(planningSkill, plan, fileContext = '') {
     const { execution, workspace } = plan;
     const assignedSessions = execution.phases.filter(ph => ph.sessionId).length;
 
@@ -263,12 +325,11 @@ export class Metacognition {
 - 阶段总数：${execution.phases.length}，已分配任务空间：${assignedSessions}
 - 当前状态：status = "draft"，currentPhase = 0
 - 可用工具：${workspace.tools.join(' / ') || '无'}
-
+${fileContext}
 【执行指导】
-1. 载入 ~/.openclaw/workspace/{agent}/MEMORY.md 中的条件-行动规则
-2. 检查「活跃会话清单」，判断是否需要复用现有会话
-3. 制定完整 Plan 后向用户汇报，等待确认
-4. 汇报完成后，通知插件将 status 更新为 "pending_approval"
+1. 制定完整 Plan 后向用户汇报，等待确认
+2. 如需引用已有文件，在 phases 中标注前置文件路径
+3. 汇报完成后，通知插件将 status 更新为 "pending_approval"
 `;
 
     return {
@@ -276,12 +337,12 @@ export class Metacognition {
     };
   }
 
-  _buildPendingApprovalContext(planningSkill, plan) {
+  _buildPendingApprovalContext(planningSkill, plan, fileContext = '') {
     const pendingContext = `
 【Plan 待确认 - 处理用户反馈】
 
 当前 Plan 状态：pending_approval（等待用户确认）
-
+${fileContext}
 【Agent 职责 - 必做】
 1. 读取用户反馈内容
 2. 如果用户确认（"确认"、"可以"、"开始执行"等）：
@@ -301,19 +362,39 @@ export class Metacognition {
     };
   }
 
-  async _buildExecutionContext(task) {
+  async _buildExecutionContext(task, fileContext = '') {
     const { execution, workspace } = task.plan;
     const currentPhase = execution.phases[execution.currentPhase];
     const completedCount = execution.phases.filter(ph => ph.status === 'completed').length;
 
     let phaseInfo = '';
     if (currentPhase) {
-      const sessionHint = currentPhase.sessionId
-        ? `，分配会话：${currentPhase.sessionId}`
-        : '';
-      phaseInfo = `当前阶段：${execution.currentPhase + 1}/${execution.phases.length}（ID: ${currentPhase.id}）${sessionHint}`;
+      phaseInfo = `当前阶段：${execution.currentPhase + 1}/${execution.phases.length}（ID: ${currentPhase.id}）`;
     } else {
       phaseInfo = '所有阶段已完成';
+    }
+
+    // v4.0.0: 从事件文件读取偏差信息
+    const eventFilePath = this._resolveEventFilePath(task);
+    const eventData = eventFilePath ? await this._readEventFile(eventFilePath) : null;
+
+    // v4.0.0: monitoring 职责重定义 — 偏差预防提醒 + 自我监控指引
+    let monitoringPrefix = '';
+    if (this.monitoringEnabled) {
+      const monitoringSkill = await this.skills.load('monitoring');
+      if (monitoringSkill) {
+        monitoringPrefix = `${monitoringSkill}\n\n`;
+      }
+    }
+
+    // v4.0.0: regulation 条件注入 — 事件文件中有未处理偏差时注入
+    let regulationPrefix = '';
+    if (eventData && eventData.hasDeviation && !eventData.hasAttribution) {
+      const regulationSkill = await this.skills.load('regulation');
+      if (regulationSkill) {
+        regulationPrefix = `${regulationSkill}\n\n【偏差处理】事件文件中的未处理偏差：\n${eventData.deviationSection}\n\n`;
+        this.logger.debug(`[Meta] 注入 regulation skill（未处理偏差）: runId=${task.runId}`);
+      }
     }
 
     const execContext = `
@@ -323,29 +404,38 @@ export class Metacognition {
 - ${phaseInfo}
 - 已完成阶段：${completedCount} 个
 - 已产出物数量：${workspace.artifacts.length}
-
+${fileContext}
 【执行指导】
 1. 当前阶段已确认，按目标推进
 2. 阶段完成后通知插件：phase.status = "completed"，currentPhase++
 3. 产出物追加到 task.plan.workspace.artifacts
-4. 如需调节 Plan，先说明理由并通知插件更新
+4. 每次写入文件后，更新 .openclaw/tasks/${task.runId}.json（追加新文件路径）
+5. 如需调节 Plan，先说明理由并通知插件更新
+6. 本轮执行后若发现偏差，请输出 [STATUS: revising] [REASON: xxx]
 `;
 
-    // v3.5.0: active 状态注入 monitoring skill
-    const monitoringSkill = await this.skills.load('monitoring');
-    const monitoringPrefix = monitoringSkill ? `${monitoringSkill}\n\n` : '';
-
     return {
-      prependSystemContext: `${monitoringPrefix}${execContext}`
+      prependSystemContext: `${monitoringPrefix}${regulationPrefix}${execContext}`
     };
   }
 
-  async _buildRevisingContext(task) {
+  async _buildRevisingContext(task, fileContext = '') {
     const planningSkill = await this.skills.load('planning');
     const revisionReason = task.revisionReason || '用户要求修改';
 
+    // v4.0.0: revising 状态下如有未处理偏差，同时注入 regulation
+    const eventFilePath = this._resolveEventFilePath(task);
+    const eventData = eventFilePath ? await this._readEventFile(eventFilePath) : null;
+    let regulationPrefix = '';
+    if (eventData && eventData.hasDeviation && !eventData.hasAttribution) {
+      const regulationSkill = await this.skills.load('regulation');
+      if (regulationSkill) {
+        regulationPrefix = `${regulationSkill}\n\n【偏差处理】事件文件中的未处理偏差：\n${eventData.deviationSection}\n\n`;
+      }
+    }
+
     return {
-      prependSystemContext: `${planningSkill}\n\n【Plan 修订】\n当前 Plan：${JSON.stringify(task.plan)}\n修改原因：${revisionReason}\n请重新制定 Plan`
+      prependSystemContext: `${planningSkill}\n${regulationPrefix}\n【Plan 修订】\n当前 Plan：${JSON.stringify(task.plan)}\n修改原因：${revisionReason}\n请重新制定 Plan`
     };
   }
 

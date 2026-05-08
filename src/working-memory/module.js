@@ -1,16 +1,19 @@
 /**
  * 工作记忆 —— 面向对象封装
  *
- * 核心概念：
- * - 会话（Session）= 任务空间：执行特定任务的内存空间
- * - 同一任务族的 Agent 在同一会话中处理任务
- * - Agent 是软件，在任务空间中执行任务
- * - 支持并行：一个 Agent 可同时持有多个任务空间
+ * v4.0.0 变更：
+ * - 注册 before_prompt_build 注入 WM 文件上下文（替代 Session 内存复用）
+ * - 移除 _updateActiveSession / _removeActiveSession（清理全局索引 working_memory:active_sessions）
+ * - 调整 onAgentEnd 归档逻辑：读取项目级 .openclaw/tasks/{runId}.json 和事件文件归档
+ * - onAfterToolCall 扩展文件变更审计追踪（读取事件文件变更记录 → 系统层日志）
+ * - 添加 getTaskFilePaths 静态方法
  *
- * 插件职责：追踪任务空间生命周期，在 agent_end 时更新 task JSON 和全局索引
- * Agent 职责：自行阅读 skill、管理任务空间看板、决定复用/创建/销毁策略
+ * 核心概念：
+ * - 上下文通过文件系统保持，不依赖 Session 内存复用
+ * - Agent 是唯一写入者，插件只读取项目文件
  */
 
+import { promises as fs } from 'fs';
 import { getToday, getNow, inferTaskFamily } from '../common/utils.js';
 
 export class WorkingMemory {
@@ -40,10 +43,16 @@ export class WorkingMemory {
     }
 
     this.logger.info('[WM] 注册工作记忆 Hooks');
+    this._registerPromptBuild();
     this._registerSessionTracking();
     this._registerSubagentHooks();
     this._registerToolResult();
     this._registerArchive();
+  }
+
+  // v4.0.0: 文件上下文注入: before_prompt_build
+  _registerPromptBuild() {
+    this.api.on('before_prompt_build', this.onBeforePromptBuild.bind(this), { priority: 45 });
   }
 
   // ── 任务空间追踪: before_tool_call ──
@@ -90,6 +99,48 @@ export class WorkingMemory {
     await this.state.saveTask(task.runId, task);
   }
 
+  // v4.0.0: 从项目级 tasks/{runId}.json 读取文件列表
+  static async getTaskFilePaths(runId, projectRoot = '.') {
+    try {
+      const content = await fs.readFile(`${projectRoot}/.openclaw/tasks/${runId}.json`, 'utf-8');
+      const taskIndex = JSON.parse(content);
+      return taskIndex.files ? taskIndex.files.map(f => f.path) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // v4.0.0: before_prompt_build —— 注入 WM 文件上下文
+  async onBeforePromptBuild(event, ctx) {
+    const runId = ctx.runId;
+    if (!runId) return;
+
+    const task = await this._getTask(runId);
+    if (!task || task.status !== 'active') return;
+
+    // v4.0.0: 注入条件：task.status === 'active' 且该任务已有历史文件
+    const filePaths = await WorkingMemory.getTaskFilePaths(runId);
+    if (filePaths.length === 0) return;
+
+    const wmSkill = await this.skills.load('working_memory');
+    if (!wmSkill) return;
+
+    const fileContext = `
+【文件系统上下文保持规则】
+1. 上下文通过文件系统保持，不依赖 Session 内存复用
+2. 当前任务已涉及的文件列表：
+${filePaths.map(p => `   - ${p}`).join('\n')}
+3. 子代理产出通过文件路径关联到主任务，不追踪 Session ID
+4. 每次写入文件后，Agent 自行更新 .openclaw/tasks/${runId}.json（Agent 是唯一写入者）
+5. 如需了解任务涉及的所有文件，请读取 .openclaw/tasks/${runId}.json
+`;
+
+    this.logger.debug(`[WM] 注入文件上下文: runId=${runId}, files=${filePaths.length}`);
+    return {
+      prependSystemContext: `${wmSkill}\n${fileContext}`
+    };
+  }
+
   /**
    * 追踪任务空间创建
    */
@@ -124,9 +175,6 @@ export class WorkingMemory {
       await this._saveTask(task);
     }
 
-    // 更新全局活跃任务空间索引
-    await this._updateActiveSession(sessionId, taskFamily, 'active');
-
     this.logger.debug(`[WM] 创建任务空间: ${sessionId} (taskFamily=${taskFamily}, parent=${runId})`);
     if (this.log) {
       await this.log.write({
@@ -141,6 +189,10 @@ export class WorkingMemory {
 
   /**
    * 记录工具错误和任务空间完成状态
+   *
+   * v4.0.0: 扩展文件变更审计追踪
+   * - 触发条件：after_tool_call + 工具为 write/edit + 文件路径匹配 *.md
+   * - 执行动作：读取当前任务事件文件的「变更记录」章节，将新记录转存到系统层日志
    */
   async onAfterToolCall(event, ctx) {
     const runId = ctx.runId;
@@ -180,12 +232,13 @@ export class WorkingMemory {
         session.lastActive = getNow();
         await this.state.saveSession(sessionId, session);
       }
+    }
 
-      // 同步更新全局活跃任务空间索引
-      const taskFamily = session?.taskFamily;
-      if (taskFamily) {
-        await this._updateActiveSession(sessionId, taskFamily, status);
-      }
+    // v4.0.0: 文件变更审计追踪
+    const filePath = event.params?.file || event.params?.path || '';
+    const isWriteEdit = toolName === 'write' || toolName === 'edit';
+    if (isWriteEdit && filePath.endsWith('.md')) {
+      await this._auditFileChange(runId, toolName, filePath, event.params?.description || '');
     }
 
     await this._saveTask(task);
@@ -197,6 +250,48 @@ export class WorkingMemory {
         message: `Tool error: ${toolName}`,
         extra: { toolName, error: String(result.error || 'unknown error').slice(0, 200) }
       });
+    }
+  }
+
+  // v4.0.0: 读取事件文件变更记录，转存到系统层日志
+  async _auditFileChange(runId, toolName, filePath, description) {
+    try {
+      const task = await this._getTask(runId);
+      if (!task || !task.createdAt) return;
+
+      const date = new Date(task.createdAt).toISOString().slice(0, 10);
+      const hh = String(new Date(task.createdAt).getHours()).padStart(2, '0');
+      const mm = String(new Date(task.createdAt).getMinutes()).padStart(2, '0');
+      const ss = String(new Date(task.createdAt).getSeconds()).padStart(2, '0');
+      const eventFilePath = `.openclaw/events/${date}/${hh}-${mm}-${ss}.md`;
+
+      // 读取事件文件的「变更记录」章节
+      let eventContent = '';
+      try {
+        eventContent = await fs.readFile(eventFilePath, 'utf-8');
+      } catch {
+        return; // 事件文件不存在，跳过
+      }
+
+      const changeLogMatch = eventContent.match(/## 4\. 变更记录[\s\S]*?(?=## 5\. |## 6\. |$)/);
+      if (changeLogMatch) {
+        const lines = changeLogMatch[0].split('\n').filter(l => l.trim().startsWith('-'));
+        const lastLine = lines[lines.length - 1] || '';
+        if (lastLine.includes(filePath)) {
+          // 转存到系统层日志
+          if (this.log) {
+            await this.log.write({
+              level: 'INFO',
+              module: 'WM',
+              runId,
+              message: `File audit: ${toolName} ${filePath}`,
+              extra: { toolName, filePath, description: description.slice(0, 50) }
+            });
+          }
+        }
+      }
+    } catch (err) {
+      this.logger.debug(`[WM] 文件变更审计失败: ${err.message}`);
     }
   }
 
@@ -234,7 +329,6 @@ export class WorkingMemory {
       await this._saveTask(task);
     }
 
-    await this._updateActiveSession(sessionId, taskFamily, 'active');
     this.logger.debug(`[WM] subagent_spawned: ${sessionId} (taskFamily=${taskFamily}, parent=${runId})`);
   }
 
@@ -265,16 +359,16 @@ export class WorkingMemory {
       await this._saveTask(task);
     }
 
-    const taskFamily = session?.taskFamily;
-    if (taskFamily) {
-      await this._updateActiveSession(sessionId, taskFamily, status);
-    }
-
     this.logger.debug(`[WM] subagent_ended: ${sessionId}, status=${status}`);
   }
 
   /**
    * 归档 completed 任务空间，更新 task JSON 状态
+   *
+   * v4.0.0: 调整归档逻辑
+   * - 读取项目级 .openclaw/tasks/{runId}.json 和事件文件
+   * - 写入系统层 Memory 数据库
+   * - 不再维护 working_memory:active_sessions 全局索引
    */
   async onAgentEnd(event, ctx) {
     const runId = ctx.runId;
@@ -306,17 +400,14 @@ export class WorkingMemory {
     const killedSessions = [];
     const pausedSessions = [];
 
-    for (const sessionId of task.sessionIds) {
+    for (const sessionId of task.sessionIds || []) {
       const session = await this.state.getSession(sessionId);
       if (!session) continue;
 
       if (session.status === 'completed') {
         completedSessions.push(session);
-        // 回到 idle 状态，供后续同任务族复用
-        await this._updateActiveSession(sessionId, session.taskFamily, 'idle');
       } else if (session.status === 'killed') {
         killedSessions.push(session);
-        await this._removeActiveSession(sessionId);
       } else if (session.status === 'paused') {
         pausedSessions.push(session);
       }
@@ -328,18 +419,47 @@ export class WorkingMemory {
       completedSessions: completedSessions.map(s => s.sessionId),
       killedSessions: killedSessions.map(s => s.sessionId),
       pausedSessions: pausedSessions.map(s => s.sessionId),
-      toolCount: task.tools.length
+      toolCount: (task.tools || []).length
     };
     await this._saveTask(task);
 
-    // v3.5.0: 通过 Event 归档任务（打包 deviations/attributions → Memory）
-    if (this.events) {
-      try {
-        const archiveResult = await this.events.archiveTask(task);
-        this.logger.debug(`[WM] 事件归档: runId=${runId}, archived=${archiveResult.archived}`);
-      } catch (err) {
-        this.logger.warn(`[WM] 事件归档失败: runId=${runId}, error=${err.message}`);
+    // v4.0.0: 读取项目级事件文件和 tasks/{runId}.json，归档到系统层 Memory
+    try {
+      const eventFilePath = this._resolveEventFilePath(task);
+      let eventContent = '';
+      if (eventFilePath) {
+        try {
+          eventContent = await fs.readFile(eventFilePath, 'utf-8');
+        } catch {
+          // 事件文件不存在
+        }
       }
+
+      // 读取项目级 tasks/{runId}.json
+      let projectTaskIndex = null;
+      try {
+        const taskIndexContent = await fs.readFile(`.openclaw/tasks/${runId}.json`, 'utf-8');
+        projectTaskIndex = JSON.parse(taskIndexContent);
+      } catch {
+        // 项目级 task 索引不存在
+      }
+
+      const archivePayload = {
+        runId,
+        status: task.status,
+        deviations: task.deviations || [],
+        attributions: task.attributions || [],
+        outcome: task.outcome || {},
+        eventContent: eventContent.slice(0, 5000), // 限制大小
+        projectTaskIndex,
+        archivedAt: Date.now()
+      };
+
+      if (this.events) {
+        await this.events.archiveTask(archivePayload);
+      }
+    } catch (err) {
+      this.logger.warn(`[WM] 项目级归档失败: runId=${runId}, error=${err.message}`);
     }
 
     this.logger.debug(`[WM] 任务归档: runId=${runId}, completed=${completedSessions.length}, killed=${killedSessions.length}`);
@@ -354,7 +474,7 @@ export class WorkingMemory {
           completedSessions: completedSessions.length,
           killedSessions: killedSessions.length,
           pausedSessions: pausedSessions.length,
-          toolCount: task.tools.length,
+          toolCount: (task.tools || []).length,
           taskStatus: task.status
         }
       });
@@ -370,39 +490,19 @@ export class WorkingMemory {
     this.logger.debug(`[WM] 任务归档完成: runId=${runId}`);
   }
 
-  /**
-   * 更新全局活跃任务空间索引
-   */
-  async _updateActiveSession(sessionId, taskFamily, status) {
-    const activeSessions = await this.state.getSession('working_memory:active_sessions') || [];
-    const existingIndex = activeSessions.findIndex(s => s.sessionId === sessionId);
-
-    if (existingIndex >= 0) {
-      activeSessions[existingIndex] = {
-        ...activeSessions[existingIndex],
-        taskFamily,
-        status,
-        lastActive: getNow()
-      };
-    } else {
-      activeSessions.push({
-        sessionId,
-        taskFamily,
-        status,
-        lastActive: getNow()
-      });
+  // v4.0.0: 根据 task 推断事件文件路径
+  _resolveEventFilePath(task) {
+    const createdAt = task.createdAt;
+    if (!createdAt) return null;
+    const date = new Date(createdAt);
+    const dateStr = date.toISOString().slice(0, 10);
+    if (task.eventFilePath) {
+      return task.eventFilePath;
     }
-
-    await this.state.saveSession('working_memory:active_sessions', activeSessions);
-  }
-
-  /**
-   * 从全局活跃索引中移除任务空间
-   */
-  async _removeActiveSession(sessionId) {
-    const activeSessions = await this.state.getSession('working_memory:active_sessions') || [];
-    const updated = activeSessions.filter(s => s.sessionId !== sessionId);
-    await this.state.saveSession('working_memory:active_sessions', updated);
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    const ss = String(date.getSeconds()).padStart(2, '0');
+    return `.openclaw/events/${dateStr}/${hh}-${mm}-${ss}.md`;
   }
 
   /**
