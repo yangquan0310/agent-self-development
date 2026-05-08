@@ -7,11 +7,11 @@ import {
 } from './helper.js';
 
 describe('Heartbeat', () => {
-  function createHeartbeat(stateData = {}, sessionData = {}, eventLogs = []) {
+  async function createHeartbeat(stateData = {}, sessionData = {}, eventLogs = []) {
     const api = createMockApi();
     const state = createMockState();
-    for (const [k, v] of Object.entries(stateData)) state.saveTask(k, v);
-    for (const [k, v] of Object.entries(sessionData)) state.saveSession(k, v);
+    for (const [k, v] of Object.entries(stateData)) await state.saveTask(k, v);
+    for (const [k, v] of Object.entries(sessionData)) await state.saveSession(k, v);
     const memory = createMockMemory();
     const date = new Date().toISOString().slice(0, 10);
     for (const log of eventLogs) {
@@ -26,7 +26,7 @@ describe('Heartbeat', () => {
   }
 
   it('heartbeat_prompt_contribution 返回 prependContext', async () => {
-    const { api } = createHeartbeat({
+    const { api } = await createHeartbeat({
       't1': { runId: 't1', status: 'active' },
       't2': { runId: 't2', status: 'draft' }
     }, {
@@ -43,7 +43,7 @@ describe('Heartbeat', () => {
   });
 
   it('统计今日事件数', async () => {
-    const { api } = createHeartbeat({}, {}, [{ runId: 'r1' }, { runId: 'r2' }]);
+    const { api } = await createHeartbeat({}, {}, [{ runId: 'r1' }, { runId: 'r2' }]);
     const [result] = await api._emit('heartbeat_prompt_contribution', {}, createMockCtx());
     assert.ok(result.prependContext.includes('今日事件：2 条'));
   });

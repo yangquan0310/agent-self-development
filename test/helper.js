@@ -3,11 +3,13 @@
  */
 
 export function createMockLogger() {
+  const calls = [];
   return {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {}
+    info: (...args) => calls.push(['info', ...args]),
+    warn: (...args) => calls.push(['warn', ...args]),
+    error: (...args) => calls.push(['error', ...args]),
+    debug: (...args) => calls.push(['debug', ...args]),
+    _calls: calls
   };
 }
 

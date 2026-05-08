@@ -21,6 +21,7 @@ describe('Deviation & Attribution', () => {
       assert.strictEqual(task.deviations.length, 1);
       assert.strictEqual(task.deviations[0].type, 'progress');
       assert.strictEqual(task.deviations[0].status, 'detected');
+      assert.strictEqual(task.deviations[0].severity, 'major');
       assert.strictEqual(task.deviations[0].description, '进度落后');
     });
 

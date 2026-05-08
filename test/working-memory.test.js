@@ -8,11 +8,11 @@ import {
 } from './helper.js';
 
 describe('WorkingMemory', () => {
-  function createWM(stateData = {}, sessionData = {}) {
+  async function createWM(stateData = {}, sessionData = {}) {
     const api = createMockApi();
     const state = createMockState();
-    for (const [k, v] of Object.entries(stateData)) state.saveTask(k, v);
-    for (const [k, v] of Object.entries(sessionData)) state.saveSession(k, v);
+    for (const [k, v] of Object.entries(stateData)) await state.saveTask(k, v);
+    for (const [k, v] of Object.entries(sessionData)) await state.saveSession(k, v);
     const memory = createMockMemory();
     const events = new Event(state, memory);
     const wm = new WorkingMemory({
@@ -26,7 +26,7 @@ describe('WorkingMemory', () => {
 
   describe('agent_end', () => {
     it('task.status=completed 时归档', async () => {
-      const { api, state, memory } = createWM({
+      const { api, state, memory } = await createWM({
         'r1': {
           runId: 'r1', status: 'completed',
           deviations: [], attributions: [],
@@ -45,7 +45,7 @@ describe('WorkingMemory', () => {
     });
 
     it('task.status=active 时不归档', async () => {
-      const { api, state } = createWM({
+      const { api, state } = await createWM({
         'r1': { runId: 'r1', status: 'active', sessionIds: [], tools: [], plan: {} }
       });
       await api._emit('agent_end', {}, createMockCtx('r1'));
@@ -55,16 +55,15 @@ describe('WorkingMemory', () => {
     });
 
     it('无 task 时跳过', async () => {
-      const { api } = createWM();
-      const results = await api._emit('agent_end', {}, createMockCtx('r1'));
-      // 不抛异常即通过
-      assert.ok(results);
+      const { api } = await createWM();
+      const [result] = await api._emit('agent_end', {}, createMockCtx('r1'));
+      assert.strictEqual(result, undefined);
     });
   });
 
   describe('subagent hooks', () => {
     it('subagent_spawned 创建 session 并关联到 task', async () => {
-      const { api, state } = createWM({
+      const { api, state } = await createWM({
         'r1': { runId: 'r1', status: 'active', sessionIds: [], tools: [], plan: {} }
       });
       await api._emit('subagent_spawned', {
@@ -78,7 +77,7 @@ describe('WorkingMemory', () => {
     });
 
     it('subagent_ended 更新 session 状态', async () => {
-      const { api, state } = createWM({
+      const { api, state } = await createWM({
         'r1': { runId: 'r1', status: 'active', sessionIds: ['sub-1'], tools: [], plan: {} }
       }, {
         'sub-1': { sessionId: 'sub-1', taskFamily: 'CODE', status: 'active' }
@@ -96,7 +95,7 @@ describe('WorkingMemory', () => {
 
   describe('before_tool_call', () => {
     it('非子代理工具不处理', async () => {
-      const { api, state } = createWM({
+      const { api, state } = await createWM({
         'r1': { runId: 'r1', status: 'active', sessionIds: [], tools: [], plan: {} }
       });
       await api._emit('before_tool_call', { toolName: 'web_search', params: {} }, createMockCtx('r1'));

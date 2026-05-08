@@ -7,11 +7,11 @@ import {
 } from './helper.js';
 
 describe('Metacognition', () => {
-  function createMeta(skillMap = {}, stateData = {}) {
+  async function createMeta(skillMap = {}, stateData = {}) {
     const api = createMockApi();
     const state = createMockState();
     for (const [k, v] of Object.entries(stateData)) {
-      state.saveTask(k, v);
+      await state.saveTask(k, v);
     }
     const skills = createMockSkills({
       planning: '【Planning Skill 内容】',
@@ -28,7 +28,7 @@ describe('Metacognition', () => {
 
   describe('before_prompt_build', () => {
     it('无 task 时注入 planning skill（首次）', async () => {
-      const { api } = createMeta();
+      const { api } = await createMeta();
       const ctx = createMockCtx();
       const [result] = await api._emit('before_prompt_build', { prompt: 'test prompt' }, ctx);
       assert.ok(result);
@@ -37,14 +37,14 @@ describe('Metacognition', () => {
     });
 
     it('无 task 时保存 prompt 到 ctx.state', async () => {
-      const { api } = createMeta();
+      const { api } = await createMeta();
       const ctx = createMockCtx();
       await api._emit('before_prompt_build', { prompt: 'hello world' }, ctx);
       assert.strictEqual(ctx.state['prompt:test-run'], 'hello world');
     });
 
     it('task=draft 时注入 planning skill（制定阶段）', async () => {
-      const { api } = createMeta({}, {
+      const { api } = await createMeta({}, {
         'test-run': {
           runId: 'test-run', status: 'draft',
           plan: { execution: { phases: [] }, workspace: { tools: [] } }
@@ -56,7 +56,7 @@ describe('Metacognition', () => {
     });
 
     it('task=active 时注入 monitoring skill + 执行上下文', async () => {
-      const { api } = createMeta({}, {
+      const { api } = await createMeta({}, {
         'test-run': {
           runId: 'test-run', status: 'active',
           plan: {
@@ -72,7 +72,7 @@ describe('Metacognition', () => {
     });
 
     it('task=revising 时注入 planning skill + 修订上下文', async () => {
-      const { api } = createMeta({}, {
+      const { api } = await createMeta({}, {
         'test-run': {
           runId: 'test-run', status: 'revising',
           revisionReason: '用户要求拆分阶段',
@@ -83,11 +83,23 @@ describe('Metacognition', () => {
       assert.ok(result);
       assert.ok(result.prependSystemContext.includes('Plan 修订'));
     });
+
+    it('task=pending_approval 时注入 planning skill', async () => {
+      const { api } = await createMeta({}, {
+        'test-run': {
+          runId: 'test-run', status: 'pending_approval',
+          plan: { execution: { phases: [] }, workspace: { tools: [] } }
+        }
+      });
+      const [result] = await api._emit('before_prompt_build', {}, createMockCtx());
+      assert.ok(result);
+      assert.ok(result.prependSystemContext.includes('pending_approval'));
+    });
   });
 
   describe('before_agent_finalize', () => {
     it('解析 [STATUS: active] 标记并更新 task', async () => {
-      const { api, state } = createMeta({}, {
+      const { api, state } = await createMeta({}, {
         'test-run': { runId: 'test-run', status: 'pending_approval', plan: {} }
       });
       const [result] = await api._emit('before_agent_finalize',
@@ -97,7 +109,7 @@ describe('Metacognition', () => {
     });
 
     it('解析 [STATUS: revising] [REASON: xxx] 并记录原因', async () => {
-      const { api, state } = createMeta({}, {
+      const { api, state } = await createMeta({}, {
         'test-run': { runId: 'test-run', status: 'active', plan: {} }
       });
       await api._emit('before_agent_finalize',
@@ -108,7 +120,7 @@ describe('Metacognition', () => {
     });
 
     it('检测 [NEED_PLAN] 创建 draft task 并返回 revise', async () => {
-      const { api, state } = createMeta();
+      const { api, state } = await createMeta();
       const ctx = createMockCtx();
       ctx.state['prompt:test-run'] = '帮我设计一个系统';
       const [result] = await api._emit('before_agent_finalize',
@@ -122,7 +134,7 @@ describe('Metacognition', () => {
     });
 
     it('检测 TODO 标记返回 revise', async () => {
-      const { api } = createMeta();
+      const { api } = await createMeta();
       const [result] = await api._emit('before_agent_finalize',
         { output: 'TODO: 还需要完成接口设计' }, createMockCtx());
       assert.ok(result);
@@ -130,7 +142,7 @@ describe('Metacognition', () => {
     });
 
     it('正常输出返回 finalize', async () => {
-      const { api } = createMeta();
+      const { api } = await createMeta();
       const [result] = await api._emit('before_agent_finalize',
         { output: '任务已完成。' }, createMockCtx());
       assert.ok(result);
@@ -140,7 +152,7 @@ describe('Metacognition', () => {
 
   describe('llm_output', () => {
     it('纯观察：保存 output 到 task.plan.output', async () => {
-      const { api, state } = createMeta({}, {
+      const { api, state } = await createMeta({}, {
         'test-run': { runId: 'test-run', status: 'active', plan: {} }
       });
       await api._emit('llm_output', { output: '这是模型输出' }, createMockCtx());
@@ -149,7 +161,7 @@ describe('Metacognition', () => {
     });
 
     it('纯观察：不返回任何值', async () => {
-      const { api } = createMeta({}, {
+      const { api } = await createMeta({}, {
         'test-run': { runId: 'test-run', status: 'active', plan: {} }
       });
       const [result] = await api._emit('llm_output', { output: 'test' }, createMockCtx());
