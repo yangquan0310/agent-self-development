@@ -4,7 +4,7 @@ description: >
   元认知监控子模块。指导 Agent 在 Plan active 阶段检测偏差并创建 Deviation 对象。
   核心原则：发现预期与实际的差距时，创建 Deviation 记录并触发调节。
 version: 3.5.0
-injected_at: llm_output
+injected_at: before_prompt_build
 module: metacognition
 ---
 
@@ -220,7 +220,7 @@ active（Plan 执行中）
 |-------|---------|---------|
 | `planning` | `before_prompt_build` | 提供 Plan 的基准定义，提供监控的参照标准 |
 | `regulation` | Deviation 创建后 | 负责分析 Deviation 的根因（Attribution），撰写 Event |
-| `working_memory` | `agent_end` | 负责运行结束时的任务空间归档 |
+| `working_memory` | `agent_end`（纯观察，不再注入 skill）| 负责运行结束时的任务空间归档 |
 
 ---
 

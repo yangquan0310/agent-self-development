@@ -182,8 +182,8 @@ resolved（Deviation）/ executed（Attribution）
 | Skill | 注入时机 | 职责边界 |
 |-------|---------|---------|
 | `planning` | `before_prompt_build` | 提供 Plan 基准，调节后可能需要回到 planning 重新汇报 |
-| `monitoring` | `llm_output` | 负责检测偏差并创建 Deviation，触发本 skill 的介入 |
-| `development` | `before_prompt_build`（completed）| 任务完成后基于 task 分析同化/顺应 |
+| `monitoring` | `before_prompt_build`（task=active）| 负责检测偏差并创建 Deviation，触发本 skill 的介入 |
+| `development` | `before_prompt_build`（task=completed）| 任务完成后基于 task 分析同化/顺应 |
 
 ---
 

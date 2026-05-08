@@ -1,10 +1,10 @@
 ---
 name: working_memory
 description: >
-  工作记忆模块。指导 Agent 在运行结束时检查任务空间看板、复用策略和归档状态。
+  工作记忆模块（参考文档，不再自动注入）。包含 Session 复用策略、任务空间管理规范。
   核心原则：completed 的任务空间标记为 idle 供复用，killed 的任务空间清理释放。
-version: 3.3.0
-injected_at: agent_end
+version: 3.5.0
+injected_at: reference_only
 module: working_memory
 ---
 
@@ -16,9 +16,11 @@ module: working_memory
 
 ---
 
-## 注入上下文
+## 文档状态
 
-本 skill 在 **`agent_end`** 触发时注入。此时插件已完成以下操作：
+> **v3.5.0 变更**：`agent_end` 已纯观察化，不再注入任何 skill。本文件改为**参考文档**，Agent 在需要管理 Session 时可主动查阅。
+
+插件在 `agent_end` 时已自动完成以下操作（无需 Agent 干预）：
 
 | 时机 | 插件已完成的操作 | 存储位置 |
 |------|-----------------|----------|
@@ -26,7 +28,7 @@ module: working_memory
 | completed Session | 归档到 Memory SQLite（`asd_archives` 表） | `~/.openclaw/memory/{agentId}.sqlite` |
 | completed Session | 标记为 `idle`（全局活跃索引） | `state:working_memory:active_sessions` |
 | killed Session | 从全局活跃索引移除 | 同上 |
-| 清理 | 更新 task.status = 'completed'，event.status = 'completed' | `task:{runId}`（统一 task JSON） |
+| 清理 | 更新 task.status = 'completed' | `task:{runId}`（统一 task JSON） |
 
 当前运行已结束，插件已完成所有存储层面的清理和归档。
 
@@ -82,9 +84,9 @@ module: working_memory
 
 ### 职责：检查任务空间看板与复用策略
 
-**触发条件**：`agent_end` — 本次运行已结束
+**查阅时机**：制定 Plan 分配 Session 时，或需要了解任务空间管理规范时
 
-**你需要做的**（决策层）：
+**你可以参考的策略**（决策层）：
 
 1. **检查活跃任务空间看板**
    - 全局活跃索引中当前有哪些 Session？
@@ -160,8 +162,8 @@ before_tool_call（sessions_spawn/agent/subagent）
 | Skill | 注入时机 | 职责边界 |
 |-------|---------|---------|
 | `planning` | `before_prompt_build` | 在制定 Plan 时为阶段分配任务空间（`sessionId`） |
-| `monitoring` | `llm_output` | 在执行中检查任务空间是否正常推进 |
-| `regulation` | （偏差触发时） | 在偏差涉及 Session 调整时操作任务空间状态 |
+| `monitoring` | `before_prompt_build`（task=active）| 在执行中检查任务空间是否正常推进 |
+| `regulation` | Deviation 创建后 | 在偏差涉及 Session 调整时操作任务空间状态 |
 
 ---
 

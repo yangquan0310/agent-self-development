@@ -4,7 +4,7 @@ description: >
   元认知计划子模块。指导 Agent 评估任务复杂度、决定是否需要 Plan、
   制定 Plan、向用户汇报并等待确认。
   核心原则：Plugin asks, Agent decides, User confirms —— 插件不替 Agent 判断
-version: 3.4.0
+version: 3.5.0
 injected_at: before_prompt_build
 module: metacognition
 ---
@@ -68,7 +68,10 @@ module: metacognition
       "currentPhase": 0
     }
   },
-  "event": { "status": "draft", "deviations": [], "attributions": [], "planRevisions": [], "outcome": {} },
+  "deviations": [],
+  "attributions": [],
+  "planRevisions": [],
+  "outcome": {},
   "sessionIds": [],
   "tools": []
 }
@@ -152,11 +155,21 @@ module: metacognition
 
 4. **审视并调整 task.plan.execution.phases**
    - 每个阶段必须有明确的 `goal`（"达成XX"而非"做XX"）
-   - 检查任务空间是否合理（同任务族复用同一 session）
    - 定义每阶段的预期 `outputs`
    - 如需增删改阶段，说明理由
 
-5. **向用户汇报**
+5. **分配任务空间（Session）并执行复用策略**
+
+   Session 标识格式：`session:{TYPE}:{任务族}`（如 `session:PROJECT:CODE`）
+
+   **复用规则**（插件自动执行，但 Agent 需在 Plan 中正确指定）：
+   - 同一 `taskFamily` 优先复用状态为 `idle` 的现有 Session
+   - 不同 `taskFamily` 必须创建独立 Session
+   - 需要任务空间的阶段必须在 `phase.sessionId` 中指定
+
+   **任务族（taskFamily）分类**：`CODE` / `RESEARCH` / `ANALYSIS` / `WRITING` / `TEST` / `DESIGN` / `TASK`
+
+6. **向用户汇报**
    ```markdown
    📋 **计划汇报**
 
@@ -264,10 +277,10 @@ module: metacognition
 | Skill | 注入时机 | 职责边界 |
 |-------|---------|---------|
 | `planning` | `before_prompt_build` | 评估任务 → 制定 Plan → 处理确认（本 skill） |
-| `monitoring` | `llm_output`（task=active）| 检查执行偏差 |
-| `regulation` | `llm_output`（偏差触发）| 归因分析 |
-| `working_memory` | `agent_end` | 归档 session |
-| `development` | `agent_end` | 人格更新 |
+| `monitoring` | `before_prompt_build`（task=active）| 检查执行偏差 |
+| `regulation` | Deviation 创建后 | 归因分析 |
+| `working_memory` | `agent_end`（纯观察，不再注入 skill）| 归档 session |
+| `development` | `before_prompt_build`（task=completed）| 人格更新 |
 
 ---
 

@@ -4,12 +4,6 @@
     "planning": "metacognition/planning/SKILL.md",
     "monitoring": "metacognition/monitoring/SKILL.md",
     "regulation": "metacognition/regulation/SKILL.md",
-    "session": "working-memory/session/SKILL.md",
-    "memory": "working-memory/memory/SKILL.md",
-    "development": "personality/SKILL.md",
-    "belief": "personality/belief/SKILL.md",
-    "self": "personality/self/SKILL.md",
-    "identity": "personality/identity/SKILL.md",
-    "skills": "personality/skills/SKILL.md"
+    "development": "personality/SKILL.md"
   }
 }
