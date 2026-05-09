@@ -10,6 +10,7 @@
 |------|------|---------|
 | [theory.md](theory.md) | 认知科学理论基础（Baddeley / Bandura / Piaget）→ Agent 架构映射 | 理解框架设计哲学时 |
 | [architecture.md](architecture.md) | 四层架构（用户/Agent/插件/系统）与权力边界 | 理解模块职责划分时 |
+| [project-structure.md](project-structure.md) | 被管理项目的标准目录结构（四文件契约 / .agent/ / 业务目录） | 初始化新项目或查阅目录规范时 |
 | [object-model.md](object-model.md) | 适配器层、管理器层、模块层类设计 + 源码结构 | 开发新模块或修改现有模块时 |
 | [data-model.md](data-model.md) | Plan / Deviation / Attribution / Session / Event JSON 结构 + 状态转换规则 | 操作数据对象或更新 SKILL.md 时 |
 | [hook-reference.md](hook-reference.md) | 所有钩子的注入映射表、返回值规范、副作用清单 | 注册新钩子或修改 hook 逻辑时 |
