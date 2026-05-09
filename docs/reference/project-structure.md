@@ -51,39 +51,49 @@
 
 ```json
 {
-  "name": "string",
-  "type": "string",
+  "project_id": "string",
+  "title": "string",
+  "created_date": "string",
+  "status": "active | completed | archived",
   "version": "string",
   "description": "string",
-  "structure": {
-    "path/": "该目录的用途说明",
-    "file.ext": "该文件的用途说明"
+  "type": "string",
+  "directories": {
+    "中文目录名": "english_path/"
   },
+  "tags": ["string"],
   "agents": [
     { "id": "string", "role": "string", "handles": ["string"] }
   ],
   "collaboration": {
     "mode": "multi-agent | single-agent",
     "protocol": "string"
-  }
+  },
+  "updated_at": "string"
 }
 ```
 
 | 字段 | 必填 | 说明 | 示例值 |
 |------|------|------|--------|
-| `name` | ✅ | 项目标识 | `agent-self-development` |
+| `project_id` | ✅ | 项目唯一标识（通常 = 文件夹名） | `agent-self-development` |
+| `title` | ✅ | 项目标题 | `Agent Self-Development` |
+| `created_date` | ✅ | 创建日期，ISO 8601 | `2026-05-08` |
+| `status` | ✅ | 项目状态 | `active` / `completed` / `archived` |
+| `version` | ✅ | 当前版本 | `v4.0.0` |
+| `description` | — | 项目描述 | — |
 | `type` | ✅ | 项目类型，驱动 Agent 差异化处理 | `openclaw-plugin`、`nodejs-service`、`docs`、`research` |
-| `version` | ✅ | 当前版本 | `4.0.0` |
-| `description` | ✅ | 一句话描述 | — |
-| `structure` | ✅ | 关键目录/文件及其用途的字典 | `{ "src/": "源码", "docs/": "文档" }` |
+| `directories` | ✅ | 目录结构映射，**key 用中文，value 用英文路径** | `{ "源码": "src/", "文档": "docs/" }` |
+| `tags` | — | 项目标签数组，用于分类和检索 | `["openclaw", "plugin"]` |
 | `agents` | — | 可协作的 Agent 列表，`handles` 描述其负责的事项 | `[{ "id": "pm", "role": "product-manager", "handles": ["架构"] }]` |
 | `collaboration.mode` | — | 协作模式 | `multi-agent` / `single-agent` |
 | `collaboration.protocol` | — | 项目上下文层协议版本 | `4.0.0` |
+| `updated_at` | ✅ | 最后更新时间（自动维护） | `2026-05-09T13:00:00` |
 
 **通用原则**：
 - 顶层扁平化，Agent 读取后无需深度解析即可掌握全貌
-- `structure` 用字典而非数组，路径即键，一目了然
-- 无 `modules`/`skills` 等代码项目专属字段，任何类型项目都适用
+- `directories` 用字典，**key 用中文，value 用英文路径**，方便 Agent 理解语义
+- 无代码项目专属字段，任何类型项目都适用
+- `updated_at` 由系统或 Agent 在执行变更后自动维护
 
 ---
 
