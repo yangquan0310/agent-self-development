@@ -36,6 +36,7 @@
 | 修复 Bug | `test/reports/latest.md` | `docs/CONVENTIONS.md` 3.3 节 |
 | 代码审查 | `agents/reviewer.md` Checklist | `docs/CONVENTIONS.md` 2.1 节 |
 | 版本发布 | `docs/changelog/INDEX.md` | `docs/roadmap/v{x.y.z}.md` |
+| **多Agent协作实践** | `docs/cases/paper-revision-collaboration.md` | `docs/COLLABORATION.md` |
 
 ---
 
