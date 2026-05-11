@@ -13,14 +13,14 @@ const DEFAULT_DIR = path.join(__dirname, '..');
 
 export class Skills {
   constructor(dir, log) {
-    this.dir = dir || path.join(__dirname, '..', '..', 'skill');
+    this.dir = dir || path.join(__dirname, '..', 'templates');
     this.log = log;
     this.map = {
-      planning: 'planning/SKILL.md',
-      monitoring: 'monitoring/SKILL.md',
-      regulation: 'regulation/SKILL.md',
-      working_memory: 'working-memory/SKILL.md',
-      development: 'personality/SKILL.md'
+      planning: 'planning.md',
+      monitoring: 'monitoring.md',
+      regulation: 'regulation.md',
+      working_memory: 'working-memory.md',
+      development: 'personality.md'
     };
     this.cache = new Map();
   }
