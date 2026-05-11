@@ -13,12 +13,12 @@ const DEFAULT_DIR = path.join(__dirname, '..');
 
 export class Skills {
   constructor(dir, log) {
-    this.dir = dir || DEFAULT_DIR;
+    this.dir = dir || path.join(__dirname, '..', '..', 'skills');
     this.log = log;
     this.map = {
-      planning: 'metacognition/planning/SKILL.md',
-      monitoring: 'metacognition/monitoring/SKILL.md',
-      regulation: 'metacognition/regulation/SKILL.md',
+      planning: 'planning/SKILL.md',
+      monitoring: 'monitoring/SKILL.md',
+      regulation: 'regulation/SKILL.md',
       working_memory: 'working-memory/SKILL.md',
       development: 'personality/SKILL.md'
     };
