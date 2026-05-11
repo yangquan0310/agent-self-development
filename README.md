@@ -4,22 +4,29 @@ OpenClaw 插件 — Agent 自我发展框架
 
 > **核心原则**：用户领航 → Agent 执行 → 插件史官只记录（Plugin asks, Agent decides, Plugin records）
 >
-> **当前版本**：v4.0.0（项目上下文层 & 多 Agent 协作体系）
+> **当前版本**：v4.1.0（Tool-Driven Agent Autonomy）
+>
+> **设计哲学**：从"代劳"到"赋能"——插件不再告诉 Agent 该做什么，而是让 Agent 自己决定需要什么。详见 [`docs/reference/design-philosophy.md`](docs/reference/design-philosophy.md)
 
 ---
 
-## 三层认知架构 + 项目上下文层
+## 三层认知架构 + 项目上下文层 + Tool 驱动
 
-v4.0.0 引入**项目上下文层**：位于 OpenClaw 会话层之下的持久化协作层，通过标准化的项目目录结构和文件协议，使多个独立的 Agent 能够在同一项目中共享上下文、协作完成任务。
+v4.1.0 引入 **Tool-Driven 架构**：插件通过 `api.registerTool()` 暴露 13 个 tools，Agent 按需主动调用，从"推送式"转为"拉取式"。
+
+v4.0.0 引入 **项目上下文层**：位于 OpenClaw 会话层之下的持久化协作层，通过标准化的项目目录结构和文件协议，使多个独立的 Agent 能够在同一项目中共享上下文、协作完成任务。
 
 **双系统平行架构**：
 - **Agent 自行行动系统**（文件系统）：Agent 是唯一写入者，通过读写项目文件推进任务
 - **史官系统**（插件记录系统）：插件只读取项目文件，将内容归档到系统层 Memory/Log
 
+**认知层**：
 - **元认知层**：计划（Plan）→ 监控（Deviation）→ 调节（Attribution）
 - **工作记忆层**：文件系统上下文管理、任务文件索引、归档
 - **人格发展层**：任务完成后分析同化/顺应，更新人格文件
-- **项目上下文层**：通过 Hook 注入 skill 提醒，驱动 Agent 建立标准化的项目级协作协议
+- **项目上下文层**：通过 **Tool 暴露 + 最小化 Hook 注入** 驱动 Agent 建立标准化的项目级协作协议
+
+**理论基础**：基于博士论文《数字化存储对自传体记忆的影响及其机制》的记忆系统研究，将人类自传体记忆机制迁移至 Agent 记忆设计。详见 [`docs/reference/theory.md`](docs/reference/theory.md)。
 
 详细架构设计见 [`docs/reference/`](docs/reference/)。
 
@@ -91,6 +98,7 @@ agent-self-development/
 
 | 版本 | 日期 | 变更摘要 |
 |------|------|----------|
+| **v4.1.0** | 2026-05-20（预计） | Tool-Driven 架构：13 个 tools 暴露、Agent 自主调用、Hook 注入最小化、`.openclaw` → `.agent` |
 | **v4.0.0** | 2026-05-08 | 项目上下文层：文件系统协作协议、Hook 职责对齐修复、事件文件驱动偏差/归因 |
 | **v3.6.0** | 2026-05-08 | 多 Agent 协作体系、项目级 skills、文档分层 |
 | **v3.5.0** | 2026-05-04 | Hooks 合规重构、Heartbeat、subagent 钩子、task 扁平化 |

@@ -8,7 +8,8 @@
 
 | 文档 | 内容 | 阅读时机 |
 |------|------|---------|
-| [theory.md](theory.md) | 认知科学理论基础（Baddeley / Bandura / Piaget）→ Agent 架构映射 | 理解框架设计哲学时 |
+| [design-philosophy.md](design-philosophy.md) | **v4.1.0 设计哲学**：从"代劳"到"赋能"，拉取式、显式接口、被动响应 | 理解 v4.1.0 架构决策时 |
+| [theory.md](theory.md) | **认知科学理论基础**：自传体记忆、工作自我、同化/顺应（基于博士论文）→ Agent 架构映射 | 理解框架为何这样设计时 |
 | [architecture.md](architecture.md) | 四层架构（用户/Agent/插件/系统）与权力边界 | 理解模块职责划分时 |
 | [project-structure.md](project-structure.md) | 被管理项目的标准目录结构（四文件契约 / .agent/ / 业务目录） | 初始化新项目或查阅目录规范时 |
 | [object-model.md](object-model.md) | 适配器层、管理器层、模块层类设计 + 源码结构 | 开发新模块或修改现有模块时 |
@@ -19,7 +20,7 @@
 ## 快速定位
 
 **我是新开发者，第一次接触本项目**
-→ 按顺序阅读：`theory.md` → `architecture.md` → `object-model.md` → `data-model.md`
+→ 按顺序阅读：`design-philosophy.md` → `theory.md` → `architecture.md` → `object-model.md` → `data-model.md`
 
 **我要添加一个新模块**
 → 重点阅读：`architecture.md`（权力边界）+ `object-model.md`（模块结构模板）+ `hook-reference.md`（钩子注册规范）
@@ -34,4 +35,4 @@
 
 - [项目技术规范](../../skills/project-conventions/SKILL.md) — 编码规范、钩子合规、命名规则
 - [项目协作协议](../../skills/collaboration-protocol/SKILL.md) — 多 Agent 协作标记规范
-- [版本路线图](../roadmap/) — v3.x → v4.0 架构演进
+- [版本路线图](../roadmap/) — v4.0 → v4.1 架构演进

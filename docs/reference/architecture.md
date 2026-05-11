@@ -1,4 +1,8 @@
-# 四层架构与权力边界（v4.0.0）
+# 四层架构与权力边界（v4.1.0）
+
+> **设计哲学**：从"代劳"到"赋能"——插件做"能力的提供者"，不做"决策的替代者"。详见 [`design-philosophy.md`](design-philosophy.md)。
+>
+> **理论基础**：基于博士论文《数字化存储对自传体记忆的影响及其机制》的记忆系统研究。详见 [`theory.md`](theory.md)。
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -42,6 +46,21 @@
 └─────────────────────────────────────────┘
 ```
 
+## v4.1.0 新增：Tool 驱动架构
+
+在四层架构之上，v4.1.0 引入 **Tool-Driven Agent Autonomy**：
+
+> 插件通过 `api.registerTool()` 暴露 13 个 tools，Agent 按需主动调用。从"推送式"（插件决定注入什么）转为"拉取式"（Agent 决定需要什么）。
+
+**三层 Tool 架构**：
+- **第一层：查询型 Tool**（插件只读）：`get_task_status`、`get_planning_guide`、`self_diagnose`
+- **第二层：操作型 Tool**（插件被动响应读写）：`create_plan`、`update_task_status`、`record_deviation`
+- **第三层：Agent 自治**：Agent 可直接读写 `.agent/` 文件系统，不强制走 Tool
+
+**Hook 职责调整**：
+- `before_prompt_build` 不再注入完整 skill 文本，只输出最小化提示（状态 + tools 列表）
+- `before_agent_finalize` 保留 `[STATUS]` 解析（deprecated），新增 tool 调用结果解析
+
 ## v4.0.0 新增：项目上下文层（Project Context Layer）
 
 在四层架构之上，v4.0.0 引入**项目上下文层**的概念：
@@ -57,9 +76,9 @@
 | 元件 | 位置 | 职责 |
 |------|------|------|
 | 四文件契约 | 项目根目录 | README.md（总览）、metadata.json（机器架构）、SKILL.md（操作手册）、TODO.md（进度看板）|
-| .openclaw/ | 项目根目录隐藏目录 | events/（事件流）、locks/（并发控制）、decisions/（决策存档）、tasks/（任务索引）|
+| .agent/ | 项目根目录隐藏目录 | events/（事件流）、locks/（并发控制）、decisions/（决策存档）、tasks/（任务索引）|
 | 业务目录 | 项目根目录 | uploads/（只读输入）、manuscripts/（草稿）、docs/（定稿）、knowledge/（知识）、temp/（临时）|
-| .openclawignore | 项目根目录 | 可见性控制 |
+| .agentignore | 项目根目录 | 可见性控制 |
 
 **上下文来源**：Agent 的上下文来自**文件系统**（`tasks/{runId}.json`、事件文件、TODO.md），而非系统层的 SQLite。系统层数据目前仅用于 Memory 归档和日志记录；查询/心跳统计为占位符。
 
@@ -125,12 +144,12 @@
 
 | 存储类型 | 数据库路径 | 格式 | 插件层调用 | 用途 | 状态 |
 |----------|-----------|------|-----------|------|------|
-| **Task** | `.openclaw/tasks/runs.sqlite` | SQLite | Task | 使用已有系统数据库 | [占位符] |
-| **Flow** | `.openclaw/flows/registry.sqlite` | SQLite | Flow | 使用已有系统数据库 | [占位符] |
-| **State** | `.openclaw/state/agent-self-development/` | JSON | State | Plan/Session/Deviation/Attribution 状态 | 保留 |
-| **Memory** | `.openclaw/memory/{agentId}.sqlite` | SQLite | Memory | 归档、事件记录 | 必需 |
-| **Log** | `.openclaw/logs/{agentId}.log` | 文本 | Log | 每个代理独立日志文件 | 必需 |
-| **Hook** | `.openclaw/hooks/agent-self-development/` | MD/TS | Hook | Hook 声明文件 | 保留 |
+| **Task** | `.agent/tasks/runs.sqlite` | SQLite | Task | 使用已有系统数据库 | [占位符] |
+| **Flow** | `.agent/flows/registry.sqlite` | SQLite | Flow | 使用已有系统数据库 | [占位符] |
+| **State** | `.agent/state/agent-self-development/` | JSON | State | Plan/Session/Deviation/Attribution 状态 | 保留 |
+| **Memory** | `.agent/memory/{agentId}.sqlite` | SQLite | Memory | 归档、事件记录 | 必需 |
+| **Log** | `.agent/logs/{agentId}.log` | 文本 | Log | 每个代理独立日志文件 | 必需 |
+| **Hook** | `.agent/hooks/agent-self-development/` | MD/TS | Hook | Hook 声明文件 | 保留 |
 
 ### v4.0.0 项目级文件系统映射（Agent 读写，插件读取）
 
@@ -138,9 +157,9 @@
 
 | 文件/目录 | 路径 | 格式 | 用途 |
 |-----------|------|------|------|
-| 项目级 Task 索引 | `.openclaw/tasks/{runId}.json` | JSON | 任务文件索引：文件列表、Agent 信息 |
-| 项目级 Event | `.openclaw/events/{YYYY-MM-DD}/{HH-MM-SS}.md` | Markdown | 事件文件：完整任务记录 |
-| 项目级 Lock | `.openclaw/locks/{file-path}.json` | JSON | 文件锁：并发控制 |
+| 项目级 Task 索引 | `.agent/tasks/{runId}.json` | JSON | 任务文件索引：文件列表、Agent 信息 |
+| 项目级 Event | `.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md` | Markdown | 事件文件：完整任务记录 |
+| 项目级 Lock | `.agent/locks/{file-path}.json` | JSON | 文件锁：并发控制 |
 | 项目级 README | `README.md` | Markdown | 项目总览 |
 | 项目级 metadata | `metadata.json` | JSON | 机器可读架构 |
 | 项目级 SKILL | `SKILL.md` | Markdown | 项目级操作手册 |

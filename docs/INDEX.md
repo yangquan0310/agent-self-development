@@ -13,6 +13,8 @@
 | 项目总览 | `README.md` | 2 分钟 | 理解项目定位、技术栈、如何安装 |
 | 文档索引 | `docs/INDEX.md`（本文件） | 1 分钟 | 知道所有文档的位置和用途 |
 | 协作协议 | `docs/COLLABORATION.md` | 2 分钟 | 知道自己的角色边界和协作标记 |
+| **设计哲学** | `docs/reference/design-philosophy.md` | 3 分钟 | 理解 v4.1.0 "从代劳到赋能"的核心思想 |
+| **理论基础** | `docs/reference/theory.md` | 5 分钟 | 理解自传体记忆、工作自我、同化/顺应如何映射到架构 |
 
 ---
 
@@ -22,9 +24,9 @@
 
 | 我是... | 核心文档 | 辅助文档 |
 |---------|---------|---------|
-| **产品经理（PM）** | `agents/product-manager.md` | `docs/roadmap/v{x.y.z}.md`, `docs/changelog/INDEX.md` |
-| **程序员（Developer）** | `agents/developer.md` | `docs/CONVENTIONS.md`, `skills/project-context/SKILL.md` |
-| **审核（Reviewer）** | `agents/reviewer.md` | `docs/CONVENTIONS.md` 2.1 节, `test/reports/latest.md` |
+| **产品经理（PM）** | `agents/product-manager.md` | `docs/roadmap/v{x.y.z}.md`, `docs/changelog/INDEX.md`, `docs/reference/design-philosophy.md` |
+| **程序员（Developer）** | `agents/developer.md` | `docs/CONVENTIONS.md`, `skills/project-context/SKILL.md`, `docs/reference/design-philosophy.md` |
+| **审核（Reviewer）** | `agents/reviewer.md` | `docs/CONVENTIONS.md` 2.1 节, `test/reports/latest.md`, `docs/reference/design-philosophy.md` |
 
 ### 按任务
 
@@ -59,6 +61,8 @@
 | CONVENTIONS.md | PM + Developer | Developer | Reviewer | `docs/` |
 | COLLABORATION.md | PM | PM | Reviewer | `docs/` |
 | INDEX.md（本文件） | PM | PM | Reviewer | `docs/` |
+| **设计哲学** | PM | PM | Reviewer | `docs/reference/` |
+| **理论基础** | PM | PM | Reviewer | `docs/reference/` |
 | 角色定义（agents/） | PM | PM | Reviewer | `agents/` |
 | 技能（skills/） | PM | Developer | Reviewer | `skills/` |
 | 路线图（roadmap/） | PM | PM | — | `docs/roadmap/` |
@@ -83,6 +87,6 @@
 
 ---
 
-*文档版本：v1.0.0*
-*最后更新：2026-05-08*
-*维护者：系统管理员（main）*
+*文档版本：v1.1.0*
+*最后更新：2026-05-11*
+*维护者：PM（产品经理）*
