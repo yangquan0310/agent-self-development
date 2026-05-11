@@ -24,7 +24,7 @@
   },
   "files": [
     "src/",
-    "skills/",
+    "skill/",
     "openclaw.plugin.json",
     "README.md"
   ],

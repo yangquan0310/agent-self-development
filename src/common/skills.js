@@ -13,7 +13,7 @@ const DEFAULT_DIR = path.join(__dirname, '..');
 
 export class Skills {
   constructor(dir, log) {
-    this.dir = dir || path.join(__dirname, '..', '..', 'skills');
+    this.dir = dir || path.join(__dirname, '..', '..', 'skill');
     this.log = log;
     this.map = {
       planning: 'planning/SKILL.md',
