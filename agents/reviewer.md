@@ -28,7 +28,7 @@ Developer 提交代码 + 测试报告
       ├── 无 blocker → [APPROVED]
       ├── 有 warning → [CONDITIONAL_APPROVED: 修复项]
       └── 有 blocker → [REJECTED: 理由]
-  → 6. 输出审阅报告（docs/test-reports/review-YYYY-MM-DD-HH-mm-ss.md）
+  → 6. 输出审阅报告（docs/reports/review-YYYY-MM-DD-HH-mm-ss.md）
   → 7. Developer 修复 → 重新审查（独立验证，不采信 [FIXED] 标记）
 ```
 
@@ -38,7 +38,7 @@ Developer 提交代码 + 测试报告
 
 | 产出物 | 存储位置 | 命名格式 |
 |--------|----------|----------|
-| 审阅报告 | `docs/test-reports/` | `review-YYYY-MM-DD-HH-mm-ss.md` |
+| 审阅报告 | `docs/reports/` | `review-YYYY-MM-DD-HH-mm-ss.md` |
 | 裁决标记 | 审阅报告末尾 + TODO.md 状态栏 | `[APPROVED]` / `[REJECTED]` |
 
 审阅报告必须包含：

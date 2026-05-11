@@ -26,7 +26,7 @@
 |---------|---------|---------|
 | **产品经理（PM）** | `agents/product-manager.md` | `docs/roadmap/v{x.y.z}.md`, `docs/changelog/INDEX.md`, `docs/reference/design-philosophy.md` |
 | **程序员（Developer）** | `agents/developer.md` | `docs/CONVENTIONS.md`, `skills/project-context/SKILL.md`, `docs/reference/design-philosophy.md` |
-| **审核（Reviewer）** | `agents/reviewer.md` | `docs/CONVENTIONS.md` 2.1 节, `docs/test-reports/latest.md`, `docs/reference/design-philosophy.md` |
+| **审核（Reviewer）** | `agents/reviewer.md` | `docs/CONVENTIONS.md` 2.1 节, `docs/reports/latest.md`, `docs/reference/design-philosophy.md` |
 
 ### 按任务
 
@@ -35,7 +35,7 @@
 | 新 Agent 接手项目 | `README.md` → `docs/INDEX.md` | `skills/project-context/SKILL.md` |
 | 新增功能模块 | `docs/CONVENTIONS.md` 3.2 节 | `docs/roadmap/v{x.y.z}.md` |
 | 新增技能（Skill） | `skills/openclaw-skill-dev/SKILL.md` | `skills/openclaw-skill-dev/references/SKILL_TEMPLATE.md` |
-| 修复 Bug | `docs/test-reports/latest.md` | `docs/CONVENTIONS.md` 3.3 节 |
+| 修复 Bug | `docs/reports/latest.md` | `docs/CONVENTIONS.md` 3.3 节 |
 | 代码审查 | `agents/reviewer.md` Checklist | `docs/CONVENTIONS.md` 2.1 节 |
 | 版本发布 | `docs/changelog/INDEX.md` | `docs/roadmap/v{x.y.z}.md` |
 | **多Agent协作实践** | `docs/cases/paper-revision-collaboration.md` | `docs/COLLABORATION.md` |
@@ -47,7 +47,7 @@
 | 类型 | 位置 | 说明 |
 |------|------|------|
 | 历史版本计划 | `docs/roadmap/v3.5.0.md` 及之前 | 已完成的版本，仅追溯变更原因时查阅 |
-| 历史测试报告 | `docs/test-reports/review-YYYY-MM-DD-*.md` | 旧审查报告，已关闭的问题 |
+| 历史测试报告 | `docs/reports/review-YYYY-MM-DD-*.md` | 旧审查报告，已关闭的问题 |
 | 历史变更日志 | `docs/changelog/v3.5.0.md` 及之前 | 旧版本的详细变更记录 |
 
 ---
@@ -68,7 +68,7 @@
 | 路线图（roadmap/） | PM | PM | — | `docs/roadmap/` |
 | 变更日志（changelog/） | PM | PM | — | `docs/changelog/` |
 | 技术参考（reference/） | Developer | Developer | Reviewer | `docs/reference/` |
-| 测试报告（docs/test-reports/） | Developer | Developer | Reviewer | `docs/test-reports/` |
+| 测试报告（docs/reports/） | Developer | Developer | Reviewer | `docs/reports/` |
 
 ---
 
