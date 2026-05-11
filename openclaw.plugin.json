@@ -16,7 +16,8 @@
         "enum": ["legacy", "tool-driven"],
         "default": "tool-driven",
         "description": "Hook 注入模式：tool-driven 为最小化注入，legacy 为完整 skill 注入（向后兼容）"
-      }
+      },
+      "metacognition": {
         "type": "object",
         "properties": {
           "enabled": { "type": "boolean", "default": true },
