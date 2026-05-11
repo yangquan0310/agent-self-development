@@ -1,6 +1,6 @@
 /**
  * Log — 日志（按代理分文件版）
- * 基于文本文件持久化，每个代理独立文件 ~/.openclaw/logs/{agentId}.log
+ * 基于文本文件持久化，每个代理独立文件 ~/.agent/logs/{agentId}.log
  *
  * 格式：一行一条日志，纯文本，便于人类阅读和常规工具（grep/tail）处理
  * [ISO时间戳] [LEVEL] [模块标签] [runId] 消息内容 {extra字段}
@@ -10,7 +10,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync } fr
 import { join } from 'path';
 import { homedir } from 'os';
 
-const DEFAULT_LOGS_DIR = join(homedir(), '.openclaw', 'logs');
+const DEFAULT_LOGS_DIR = join(homedir(), '.agent', 'logs');
 
 function ensureDir(dir) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

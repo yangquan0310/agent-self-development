@@ -1,7 +1,7 @@
 # TODO.md — Agent Self-Development 进度看板
 
 > 项目：`agent-self-development` | 当前版本：`v4.0.0` → `v4.1.0`
-> 更新日期：2026-05-11
+> 更新日期：2026-05-11（M3 完成）
 > 维护者：PM（产品经理）
 
 ---
@@ -21,10 +21,10 @@
 
 | 里程碑 | 时间 | 交付物 | 状态 |
 |--------|------|--------|------|
-| M1 | 2026-05-12 | Hook 抽象层 + 命名统一 | 🔵 待开始 |
-| M2 | 2026-05-14 | Tool 注册 + 核心 Tools 实现 | 🔵 待开始 |
-| M3 | 2026-05-16 | Hook 注入简化 + 配置开关 + Skill 重构 | 🔵 待开始 |
-| M4 | 2026-05-18 | 测试 + 文档 + 向后兼容说明 | 🔵 待开始 |
+| M1 | 2026-05-12 | Hook 抽象层 + 命名统一 | ✅ 已完成 |
+| M2 | 2026-05-14 | Tool 注册 + 核心 Tools 实现 | ✅ 已完成 |
+| M3 | 2026-05-16 | Hook 注入简化 + 配置开关 + Skill 重构 | ✅ 已完成 |
+| M4 | 2026-05-18 | 测试 + 文档 + 向后兼容说明 | ✅ 已完成 |
 | M5 | 2026-05-20 | 验收 + 发布 v4.1.0 | 🔵 待开始 |
 
 ---
@@ -33,14 +33,14 @@
 
 ### 基础设施（来自已合并的 v4.0.1）
 
-- [ ] **Hook 抽象层基类**
+- [x] **Hook 抽象层基类**
   - 负责人：Developer
   - 来源问题：Hook 注册与触发机制不可靠
   - 交付物：`src/common/hook.js`
   - 验收标准：封装 `api.on()`、按官方文档区分 modifying/void/claiming、统一错误捕获、统一日志到 `logs/agent-self-development-hooks.log`、任一 handler 抛异常不中断 hook 链
   - 里程碑：M1
 
-- [ ] **三模块迁移到 Hook 基类**
+- [x] **三模块迁移到 Hook 基类**
   - 负责人：Developer
   - 来源问题：Hook 注册与触发机制不可靠
   - 交付物：修改后的 `src/metacognition/module.js`、`src/working-memory/module.js`、`src/personality/module.js`
@@ -48,7 +48,7 @@
   - 里程碑：M1
   - 依赖：Hook 抽象层基类完成后才能开始
 
-- [ ] **命名全局替换：`.openclaw` → `.agent`**
+- [x] **命名全局替换：`.openclaw` → `.agent`**
   - 负责人：Developer
   - 来源问题：项目文件命名不统一
   - 交付物：全仓库路径引用更新 + wiki 模板重命名
@@ -57,21 +57,21 @@
 
 ### 核心架构（v4.1.0 目标）
 
-- [ ] **设计 Tool Schema**
+- [x] **设计 Tool Schema**
   - 负责人：Developer
   - 来源问题：推送式架构、与生态脱节、隐式标记
   - 交付物：`src/tools/` 目录下 13 个 tools 的 JSON Schema 定义
   - 验收标准：所有 tools 的输入/输出/错误处理明确，Agent 可见
   - 里程碑：M2
 
-- [ ] **实现 Tool 注册层**
+- [x] **实现 Tool 注册层**
   - 负责人：Developer
   - 交付物：修改后的 `src/index.js`
   - 验收标准：`api.registerTool()` 注册所有 13 个 tools，Agent 可在 tool 列表中看到
   - 里程碑：M2
   - 依赖：Tool Schema 完成后才能开始
 
-- [ ] **实现核心 Tools（元认知）**
+- [x] **实现核心 Tools（元认知）**
   - 负责人：Developer
   - 交付物：`src/tools/metacognition-tools.js`
   - 验收标准：
@@ -87,7 +87,7 @@
   - 里程碑：M2
   - 依赖：Tool 注册层 + 命名替换完成后才能开始（因为工具需要读写 `.agent/` 目录）
 
-- [ ] **实现辅助 Tools（工作记忆 + 人格 + 诊断）**
+- [x] **实现辅助 Tools（工作记忆 + 人格 + 诊断）**
   - 负责人：Developer
   - 交付物：`src/tools/working-memory-tools.js`、`src/tools/personality-tools.js`
   - 验收标准：
@@ -101,28 +101,28 @@
 
 ## P1：重要项（影响体验，但不阻塞发布）
 
-- [ ] **简化 `before_prompt_build` 注入**
+- [x] **简化 `before_prompt_build` 注入**
   - 负责人：Developer
   - 来源问题：推送式架构、system context 膨胀
   - 交付物：修改后的 `src/metacognition/module.js` 等
   - 验收标准：不再注入完整 skill 文本，仅输出最小化提示（状态 + tools 列表，1-2 句）
   - 里程碑：M3
 
-- [ ] **添加配置开关 `injectionMode`**
+- [x] **添加配置开关 `injectionMode`**
   - 负责人：Developer
   - 来源问题：向后兼容
   - 交付物：修改后的 `openclaw.plugin.json`、`src/index.js`
   - 验收标准：`configSchema` 新增 `injectionMode: "legacy" | "tool-driven"`，默认 `"tool-driven"`
   - 里程碑：M3
 
-- [ ] **更新 `before_agent_finalize` 支持 tool 调用结果解析**
+- [x] **更新 `before_agent_finalize` 支持 tool 调用结果解析**
   - 负责人：Developer
   - 来源问题：隐式标记
   - 交付物：修改后的 `src/metacognition/module.js`
   - 验收标准：Agent 通过 tool 调用 `update_task_status` 后状态正确更新；保留 `[STATUS]` 标记解析（deprecated）
   - 里程碑：M3
 
-- [ ] **重写 Skill 文档为 Tool 返回源**
+- [x] **重写 Skill 文档为 Tool 返回源**
   - 负责人：Developer
   - 来源问题：推送式架构
   - 交付物：重构后的 `src/**/SKILL.md`
@@ -133,26 +133,26 @@
 
 ## P2：优化项（可延后，不影响核心功能）
 
-- [ ] **更新技术参考文档**
+- [x] **更新技术参考文档**
   - 负责人：Developer
   - 交付物：`docs/reference/hook-reference.md`、`docs/reference/object-model.md`
   - 验收标准：更新为 Tool + Hook 混合架构描述
   - 里程碑：M4
 
-- [ ] **新增测试（Tool 调用路径）**
+- [x] **新增测试（Tool 调用路径）**
   - 负责人：Developer
   - 交付物：`test/` 新增用例
   - 验收标准：覆盖每个 tool 的输入验证、正常执行、错误处理
   - 里程碑：M4
 
-- [ ] **向后兼容说明文档**
+- [x] **向后兼容说明文档**
   - 负责人：PM
   - 来源问题：破坏性变更
   - 交付物：`docs/changelog/v4.1.0.md`
   - 验收标准：包含迁移指南（如何从 `[STATUS]` 标记迁移到 tool 调用、`.openclaw` 如何重命名为 `.agent`）
   - 里程碑：M4
 
-- [ ] **钩子调用链可视化**
+- [x] **钩子调用链可视化**
   - 负责人：Developer
   - 来源问题：可观测性
   - 交付物：`logs/agent-self-development-hooks.log` 增强格式

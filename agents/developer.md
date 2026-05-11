@@ -42,7 +42,7 @@
       ├── 新增工具 → [DOC_UPDATE: SKILL]
       ├── 任务完成 → [DOC_UPDATE: TODO]
       └── 纯局部修改 → [DOC_SKIP]
-  → 5. 提交审查（附上测试报告 test/reports/test-YYYY-MM-DD-HH-mm-ss.md）
+  → 5. 提交审查（附上测试报告 docs/test-reports/test-YYYY-MM-DD-HH-mm-ss.md）
 ```
 
 ---
@@ -88,8 +88,8 @@
 
 - **运行**：`npm test`（Windows 已修复为显式文件列表，无需担心 `**` glob）
 - **报告命名**：`test-YYYY-MM-DD-HH-mm-ss.md`
-- **报告存放**：`test/reports/`
-- **最新入口**：同步更新 `test/reports/latest.md`
+- **报告存放**：`docs/test-reports/`
+- **最新入口**：同步更新 `docs/test-reports/latest.md`
 - **Mock 工厂**：使用 `test/helper.js` 中的 `createMockLogger`（含 `_calls` 调用追踪）、`createMockState` 等
 - **异步初始化**：辅助函数中 `saveTask` / `saveSession` 必须 `await`
 

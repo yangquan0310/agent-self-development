@@ -20,8 +20,8 @@ Agent 进入项目后，按以下顺序读取上下文：
 ```
 1. 读取 metadata.json → 理解项目结构、模块列表、Agent 能力定义
 2. 读取 TODO.md → 理解当前任务状态和优先级
-3. 读取 .openclaw/tasks/{runId}.json → 了解该任务已涉及的文件及负责 Agent
-4. 读取 .openclaw/events/{今天}/ 下最近的事件文件 → 了解最近动态
+3. 读取 .agent/tasks/{runId}.json → 了解该任务已涉及的文件及负责 Agent
+4. 读取 .agent/events/{今天}/ 下最近的事件文件 → 了解最近动态
 5. 执行任务 → 产出到 manuscripts/
 6. 完成 → 更新 TODO.md → 请求用户确认
 ```
@@ -34,17 +34,17 @@ Agent 进入项目后，按以下顺序读取上下文：
 2. **读取 `metadata.json`** — 模块列表、技能列表、Agent 能力定义、协作模式配置
 3. **读取 `SKILL.md`（项目级）** — 项目特有工作流程、工具使用规范、输出格式要求
 4. **读取 `TODO.md`** — 当前任务状态、进行中任务、待确认任务
-5. **读取 `.openclawignore`** — 了解文件可见性边界
+5. **读取 `.agentignore`** — 了解文件可见性边界
 
 ---
 
 ## 开始新任务
 
 1. **读取 `TODO.md`** — 识别最高优先级的开放任务
-2. **读取 `.openclaw/tasks/{runId}.json`** — 了解该任务已涉及的文件
-3. **读取 `.openclaw/events/{今天}/`** — 了解最近动态
+2. **读取 `.agent/tasks/{runId}.json`** — 了解该任务已涉及的文件
+3. **读取 `.agent/events/{今天}/`** — 了解最近动态
 4. **认领任务** — 在 `TODO.md` 中标记 `@agent-id` 和状态
-5. **创建事件文件** — `.openclaw/events/{YYYY-MM-DD}/{HH-MM-SS}.md`
+5. **创建事件文件** — `.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md`
 6. **执行任务** — 遵循项目级 SKILL.md 中的规范
 
 ---
@@ -68,7 +68,7 @@ Agent 进入项目后，按以下顺序读取上下文：
 - 多个 Agent 通过读写共享文件协作，不通过 `sessions_send`
 - Agent A 将中间成果写入 `manuscripts/` 或 `knowledge/notes/`
 - Agent B 读取同一文件，继续工作
-- 若编辑同一文件，通过 `.openclaw/locks/` 检测冲突
+- 若编辑同一文件，通过 `.agent/locks/` 检测冲突
 
 ---
 

@@ -4,10 +4,10 @@
 
 | 键/文件 | 存储域 | 类型 | 生命周期 | 说明 |
 |---------|--------|------|----------|------|
-| `.openclaw/tasks/{runId}.json` | 项目文件系统 | TaskIndex JSON | runId | 项目级任务文件索引：文件列表、Agent 信息、类型（draft/artifact） |
-| `.openclaw/tasks/INDEX.md` | 项目文件系统 | Markdown | 项目全周期 | 任务索引：按日期分组列出所有任务摘要 |
-| `.openclaw/events/{YYYY-MM-DD}/{HH-MM-SS}.md` | 项目文件系统 | Markdown | 任务期间 | 事件文件：元信息→计划→执行→变更记录→偏差→归因→结果 |
-| `.openclaw/locks/{file-path}.json` | 项目文件系统 | Lock JSON | 10分钟 | 文件锁：并发控制，Agent 编辑前创建、编辑后删除 |
+| `.agent/tasks/{runId}.json` | 项目文件系统 | TaskIndex JSON | runId | 项目级任务文件索引：文件列表、Agent 信息、类型（draft/artifact） |
+| `.agent/tasks/INDEX.md` | 项目文件系统 | Markdown | 项目全周期 | 任务索引：按日期分组列出所有任务摘要 |
+| `.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md` | 项目文件系统 | Markdown | 任务期间 | 事件文件：元信息→计划→执行→变更记录→偏差→归因→结果 |
+| `.agent/locks/{file-path}.json` | 项目文件系统 | Lock JSON | 10分钟 | 文件锁：并发控制，Agent 编辑前创建、编辑后删除 |
 | `README.md` | 项目文件系统 | Markdown | 项目全周期 | 项目总览：项目定位、目录结构、快速开始 |
 | `metadata.json` | 项目文件系统 | JSON | 项目全周期 | 机器可读架构：模块列表、技能列表、Agent 能力定义 |
 | `SKILL.md` | 项目文件系统 | Markdown | 项目全周期 | 项目级操作手册：工作流程、工具规范、输出格式 |
@@ -27,7 +27,7 @@
 
 | 键 | 移除原因 | 替代方案 |
 |----|---------|---------|
-| `working_memory:active_sessions` | 上下文保持从 Session 内存转向文件系统 | `.openclaw/tasks/{runId}.json` 文件列表 |
+| `working_memory:active_sessions` | 上下文保持从 Session 内存转向文件系统 | `.agent/tasks/{runId}.json` 文件列表 |
 
 ## [占位符] 系统层键（当前无消费者，待后续按需实现）
 

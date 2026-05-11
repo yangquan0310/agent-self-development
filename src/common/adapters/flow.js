@@ -1,6 +1,6 @@
 /**
  * Flow — 任务流存储（SQLite 版）
- * 使用 ~/.openclaw/flows/registry.sqlite
+ * 使用 ~/.agent/flows/registry.sqlite
  */
 
 import { join } from 'path';
@@ -18,7 +18,7 @@ async function getDatabase() {
 export class Flow {
   constructor(api, options = {}) {
     this.api = api;
-    this.dbPath = options.dbPath || '/root/.openclaw/flows/registry.sqlite';
+    this.dbPath = options.dbPath || '/root/.agent/flows/registry.sqlite';
     this.tablePrefix = options.tablePrefix || 'asd_';
     this._db = null;
   }

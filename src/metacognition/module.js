@@ -1,32 +1,45 @@
 /**
  * 元认知 —— 面向对象封装
  *
- * 插件职责：在合适的时机将对应的 skill 文档注入 Agent 的 system context
- * Agent 职责：自行阅读 skill、判断偏差、决定是否 revise
+ * v4.1.0 变更：
+ * - before_prompt_build 改为最小化注入（tool-driven 模式）
+ * - 保留 legacy 模式完整 skill 注入（向后兼容）
+ * - before_agent_finalize [NEED_PLAN] 不再自动创建 task，只记录日志
+ * - before_agent_finalize 新增 tool 调用结果解析（ctx.toolCalls）
+ * - [STATUS]/[NEED_PLAN] 标记 deprecated，向后兼容
  *
- * v4.0.0 变更：
- * - 修复 regulation 注入：从事件文件读取未处理偏差，条件注入 regulation skill
- * - 修复 monitoring 职责：从"偏差检测器"重定义为"偏差预防提醒 + 自我监控指引"
- * - 新增文件上下文提示：从 tasks/{runId}.json 读取历史文件列表注入 planning skill
- * - 移除 Session 复用相关描述，改为文件系统上下文保持
- *
- * Plan 状态机：
- *   draft → pending_approval → active → completed
- *   ├─ draft: Agent 制定并汇报 Plan
- *   ├─ pending_approval: 等待用户确认
- *   └─ active: 用户确认后按 phases 执行
+ * 插件职责：被动响应，不主动代劳
+ * Agent 职责：自行调用 tools 获取指导、推进任务
  */
 
 import { promises as fs } from 'fs';
 import { generatePlan, assignSessionsToPhases, getNow, getToday } from '../common/utils.js';
 import { Stream } from '../common/stream.js';
+import { HookRegistry } from '../common/hook.js';
 
 // v3.5.0: 状态标记正则
 const STATUS_PATTERN = /\[STATUS:\s*(\w+)\]/;
 const REASON_PATTERN = /\[REASON:\s*([^\]]+)\]/;
 
+// v4.1.0: 可用 tools 列表（用于最小化注入）
+const AVAILABLE_TOOLS = [
+  'get_planning_guide',
+  'get_monitoring_guide',
+  'get_regulation_guide',
+  'get_development_guide',
+  'get_task_status',
+  'get_task_files',
+  'self_diagnose',
+  'create_plan',
+  'update_task_status',
+  'advance_phase',
+  'record_deviation',
+  'record_attribution',
+  'archive_task'
+];
+
 export class Metacognition {
-  constructor({ api, config, state, skills, logger, log, plan, deviation, attribution }) {
+  constructor({ api, config, state, skills, logger, log, plan, deviation, attribution, injectionMode }) {
     this.api = api;
     this.config = config || {};
     this.state = state;
@@ -40,8 +53,17 @@ export class Metacognition {
     this.planningEnabled = this.enabled && this.config.planning !== false;
     this.monitoringEnabled = this.enabled && this.config.monitoring !== false;
 
-    // v3.4.1: 流式输出处理
+    // v4.1.0: 注入模式
+    this.injectionMode = injectionMode || 'tool-driven';
+
     this.stream = new Stream();
+
+    // v4.1.0: Hook 抽象层基类
+    this.hookRegistry = new HookRegistry({
+      api: this.api,
+      logger: this.logger,
+      pluginId: 'agent-self-development'
+    });
 
     // v3.4.1: 按 runId 记录无 task 时的注入次数，防重复疲劳
     this._injectCount = new Map();
@@ -53,7 +75,7 @@ export class Metacognition {
       return;
     }
 
-    this.logger.info('[Meta] 注册元认知 Hooks');
+    this.logger.info(`[Meta] 注册元认知 Hooks (injectionMode=${this.injectionMode})`);
     this._registerPlanning();
     this._registerMonitoring();
     this._registerFinalize();
@@ -63,28 +85,27 @@ export class Metacognition {
   // ── Plan 制定与确认: before_prompt_build ──
   _registerPlanning() {
     if (!this.planningEnabled) return;
-    this.api.on('before_prompt_build', this.onBeforePromptBuild.bind(this), { priority: 55 });
+    this.hookRegistry.register('before_prompt_build', this.onBeforePromptBuild, this, { priority: 55 });
   }
 
   // ── 监控: llm_output ──
   _registerMonitoring() {
     if (!this.monitoringEnabled) return;
-    this.api.on('llm_output', this.onLlmOutput.bind(this));
+    this.hookRegistry.register('llm_output', this.onLlmOutput, this);
   }
 
   // ── 决策: before_agent_finalize ──
   _registerFinalize() {
-    this.api.on('before_agent_finalize', this.onBeforeAgentFinalize.bind(this));
+    this.hookRegistry.register('before_agent_finalize', this.onBeforeAgentFinalize, this);
   }
 
   // ── 清理: agent_end ──
   _registerCleanup() {
-    this.api.on('agent_end', this.onAgentEnd.bind(this));
+    this.hookRegistry.register('agent_end', this.onAgentEnd, this);
   }
 
   /**
    * v3.4.1: 聚合流式输出，获取完整文本
-   * 根据事件类型决定是缓冲 chunk 还是直接返回完整输出
    */
   _resolveOutput(event, runId) {
     const eventType = this.stream.classify(event);
@@ -167,15 +188,13 @@ export class Metacognition {
     if (!createdAt) return null;
     const date = new Date(createdAt);
     const dateStr = date.toISOString().slice(0, 10);
-    // 尝试从 task.eventFilePath 直接获取
     if (task.eventFilePath) {
       return task.eventFilePath;
     }
-    // 根据 createdAt 推断：HH-MM-SS.md
     const hh = String(date.getHours()).padStart(2, '0');
     const mm = String(date.getMinutes()).padStart(2, '0');
     const ss = String(date.getSeconds()).padStart(2, '0');
-    return `.openclaw/events/${dateStr}/${hh}-${mm}-${ss}.md`;
+    return `.agent/events/${dateStr}/${hh}-${mm}-${ss}.md`;
   }
 
   // v4.0.0: 读取事件文件，提取偏差和归因信息
@@ -206,7 +225,7 @@ export class Metacognition {
   // v4.0.0: 从 tasks/{runId}.json 读取文件列表
   async _getTaskFilePaths(runId) {
     try {
-      const content = await fs.readFile(`.openclaw/tasks/${runId}.json`, 'utf-8');
+      const content = await fs.readFile(`.agent/tasks/${runId}.json`, 'utf-8');
       const taskIndex = JSON.parse(content);
       return taskIndex.files ? taskIndex.files.map(f => f.path) : [];
     } catch {
@@ -214,13 +233,47 @@ export class Metacognition {
     }
   }
 
+  // ── v4.1.0: 最小化注入模板（tool-driven 模式）──
+  _buildMinimalInjection(task, runId) {
+    const status = task ? task.status : 'none';
+    const currentPhase = task?.plan?.execution?.currentPhase ?? 0;
+    const totalPhases = task?.plan?.execution?.phases?.length ?? 0;
+
+    const phaseInfo = task && totalPhases > 0
+      ? `当前阶段：${currentPhase + 1}/${totalPhases}`
+      : '';
+
+    let injection = `【Agent Self-Development 插件】\n\n`;
+    injection += `当前任务状态：${status}（runId: ${runId}）\n`;
+    if (phaseInfo) {
+      injection += `${phaseInfo}\n`;
+    }
+    injection += `\n可用工具：${AVAILABLE_TOOLS.join(', ')}\n`;
+    injection += `\n你可以随时调用上述工具获取指导或推进任务。如需了解某个工具的用法，直接调用即可。`;
+
+    // v4.1.0: 标记 deprecated 的提示（仅在非 none 状态时）
+    if (status !== 'none') {
+      injection += `\n\n（注：[STATUS]/[NEED_PLAN] 标记已废弃，推荐使用 tool 调用。）`;
+    }
+
+    this.logger.debug(`[Meta] 最小化注入: runId=${runId}, status=${status}, mode=tool-driven`);
+    if (this.log) {
+      this.log.write({
+        level: 'DEBUG',
+        module: 'Meta',
+        runId,
+        message: 'Minimal injection (tool-driven)',
+        extra: { status, phaseInfo, mode: 'tool-driven' }
+      }).catch(() => {});
+    }
+
+    return { prependSystemContext: injection };
+  }
+
   /**
-   * before_prompt_build 逻辑：
-   * 1. 无 task → 注入 planning skill（评估阶段）
-   * 2. task=draft → 注入 planning skill（制定阶段）+ 文件上下文提示
-   * 3. task=pending_approval → 注入 planning skill（处理用户反馈）
-   * 4. task=active → 注入 monitoring（偏差预防）+ 执行上下文 + regulation（条件）+ WM文件上下文（条件）
-   * 5. task=revising → 注入 planning skill（修订阶段）+ regulation（条件）
+   * v4.1.0 before_prompt_build：
+   * - tool-driven 模式：始终最小化注入（1-3 句）
+   * - legacy 模式：保留 v4.0.0 完整 skill 注入（向后兼容）
    */
   async onBeforePromptBuild(event, ctx) {
     const runId = ctx.runId;
@@ -234,6 +287,19 @@ export class Metacognition {
       ctx.state[`prompt:${runId}`] = event.prompt;
     }
 
+    // v4.1.0: tool-driven 模式 → 最小化注入
+    if (this.injectionMode === 'tool-driven') {
+      return this._buildMinimalInjection(task, runId);
+    }
+
+    // ── legacy 模式：保留 v4.0.0 完整注入逻辑 ──
+    return this._legacyBeforePromptBuild(event, ctx, task, runId);
+  }
+
+  /**
+   * v4.0.0 legacy 注入逻辑（向后兼容）
+   */
+  async _legacyBeforePromptBuild(event, ctx, task, runId) {
     // ── 阶段一：无 task → 注入 planning skill（评估阶段）──
     if (!task) {
       const planningSkill = await this.skills.load('planning');
@@ -248,23 +314,21 @@ export class Metacognition {
       this._injectCount.set(runId, count + 1);
 
       if (count === 0) {
-        // 首次：注入完整 skill
         this.logger.debug(`[Meta] 首次注入 planning skill（评估阶段）: runId=${runId}`);
-      if (this.log) {
-        await this.log.write({
-          level: 'DEBUG',
-          module: 'Meta',
-          runId,
-          message: 'Inject planning skill (assessment, full)',
-          extra: { injectType: 'full', count: 1, taskStatus: 'none' }
-        });
-      }
-      return {
-        prependSystemContext: `${planningSkill}\n\n【当前状态】本次会话尚无 task。你必须根据上方 planning skill 中的"职责 A：任务评估"章节，严格执行任务评估流程，严禁跳过。\n`
-      };
+        if (this.log) {
+          await this.log.write({
+            level: 'DEBUG',
+            module: 'Meta',
+            runId,
+            message: 'Inject planning skill (assessment, full)',
+            extra: { injectType: 'full', count: 1, taskStatus: 'none' }
+          });
+        }
+        return {
+          prependSystemContext: `${planningSkill}\n\n【当前状态】本次会话尚无 task。你必须根据上方 planning skill 中的"职责 A：任务评估"章节，严格执行任务评估流程，严禁跳过。\n`
+        };
       }
 
-      // 第2+次：仅注入精简提醒
       this.logger.debug(`[Meta] 重复提醒（第${count + 1}次）: runId=${runId}`);
       if (this.log) {
         await this.log.write({
@@ -289,10 +353,10 @@ export class Metacognition {
       };
     }
 
-    // v4.0.0: 文件上下文提示（从 tasks/{runId}.json 读取）
+    // v4.0.0: 文件上下文提示
     const filePaths = await this._getTaskFilePaths(runId);
     const fileContext = filePaths.length > 0
-      ? `\n【文件上下文】当前任务已涉及以下文件（从 .openclaw/tasks/${runId}.json 读取）：\n${filePaths.map(p => `- ${p}`).join('\n')}\n如需了解文件详情，请自行读取。\n`
+      ? `\n【文件上下文】当前任务已涉及以下文件（从 .agent/tasks/${runId}.json 读取）：\n${filePaths.map(p => `- ${p}`).join('\n')}\n如需了解文件详情，请自行读取。\n`
       : '';
 
     if (task.status === 'draft') {
@@ -374,11 +438,9 @@ ${fileContext}
       phaseInfo = '所有阶段已完成';
     }
 
-    // v4.0.0: 从事件文件读取偏差信息
     const eventFilePath = this._resolveEventFilePath(task);
     const eventData = eventFilePath ? await this._readEventFile(eventFilePath) : null;
 
-    // v4.0.0: monitoring 职责重定义 — 偏差预防提醒 + 自我监控指引
     let monitoringPrefix = '';
     if (this.monitoringEnabled) {
       const monitoringSkill = await this.skills.load('monitoring');
@@ -387,7 +449,6 @@ ${fileContext}
       }
     }
 
-    // v4.0.0: regulation 条件注入 — 事件文件中有未处理偏差时注入
     let regulationPrefix = '';
     if (eventData && eventData.hasDeviation && !eventData.hasAttribution) {
       const regulationSkill = await this.skills.load('regulation');
@@ -409,7 +470,7 @@ ${fileContext}
 1. 当前阶段已确认，按目标推进
 2. 阶段完成后通知插件：phase.status = "completed"，currentPhase++
 3. 产出物追加到 task.plan.workspace.artifacts
-4. 每次写入文件后，更新 .openclaw/tasks/${task.runId}.json（追加新文件路径）
+4. 每次写入文件后，更新 .agent/tasks/${task.runId}.json（追加新文件路径）
 5. 如需调节 Plan，先说明理由并通知插件更新
 6. 本轮执行后若发现偏差，请输出 [STATUS: revising] [REASON: xxx]
 `;
@@ -423,7 +484,6 @@ ${fileContext}
     const planningSkill = await this.skills.load('planning');
     const revisionReason = task.revisionReason || '用户要求修改';
 
-    // v4.0.0: revising 状态下如有未处理偏差，同时注入 regulation
     const eventFilePath = this._resolveEventFilePath(task);
     const eventData = eventFilePath ? await this._readEventFile(eventFilePath) : null;
     let regulationPrefix = '';
@@ -440,16 +500,7 @@ ${fileContext}
   }
 
   /**
-   * llm_output：
-   * 1. 检测 [NEED_PLAN] 标记 → 创建 task → 注入 planning skill
-   * 2. task=active → 注入 monitoring skill
-   *
-   * v3.4.1: 支持流式输出缓冲聚合
-   */
-  /**
    * llm_output —— v3.5.0：纯观察，禁止返回注入
-   * 1. 聚合流式输出到 Stream
-   * 2. 保存 output 到 task（如果 task 存在）
    */
   async onLlmOutput(event, ctx) {
     const runId = ctx.runId;
@@ -457,15 +508,12 @@ ${fileContext}
 
     const resolved = this._resolveOutput(event, runId);
 
-    // 流式 chunk：只缓冲
     if (resolved.type === 'chunk') {
       return null;
     }
 
-    // 流结束或非流式：获取完整输出
     const output = resolved.output || '';
 
-    // 保存 output 到 task（如果 task 存在）
     const task = await this._getTask(runId);
     if (task) {
       task.plan = task.plan || {};
@@ -475,10 +523,11 @@ ${fileContext}
   }
 
   /**
-   * before_agent_finalize —— v3.5.0：统一质量检查与状态转换
-   * 1. 解析 Agent 输出的 [STATUS: xxx] 标记 → 写入 State
-   * 2. 检测 [NEED_PLAN] → 创建 draft task
-   * 3. 检测不完整输出 / TODO / 关键步骤缺失
+   * v4.1.0 before_agent_finalize：
+   * 1. 保留 [STATUS] 标记解析（deprecated，向后兼容）
+   * 2. [NEED_PLAN] 不再自动创建 task，只记录日志（deprecated）
+   * 3. 新增：解析 ctx.toolCalls 中的 tool 调用结果，更新 task 状态
+   * 4. 质量检查：不完整输出 / TODO
    */
   async onBeforeAgentFinalize(event, ctx) {
     const runId = ctx.runId;
@@ -486,7 +535,7 @@ ${fileContext}
 
     const output = event.output || '';
 
-    // ── 1. 解析状态标记 ──
+    // ── 1. 解析 [STATUS] 标记（deprecated，向后兼容）──
     const statusMatch = output.match(STATUS_PATTERN);
     const status = statusMatch ? statusMatch[1] : null;
 
@@ -501,41 +550,48 @@ ${fileContext}
           task.revisionReason = reason;
         }
         await this._saveTask(task);
-        this.logger.debug(`[Meta] 状态转换: runId=${runId}, status=${status}, reason=${reason}`);
+        this.logger.debug(`[Meta] [STATUS] 解析（deprecated）: runId=${runId}, status=${status}, reason=${reason}`);
       }
     }
 
-    // ── 2. 检测 [NEED_PLAN] → 创建 draft task ──
+    // ── 2. 解析 ctx.toolCalls（v4.1.0 新增）──
+    const toolCalls = ctx.toolCalls || event.toolCalls || [];
+    if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+      for (const toolCall of toolCalls) {
+        await this._parseToolCallResult(toolCall, runId);
+      }
+    }
+
+    // ── 3. 检测 [NEED_PLAN] —— deprecated，不再自动创建 task ──
     const needPlan = output.includes('[NEED_PLAN]');
     if (needPlan) {
       const existingTask = await this._getTask(runId);
       if (!existingTask) {
-        // 读取之前保存的原始 prompt
-        const prompt = ctx.state?.[`prompt:${runId}`] || event.prompt || '';
-        const task = await this._createTask(runId, prompt);
-        this.logger.debug(`[Meta] 检测到 [NEED_PLAN]，创建 draft task: runId=${runId}`);
+        this.logger.warn(`[Meta] 检测到 [NEED_PLAN]（deprecated），但不再自动创建 task。请使用 create_plan tool。runId=${runId}`);
         if (this.log) {
           await this.log.write({
-            level: 'INFO',
+            level: 'WARN',
             module: 'Meta',
             runId,
-            message: 'Detected [NEED_PLAN], draft task created',
-            extra: { taskStatus: 'draft', phaseCount: task.plan.execution.phases.length }
+            message: 'Detected [NEED_PLAN] but not auto-creating task (deprecated, use create_plan tool)',
+            extra: { deprecated: true, mark: '[NEED_PLAN]' }
           });
         }
+        // v4.1.0: 不再自动创建 task，只记录日志
+        // 返回 revise 提示 Agent 使用 tool
         return {
           action: 'revise',
-          reason: '检测到 [NEED_PLAN]，已创建 draft task，需要重新构建 prompt 注入 planning skill',
+          reason: '检测到 [NEED_PLAN]（已废弃）。请使用 create_plan tool 创建 Plan，而不是输出标记。',
           retry: {
-            instruction: '请根据刚刚注入的 planning skill，继续制定完整的 Plan 并汇报给用户。',
-            idempotencyKey: `need-plan:${runId}`,
-            maxAttempts: 2
+            instruction: '请调用 create_plan tool 创建 draft task，而不是输出 [NEED_PLAN] 标记。',
+            idempotencyKey: `need-plan-deprecated:${runId}`,
+            maxAttempts: 1
           }
         };
       }
     }
 
-    // ── 3. 质量检查：不完整输出 / TODO ──
+    // ── 4. 质量检查：不完整输出 / TODO ──
     const hasIncomplete = /\[INCOMPLETE\]/i.test(output);
     const hasTodo = /TODO:|FIXME:|待完成/i.test(output);
     if (hasIncomplete || hasTodo) {
@@ -550,29 +606,113 @@ ${fileContext}
   }
 
   /**
+   * v4.1.0: 解析 tool 调用结果，同步更新 task 状态
+   * 作为 tool handler 的辅助备份（tool handler 已直接更新，这里是双重保险）
+   */
+  async _parseToolCallResult(toolCall, runId) {
+    if (!toolCall || !toolCall.name) return;
+
+    const { name, result, params } = toolCall;
+    const task = await this._getTask(runId);
+    if (!task) return;
+
+    this.logger.debug(`[Meta] 解析 tool 调用结果: runId=${runId}, tool=${name}`);
+
+    switch (name) {
+      case 'update_task_status': {
+        // result 中应包含 { success, status }
+        if (result && result.success && result.status) {
+          task.status = result.status;
+          if (result.reason) {
+            task.revisionReason = result.reason;
+          }
+          await this._saveTask(task);
+          this.logger.info(`[Meta] tool 解析: update_task_status -> ${result.status}`);
+        }
+        break;
+      }
+      case 'advance_phase': {
+        // result 中应包含 { success, nextPhase }
+        if (result && result.success && typeof result.nextPhase === 'number') {
+          const phases = task.plan?.execution?.phases || [];
+          if (result.previousPhase !== undefined && result.previousPhase < phases.length) {
+            phases[result.previousPhase].status = 'completed';
+          }
+          task.plan.execution.currentPhase = result.nextPhase;
+          await this._saveTask(task);
+          this.logger.info(`[Meta] tool 解析: advance_phase -> ${result.nextPhase}`);
+        }
+        break;
+      }
+      case 'create_plan': {
+        // result 中应包含 { success, task }
+        if (result && result.success && result.task) {
+          // create_plan 已创建 task，这里只是日志
+          this.logger.info(`[Meta] tool 解析: create_plan -> draft task created`);
+        }
+        break;
+      }
+      case 'record_deviation': {
+        if (result && result.success && result.deviation) {
+          task.deviations = task.deviations || [];
+          task.deviations.push(result.deviation);
+          await this._saveTask(task);
+          this.logger.info(`[Meta] tool 解析: record_deviation -> ${result.deviation.type}`);
+        }
+        break;
+      }
+      case 'record_attribution': {
+        if (result && result.success && result.attribution) {
+          task.attributions = task.attributions || [];
+          task.attributions.push(result.attribution);
+          // 标记偏差为已归因
+          if (task.deviations) {
+            for (const dev of task.deviations) {
+              if (!dev.attributed) {
+                dev.attributed = true;
+                dev.attributionId = result.attribution.id;
+              }
+            }
+          }
+          await this._saveTask(task);
+          this.logger.info(`[Meta] tool 解析: record_attribution -> ${result.attribution.id}`);
+        }
+        break;
+      }
+      case 'archive_task': {
+        if (result && result.success) {
+          this.logger.info(`[Meta] tool 解析: archive_task -> completed`);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  /**
    * v3.5.0: Gateway 停止时清理资源
    */
   stop() {
     this.logger.info('[Meta] 元认知模块停止，清理资源');
     this._injectCount.clear();
-    // Stream 模块如有全局缓冲可在此清理
+    if (this.hookRegistry) {
+      this.hookRegistry.stop();
+    }
   }
 
   async onAgentEnd(event, ctx) {
     const runId = ctx.runId;
     if (!runId) return;
 
-    // v3.4.1: 清理残留流式缓冲
     const remaining = this.stream.peek(runId);
     if (remaining) {
       this.logger.warn(`[Meta] agent_end residual stream buffer: runId=${runId}, len=${remaining.length}`);
       this.stream.purge(runId);
     }
 
-    // v3.4.1: 清理该 runId 的注入计数，防止 Map 无限增长
     this._injectCount.delete(runId);
 
-    // v3.4.1: 不再擅自标记 completed，归档职责归 WorkingMemory
     const task = await this.state.getTask(runId);
     if (task) {
       this.logger.debug(`[Meta] agent_end: runId=${runId}, task.status=${task.status}, 不修改状态`);
@@ -585,6 +725,11 @@ ${fileContext}
           extra: { taskStatus: task.status, hasRemaining: !!remaining }
         });
       }
+    }
+
+    // v4.1.0-M4: flush hook 调用链
+    if (this.hookRegistry) {
+      this.hookRegistry.flushChain(runId, 'complete');
     }
   }
 }

@@ -1,13 +1,13 @@
 /**
  * Hook — Hook 文件管理
- * 按照 OpenClaw 官方 Hook 规范，在 ~/.openclaw/hooks/ 下创建标准 Hook 目录结构
+ * 按照 OpenClaw 官方 Hook 规范，在 ~/.agent/hooks/ 下创建标准 Hook 目录结构
  * 实际事件处理仍由 Plugin 的 api.on() 负责，Hook 文件用于备案与 CLI 发现
  */
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
-const DEFAULT_HOOKS_DIR = '/root/.openclaw/hooks';
+const DEFAULT_HOOKS_DIR = '/root/.agent/hooks';
 
 const HOOK_MD_TEMPLATE = `---
 name: agent-self-development

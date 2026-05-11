@@ -64,7 +64,7 @@ description: >
 ```markdown
 ### 问题 1 解决方案：建立文档自维护机制
 
-**方案**：通过 `.openclaw/events/` 记录文档变更，Agent 执行后主动标记 `[DOC_UPDATE]`
+**方案**：通过 `.agent/events/` 记录文档变更，Agent 执行后主动标记 `[DOC_UPDATE]`
 **决策依据**：
 - 方案 A（人工检查）：成本高、易遗漏 → 排除
 - 方案 B（插件自动修复）：插件只提醒，Agent 执行 → 符合设计原则 → **选用**
@@ -92,7 +92,7 @@ description: >
 ### P0：阻塞项
 - [ ] 定义 `[DOC_UPDATE]` 标记规范 — 写入 `docs/COLLABORATION.md`
   - 验收标准：所有 Agent 能正确识别和使用标记
-- [ ] 创建 `.openclaw/events/` 目录结构
+- [ ] 创建 `.agent/events/` 目录结构
   - 验收标准：Agent 能成功写入和读取事件
 
 ### P1：重要项

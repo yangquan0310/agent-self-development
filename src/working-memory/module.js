@@ -4,7 +4,7 @@
  * v4.0.0 变更：
  * - 注册 before_prompt_build 注入 WM 文件上下文（替代 Session 内存复用）
  * - 移除 _updateActiveSession / _removeActiveSession（清理全局索引 working_memory:active_sessions）
- * - 调整 onAgentEnd 归档逻辑：读取项目级 .openclaw/tasks/{runId}.json 和事件文件归档
+ * - 调整 onAgentEnd 归档逻辑：读取项目级 .agent/tasks/{runId}.json 和事件文件归档
  * - onAfterToolCall 扩展文件变更审计追踪（读取事件文件变更记录 → 系统层日志）
  * - 添加 getTaskFilePaths 静态方法
  *
@@ -15,6 +15,7 @@
 
 import { promises as fs } from 'fs';
 import { getToday, getNow, inferTaskFamily } from '../common/utils.js';
+import { HookRegistry } from '../common/hook.js';
 
 export class WorkingMemory {
   constructor({ api, config, state, skills, logger, log, session, events }) {
@@ -31,6 +32,13 @@ export class WorkingMemory {
     this.autoArchive = this.enabled && this.config.autoArchive !== false;
     // v3.5.0: 标记 subagent hooks 是否可用，避免与 before_tool_call 重复处理
     this._subagentHooksAvailable = false;
+
+    // v4.1.0: Hook 抽象层基类
+    this.hookRegistry = new HookRegistry({
+      api: this.api,
+      logger: this.logger,
+      pluginId: 'agent-self-development'
+    });
   }
 
   /**
@@ -52,18 +60,18 @@ export class WorkingMemory {
 
   // v4.0.0: 文件上下文注入: before_prompt_build
   _registerPromptBuild() {
-    this.api.on('before_prompt_build', this.onBeforePromptBuild.bind(this), { priority: 45 });
+    this.hookRegistry.register('before_prompt_build', this.onBeforePromptBuild, this, { priority: 45 });
   }
 
   // ── 任务空间追踪: before_tool_call ──
   _registerSessionTracking() {
     if (!this.trackSubagents) return;
-    this.api.on('before_tool_call', this.onBeforeToolCall.bind(this));
+    this.hookRegistry.register('before_tool_call', this.onBeforeToolCall, this);
   }
 
   // ── 工具结果记录: after_tool_call ──
   _registerToolResult() {
-    this.api.on('after_tool_call', this.onAfterToolCall.bind(this));
+    this.hookRegistry.register('after_tool_call', this.onAfterToolCall, this);
   }
 
   // ── 子代理追踪: subagent_* ──
@@ -71,9 +79,9 @@ export class WorkingMemory {
     if (!this.trackSubagents) return;
     // v3.5.0: 优先使用原生 subagent hooks，回退到 before_tool_call
     try {
-      this.api.on('subagent_spawning', this.onSubagentSpawning.bind(this));
-      this.api.on('subagent_spawned', this.onSubagentSpawned.bind(this));
-      this.api.on('subagent_ended', this.onSubagentEnded.bind(this));
+      this.hookRegistry.register('subagent_spawning', this.onSubagentSpawning, this);
+      this.hookRegistry.register('subagent_spawned', this.onSubagentSpawned, this);
+      this.hookRegistry.register('subagent_ended', this.onSubagentEnded, this);
       this._subagentHooksAvailable = true;
       this.logger.debug('[WM] 已注册 subagent_* hooks');
     } catch {
@@ -86,7 +94,7 @@ export class WorkingMemory {
   _registerArchive() {
     if (!this.autoArchive) return;
     // v3.5.0: WM 在 agent_end 只做清理，不返回注入
-    this.api.on('agent_end', this.onAgentEnd.bind(this), { priority: 40 });
+    this.hookRegistry.register('agent_end', this.onAgentEnd, this, { priority: 40 });
   }
 
   // ── 辅助：获取 task JSON（不自动创建）──
@@ -102,7 +110,7 @@ export class WorkingMemory {
   // v4.0.0: 从项目级 tasks/{runId}.json 读取文件列表
   static async getTaskFilePaths(runId, projectRoot = '.') {
     try {
-      const content = await fs.readFile(`${projectRoot}/.openclaw/tasks/${runId}.json`, 'utf-8');
+      const content = await fs.readFile(`${projectRoot}/.agent/tasks/${runId}.json`, 'utf-8');
       const taskIndex = JSON.parse(content);
       return taskIndex.files ? taskIndex.files.map(f => f.path) : [];
     } catch {
@@ -131,8 +139,8 @@ export class WorkingMemory {
 2. 当前任务已涉及的文件列表：
 ${filePaths.map(p => `   - ${p}`).join('\n')}
 3. 子代理产出通过文件路径关联到主任务，不追踪 Session ID
-4. 每次写入文件后，Agent 自行更新 .openclaw/tasks/${runId}.json（Agent 是唯一写入者）
-5. 如需了解任务涉及的所有文件，请读取 .openclaw/tasks/${runId}.json
+4. 每次写入文件后，Agent 自行更新 .agent/tasks/${runId}.json（Agent 是唯一写入者）
+5. 如需了解任务涉及的所有文件，请读取 .agent/tasks/${runId}.json
 `;
 
     this.logger.debug(`[WM] 注入文件上下文: runId=${runId}, files=${filePaths.length}`);
@@ -263,7 +271,7 @@ ${filePaths.map(p => `   - ${p}`).join('\n')}
       const hh = String(new Date(task.createdAt).getHours()).padStart(2, '0');
       const mm = String(new Date(task.createdAt).getMinutes()).padStart(2, '0');
       const ss = String(new Date(task.createdAt).getSeconds()).padStart(2, '0');
-      const eventFilePath = `.openclaw/events/${date}/${hh}-${mm}-${ss}.md`;
+      const eventFilePath = `.agent/events/${date}/${hh}-${mm}-${ss}.md`;
 
       // 读取事件文件的「变更记录」章节
       let eventContent = '';
@@ -366,7 +374,7 @@ ${filePaths.map(p => `   - ${p}`).join('\n')}
    * 归档 completed 任务空间，更新 task JSON 状态
    *
    * v4.0.0: 调整归档逻辑
-   * - 读取项目级 .openclaw/tasks/{runId}.json 和事件文件
+   * - 读取项目级 .agent/tasks/{runId}.json 和事件文件
    * - 写入系统层 Memory 数据库
    * - 不再维护 working_memory:active_sessions 全局索引
    */
@@ -438,7 +446,7 @@ ${filePaths.map(p => `   - ${p}`).join('\n')}
       // 读取项目级 tasks/{runId}.json
       let projectTaskIndex = null;
       try {
-        const taskIndexContent = await fs.readFile(`.openclaw/tasks/${runId}.json`, 'utf-8');
+        const taskIndexContent = await fs.readFile(`.agent/tasks/${runId}.json`, 'utf-8');
         projectTaskIndex = JSON.parse(taskIndexContent);
       } catch {
         // 项目级 task 索引不存在
@@ -502,7 +510,7 @@ ${filePaths.map(p => `   - ${p}`).join('\n')}
     const hh = String(date.getHours()).padStart(2, '0');
     const mm = String(date.getMinutes()).padStart(2, '0');
     const ss = String(date.getSeconds()).padStart(2, '0');
-    return `.openclaw/events/${dateStr}/${hh}-${mm}-${ss}.md`;
+    return `.agent/events/${dateStr}/${hh}-${mm}-${ss}.md`;
   }
 
   /**

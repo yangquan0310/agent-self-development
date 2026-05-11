@@ -1,6 +1,6 @@
 /**
  * State — 状态存储（独立文件版）
- * 使用 ~/.openclaw/state/agent-self-development/{type}/{id}.json
+ * 使用 ~/.agent/state/agent-self-development/{type}/{id}.json
  *
  * 每个任务一个独立 JSON 文件：tasks/{runId}.json
  * 归档任务：archive/{runId}.json
@@ -12,7 +12,7 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'fs';
 import { dirname, join } from 'path';
 
-const DEFAULT_DIR = '/root/.openclaw/state/agent-self-development';
+const DEFAULT_DIR = '/root/.agent/state/agent-self-development';
 const TASKS_DIR = 'tasks';
 const ARCHIVE_DIR = 'archive';
 const MAX_ARCHIVED_TASKS = 50;

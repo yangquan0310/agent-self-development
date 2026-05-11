@@ -2,8 +2,8 @@
 
 ## Added
 - `skills/openclaw-skill-dev/` — skill authoring guide for OpenClaw plugin development
-- `.openclaw/` 目录结构 — 项目级元数据层（events, locks, decisions, tasks）
-- `.openclawignore` — 可见性控制文件
+- `.agent/` 目录结构 — 项目级元数据层（events, locks, decisions, tasks）
+- `.agentignore` — 可见性控制文件
 - 业务目录 — manuscripts/, knowledge/, temp/, uploads/
 - 四文件契约 — README.md（更新）, metadata.json, SKILL.md（项目级）, TODO.md
 - `.mcp.json` — 项目级配置占位

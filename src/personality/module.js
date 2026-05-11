@@ -13,6 +13,7 @@
  */
 
 import { promises as fs } from 'fs';
+import { HookRegistry } from '../common/hook.js';
 
 export class Personality {
   constructor({ api, config, state, skills, logger, log }) {
@@ -23,6 +24,13 @@ export class Personality {
     this.logger = logger;
     this.log = log;
     this.enabled = this.config.enabled !== false;
+
+    // v4.1.0: Hook 抽象层基类
+    this.hookRegistry = new HookRegistry({
+      api: this.api,
+      logger: this.logger,
+      pluginId: 'agent-self-development'
+    });
   }
 
   /**
@@ -35,8 +43,8 @@ export class Personality {
     }
 
     this.logger.info('[Personality] 注册人格模块 Hooks');
-    this.api.on('before_prompt_build', this.onBeforePromptBuild.bind(this));
-    this.api.on('agent_end', this.onAgentEnd.bind(this), { priority: 30 });
+    this.hookRegistry.register('before_prompt_build', this.onBeforePromptBuild, this);
+    this.hookRegistry.register('agent_end', this.onAgentEnd, this, { priority: 30 });
   }
 
   // v4.0.0: 根据 task 推断事件文件路径
@@ -51,7 +59,7 @@ export class Personality {
     const hh = String(date.getHours()).padStart(2, '0');
     const mm = String(date.getMinutes()).padStart(2, '0');
     const ss = String(date.getSeconds()).padStart(2, '0');
-    return `.openclaw/events/${dateStr}/${hh}-${mm}-${ss}.md`;
+    return `.agent/events/${dateStr}/${hh}-${mm}-${ss}.md`;
   }
 
   // v4.0.0: 读取事件文件，提取偏差、归因、结果

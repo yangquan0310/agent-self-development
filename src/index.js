@@ -19,6 +19,7 @@ import { WorkingMemory } from './working-memory/module.js';
 import { Personality } from './personality/module.js';
 import { Skills } from './common/skills.js';
 import { Heartbeat } from './common/heartbeat.js';
+import { registerTools } from './tools/index.js';
 
 // v3 managers
 import { Plan } from './metacognition/plan.js';
@@ -32,7 +33,7 @@ const pluginId = 'agent-self-development';
 export default {
   id: pluginId,
   name: 'Agent Self-Development',
-  version: '4.0.0',
+  version: '4.1.0',
   description: 'OpenClaw plugin for agent self-development based on Piaget\'s cognitive development theory',
 
   register(api) {
@@ -43,7 +44,7 @@ export default {
     const config = api.pluginConfig || {};
     const logger = api.logger || console;
 
-    logger.info(`[${pluginId}] Agent Self-Development Plugin v4.0.0 activated`);
+    logger.info(`[${pluginId}] Agent Self-Development Plugin v4.1.0 activated`);
 
     // 检查 conversation hooks 权限
     // OpenClaw 2026.4.21 版本使用 allowPromptInjection 控制对话访问
@@ -53,8 +54,8 @@ export default {
       logger.warn(`[${pluginId}] ⚠️ allowConversationAccess / allowPromptInjection 未启用，元认知功能可能无法工作`);
     }
 
-    // 修复：直接使用 ~/.openclaw 作为基础目录，避免 resolveStateDir 返回错误路径
-    const baseDir = '/root/.openclaw';
+    // 修复：直接使用 ~/.agent 作为基础目录，避免 resolveStateDir 返回错误路径
+    const baseDir = '/root/.agent';
 
     // 获取当前代理ID
     const agentId = api.agentId || 'main';
@@ -81,7 +82,8 @@ export default {
     const event = new Event(state, memory);
     const metacognition = new Metacognition({
       api, config: config.metacognition, state, skills, logger, log,
-      plan, deviation, attribution
+      plan, deviation, attribution,
+      injectionMode: config.injectionMode || 'tool-driven'
     });
     const workingMemory = new WorkingMemory({
       api, config: config.workingMemory, state, skills, logger, log,
@@ -98,6 +100,11 @@ export default {
     workingMemory.register();
     personality.register();
     heartbeat.register();
+
+    // v4.1.0: 注册所有 tools
+    registerTools(api, {
+      state, skills, logger, log, events: event
+    });
 
     // v3.5.0: Gateway 生命周期钩子
     api.on('gateway_stop', async () => {

@@ -195,14 +195,16 @@ mkdir -p {uploads,manuscripts,docs,knowledge,skills,temp}
 
 | 存储类型 | 路径 | 格式 | 写入者 | 读取者 |
 |----------|------|------|--------|--------|
-| 项目级 Task 索引 | `.agent/tasks/{runId}.json` | JSON | Agent | Agent + 插件 |
-| 项目级 Event | `.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md` | Markdown | Agent | Agent + 插件 |
+| 项目级 Task 索引 | `.agent/tasks/{runId}.json` | JSON | Agent + 插件（Tool 被动响应） | Agent + 插件 |
+| 项目级 Event | `.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md` | Markdown | Agent + 插件（Tool 被动响应） | Agent + 插件 |
 | 项目级 Lock | `.agent/locks/{file-path}.json` | JSON | Agent | Agent + 插件 |
-| 系统级 State | `~/.openclaw/state/agent-self-development/` | JSON | 插件 | 插件 |
-| 系统级 Memory | `~/.openclaw/memory/{agentId}.sqlite` | SQLite | 插件 | 插件 |
-| 系统级 Log | `~/.openclaw/logs/{agentId}.log` | 文本 | 插件 | 插件 |
+| 系统级 State | `~/.agent/state/agent-self-development/` | JSON | 插件 | 插件 |
+| 系统级 Memory | `~/.agent/memory/{agentId}.sqlite` | SQLite | 插件 | 插件 |
+| 系统级 Log | `~/.agent/logs/{agentId}.log` | 文本 | 插件 | 插件 |
+| 系统级 Hook 链日志 | `~/.agent/logs/agent-self-development-hooks.log` | 文本 | 插件 | 插件 |
 
 > **双系统原则**：Agent 是项目文件系统的唯一写入者；插件只读取项目文件，将关键状态归档到系统层。
+> **v4.1.0 变更**：操作型 Tool（如 `create_plan`、`record_deviation`）在 Agent 调用时执行文件写入，插件不再主动代劳。
 
 ---
 
