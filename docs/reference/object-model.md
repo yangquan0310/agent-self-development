@@ -205,7 +205,7 @@ agent-self-development/
 │       └── working-memory-tools.js # ToolHandler：工作记忆 + 诊断 tools 实现
 ├── test/                           # 测试套件
 ├── skills/                         # 项目级技能
-├── agents/                         # 角色定义
+├── .agent/                         # 角色定义
 └── docs/                           # 项目文档
 ```
 

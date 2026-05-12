@@ -10,14 +10,14 @@
     "源码": "src/",
     "测试": "test/",
     "技能": "skills/",
-    "角色定义": "agents/",
+    "角色定义": ".agent/",
     "文档": "docs/",
     "变更日志": "docs/changelog/",
     "路线图": "docs/roadmap/",
     "参考文档": "docs/reference/"
   },
   "tags": ["openclaw", "plugin", "agent", "metacognition", "self-development"],
-  "agents": [
+  ".agent": [
     { "id": "pm", "role": "product-manager", "handles": ["需求分析", "架构设计", "进度管理"] },
     { "id": "developer", "role": "developer", "handles": ["代码实现", "测试验证", "文档同步"] },
     { "id": "reviewer", "role": "reviewer", "handles": ["代码审查", "合规检查", "裁决"] }

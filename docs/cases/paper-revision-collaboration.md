@@ -298,7 +298,7 @@
     "type": "academic-writing",
     "version": "1.0.0"
   },
-  "agents": [
+  ".agent": [
     {"id": "psychologist", "role": "content-expert", "capabilities": ["文献综述", "理论分析"]},
     {"id": "writer", "role": "integrator", "capabilities": ["写作规范", "格式整合"]},
     {"id": "reviewer", "role": "auditor", "capabilities": ["质量审核", "数据检查"]},

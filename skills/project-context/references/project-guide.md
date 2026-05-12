@@ -52,7 +52,7 @@ agent-self-development/
 │   ├── project-conventions/
 │   ├── collaboration-protocol/
 │   └── skill-creator/
-├── agents/
+├── .agent/
 │   ├── product-manager.md
 │   ├── developer.md
 │   └── reviewer.md

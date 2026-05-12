@@ -62,7 +62,7 @@
     "中文目录名": "english_path/"
   },
   "tags": ["string"],
-  "agents": [
+  ".agent": [
     { "id": "string", "role": "string", "handles": ["string"] }
   ],
   "collaboration": {

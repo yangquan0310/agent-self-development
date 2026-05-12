@@ -85,7 +85,7 @@ agent-self-development/
 │   └── common/             # 公共组件（适配器、心跳、流式处理）
 ├── test/                   # 测试套件
 ├── skills/                 # 项目级技能（协作协议、技术规范、上下文管理）
-├── agents/                 # 多 Agent 角色定义（PM / Developer / Reviewer）
+├── .agent/                 # 多 Agent 角色定义（PM / Developer / Reviewer）
 ├── docs/
 │   ├── roadmap/            # 版本路线图
 │   └── reference/          # 技术文档（架构、数据模型、Hook 参考）

@@ -24,9 +24,9 @@
 
 | 我是... | 核心文档 | 辅助文档 |
 |---------|---------|---------|
-| **产品经理（PM）** | `agents/product-manager.md` | `docs/roadmap/v{x.y.z}.md`, `docs/changelog/INDEX.md`, `docs/reference/design-philosophy.md` |
-| **程序员（Developer）** | `agents/developer.md` | `docs/CONVENTIONS.md`, `skills/project-context/SKILL.md`, `docs/reference/design-philosophy.md` |
-| **审核（Reviewer）** | `agents/reviewer.md` | `docs/CONVENTIONS.md` 2.1 节, `docs/reports/latest.md`, `docs/reference/design-philosophy.md` |
+| **产品经理（PM）** | `.agent/product-manager.md` | `docs/roadmap/v{x.y.z}.md`, `docs/changelog/INDEX.md`, `docs/reference/design-philosophy.md` |
+| **程序员（Developer）** | `.agent/developer.md` | `docs/CONVENTIONS.md`, `skills/project-context/SKILL.md`, `docs/reference/design-philosophy.md` |
+| **审核（Reviewer）** | `.agent/reviewer.md` | `docs/CONVENTIONS.md` 2.1 节, `docs/reports/latest.md`, `docs/reference/design-philosophy.md` |
 
 ### 按任务
 
@@ -36,7 +36,7 @@
 | 新增功能模块 | `docs/CONVENTIONS.md` 3.2 节 | `docs/roadmap/v{x.y.z}.md` |
 | 新增技能（Skill） | `skills/openclaw-skill-dev/SKILL.md` | `skills/openclaw-skill-dev/references/SKILL_TEMPLATE.md` |
 | 修复 Bug | `docs/reports/latest.md` | `docs/CONVENTIONS.md` 3.3 节 |
-| 代码审查 | `agents/reviewer.md` Checklist | `docs/CONVENTIONS.md` 2.1 节 |
+| 代码审查 | `.agent/reviewer.md` Checklist | `docs/CONVENTIONS.md` 2.1 节 |
 | 版本发布 | `docs/changelog/INDEX.md` | `docs/roadmap/v{x.y.z}.md` |
 | **多Agent协作实践** | `docs/cases/paper-revision-collaboration.md` | `docs/COLLABORATION.md` |
 
@@ -63,7 +63,7 @@
 | INDEX.md（本文件） | PM | PM | Reviewer | `docs/` |
 | **设计哲学** | PM | PM | Reviewer | `docs/reference/` |
 | **理论基础** | PM | PM | Reviewer | `docs/reference/` |
-| 角色定义（agents/） | PM | PM | Reviewer | `agents/` |
+| 角色定义（.agent/） | PM | PM | Reviewer | `.agent/` |
 | 技能（skills/） | PM | Developer | Reviewer | `skills/` |
 | 路线图（roadmap/） | PM | PM | — | `docs/roadmap/` |
 | 变更日志（changelog/） | PM | PM | — | `docs/changelog/` |
