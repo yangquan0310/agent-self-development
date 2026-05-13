@@ -14,6 +14,7 @@
 
 import { promises as fs } from 'fs';
 import { HookRegistry } from '../common/hook.js';
+import { resolveEventFilePath } from '../common/project-context.js';
 
 export class Personality {
   constructor({ api, config, state, skills, logger, log }) {
@@ -47,24 +48,9 @@ export class Personality {
     this.hookRegistry.register('agent_end', this.onAgentEnd, this, { priority: 30 });
   }
 
-  // v4.0.0: 根据 task 推断事件文件路径
-  _resolveEventFilePath(task) {
-    const createdAt = task.createdAt;
-    if (!createdAt) return null;
-    const date = new Date(createdAt);
-    const dateStr = date.toISOString().slice(0, 10);
-    if (task.eventFilePath) {
-      return task.eventFilePath;
-    }
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    const ss = String(date.getSeconds()).padStart(2, '0');
-    return `.agent/events/${dateStr}/${hh}-${mm}-${ss}.md`;
-  }
-
   // v4.0.0: 读取事件文件，提取偏差、归因、结果
   async _readEventSummary(task) {
-    const eventFilePath = this._resolveEventFilePath(task);
+    const eventFilePath = resolveEventFilePath(task);
     if (!eventFilePath) {
       return null;
     }

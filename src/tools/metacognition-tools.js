@@ -7,6 +7,8 @@
 
 import { promises as fs } from 'fs';
 import { generatePlan, assignSessionsToPhases, getNow } from '../common/utils.js';
+import { renderTemplate } from '../common/template-engine.js';
+import { resolveEventFilePath } from '../common/project-context.js';
 
 /**
  * 构建 metacognition tools 实例
@@ -16,24 +18,24 @@ import { generatePlan, assignSessionsToPhases, getNow } from '../common/utils.js
  * @param {Object} deps.logger - Logger 实例
  * @param {Object} deps.log - Log 实例
  */
-export function createMetacognitionTools({ state, skills, logger, log }) {
+export function createMetacognitionTools({ state, skills, logger, log, caseIndex }) {
 
   // ── 查询型 Tools ──
 
   async function get_planning_guide(params) {
-    const { phase } = params || {};
+    const { phase, taskType } = params || {};
     if (!phase) {
       return { error: '缺少 phase 参数' };
     }
 
-    const planningSkill = await skills.load('planning');
+    // v4.2.0: 根据 taskType 选择专用模板，否则使用默认 planning 模板
+    const skillName = (taskType && ['coding', 'research', 'documentation'].includes(taskType)) ? taskType : 'planning';
+    const planningSkill = await skills.load(skillName);
     if (!planningSkill) {
-      return { error: 'planning skill 加载失败' };
+      return { error: `${skillName} skill 加载失败` };
     }
 
-    let guide = planningSkill;
-
-    // 根据 phase 附加阶段特定提示
+    // v4.2.0: 模板智能渲染
     const phaseHints = {
       assessment: '【当前阶段】评估任务复杂度，决定是否制定 Plan。',
       draft: '【当前阶段】制定完整 Plan 并汇报给用户。',
@@ -41,11 +43,12 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
       active: '【当前阶段】按 phases 执行，推进任务。',
       revising: '【当前阶段】修订 Plan，重新制定并汇报。'
     };
-
+    let guide = renderTemplate(planningSkill, { phase, phaseHint: phaseHints[phase] || '' });
     guide = `${guide}\n\n${phaseHints[phase] || ''}`;
 
-    logger?.debug?.(`[Tools] get_planning_guide: phase=${phase}`);
-    return { guide, phase };
+    const effectiveTaskType = ['coding', 'research', 'documentation'].includes(taskType) ? taskType : 'default';
+    logger?.debug?.(`[Tools] get_planning_guide: phase=${phase}, taskType=${effectiveTaskType}`);
+    return { guide, phase, taskType: effectiveTaskType };
   }
 
   async function get_monitoring_guide(params) {
@@ -64,7 +67,10 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
     const phases = task.plan?.execution?.phases || [];
     const historyDeviations = task.deviations || [];
 
-    let guide = monitoringSkill || '【Monitoring】偏差预防提醒 + 自我监控指引。';
+    // v4.2.0: 模板智能渲染（纯文本模板向后兼容，渲染无变化时保留手动拼接）
+    let guide = renderTemplate(monitoringSkill, {
+      task, runId, currentPhase, totalPhases: phases.length, historyDeviations
+    }) || (monitoringSkill || '【Monitoring】偏差预防提醒 + 自我监控指引。');
 
     guide += `\n\n【当前状态】\n- runId: ${runId}\n- 当前阶段: ${currentPhase + 1}/${phases.length}\n- 历史偏差: ${historyDeviations.length} 条`;
 
@@ -103,7 +109,10 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
     }
 
     const regulationSkill = await skills.load('regulation');
-    let guide = regulationSkill || '【Regulation】偏差分析与调节指导。';
+    // v4.2.0: 模板智能渲染
+    let guide = renderTemplate(regulationSkill, {
+      task, runId, deviations, unattributed
+    }) || (regulationSkill || '【Regulation】偏差分析与调节指导。');
 
     guide += `\n\n【偏差摘要】\n- 总偏差数: ${deviations.length}\n- 未归因偏差: ${unattributed.length}`;
     for (const d of unattributed) {
@@ -127,11 +136,14 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
 
     // 条件可用：task=completed 时最有意义，但其他状态也返回
     const developmentSkill = await skills.load('development');
-    let guide = developmentSkill || '【Development】任务完成后分析同化/顺应，更新人格。';
-
     const deviations = task.deviations || [];
     const attributions = task.attributions || [];
     const outcome = task.outcome || {};
+
+    // v4.2.0: 模板智能渲染
+    let guide = renderTemplate(developmentSkill, {
+      task, runId, deviations, attributions, outcome
+    }) || (developmentSkill || '【Development】任务完成后分析同化/顺应，更新人格。');
 
     guide += `\n\n【Event 摘要】\n- runId: ${runId}\n- 状态: ${task.status}\n- 偏差记录: ${deviations.length} 条\n- 归因记录: ${attributions.length} 条`;
     if (outcome.archivedAt) {
@@ -145,7 +157,7 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
   // ── 操作型 Tools ──
 
   async function create_plan(params) {
-    const { runId, prompt, planInput } = params || {};
+    const { runId, prompt, taskType, planInput } = params || {};
     if (!runId || !prompt) {
       return { error: '缺少 runId 或 prompt 参数' };
     }
@@ -155,12 +167,17 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
       return { error: `task 已存在: ${runId}` };
     }
 
+    // v4.2.0: 校验 taskType
+    const validTaskTypes = ['coding', 'research', 'documentation'];
+    const normalizedTaskType = validTaskTypes.includes(taskType) ? taskType : undefined;
+
     let task;
     if (planInput && planInput.phases) {
       // Agent 提供了完整 planInput
       task = {
         runId,
         status: 'draft',
+        taskType: normalizedTaskType,
         createdAt: getNow(),
         updatedAt: getNow(),
         plan: {
@@ -199,6 +216,7 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
       task = {
         runId,
         status: 'draft',
+        taskType: normalizedTaskType,
         createdAt: getNow(),
         updatedAt: getNow(),
         plan: {
@@ -231,7 +249,18 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
       });
     }
 
-    return { task, success: true };
+    // v4.2.0: 案例推荐（Case-Based Planning）
+    let similarCases = [];
+    if (caseIndex) {
+      try {
+        const searchGoal = planInput?.goal || prompt || '';
+        similarCases = await caseIndex.findSimilarCases(searchGoal, 3);
+      } catch (err) {
+        logger?.warn?.(`[Tools] 相似案例查询失败: ${err.message}`);
+      }
+    }
+
+    return { task, success: true, similarCases };
   }
 
   async function update_task_status(params) {
@@ -250,6 +279,8 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
       return { error: `task 不存在: ${runId}` };
     }
 
+    // v4.2.0: 先保存 previousStatus，再修改 status（修复 RISK-4 逻辑错误）
+    const previousStatus = task.status;
     task.status = status;
     if (reason) {
       task.revisionReason = reason;
@@ -257,18 +288,18 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
     task.updatedAt = getNow();
     await state.saveTask(runId, task);
 
-    logger?.info?.(`[Tools] update_task_status: runId=${runId}, status=${status}`);
+    logger?.info?.(`[Tools] update_task_status: runId=${runId}, status=${status}, previous=${previousStatus}`);
     if (log) {
       await log.write({
         level: 'INFO',
         module: 'Tools',
         runId,
         message: `update_task_status: ${status}`,
-        extra: { status, reason: reason || '' }
+        extra: { status, previousStatus, reason: reason || '' }
       });
     }
 
-    return { success: true, runId, status, previousStatus: task.status };
+    return { success: true, runId, status, previousStatus };
   }
 
   async function advance_phase(params) {
@@ -426,22 +457,8 @@ export function createMetacognitionTools({ state, skills, logger, log }) {
 
   // ── 辅助函数 ──
 
-  function _resolveEventFilePath(task) {
-    const createdAt = task.createdAt;
-    if (!createdAt) return null;
-    const date = new Date(createdAt);
-    const dateStr = date.toISOString().slice(0, 10);
-    if (task.eventFilePath) {
-      return task.eventFilePath;
-    }
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    const ss = String(date.getSeconds()).padStart(2, '0');
-    return `.agent/events/${dateStr}/${hh}-${mm}-${ss}.md`;
-  }
-
   async function _appendToEventFile(task, sectionType, data) {
-    const eventFilePath = _resolveEventFilePath(task);
+    const eventFilePath = resolveEventFilePath(task);
     if (!eventFilePath) return;
 
     try {

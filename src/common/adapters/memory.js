@@ -4,8 +4,12 @@
  */
 
 import { join } from 'path';
+import { homedir } from 'os';
 
-const DEFAULT_DB = '/root/.agent/memory/{agentId}.sqlite';
+// v4.2.0: 使用 os.homedir() 替代硬编码 /root/.agent，支持 OPENCLAW_AGENT_DIR 环境变量覆盖
+const DEFAULT_DB = process.env.OPENCLAW_AGENT_DIR
+  ? join(process.env.OPENCLAW_AGENT_DIR, 'memory', '{agentId}.sqlite')
+  : join(homedir(), '.agent', 'memory', '{agentId}.sqlite');
 
 // 动态导入 better-sqlite3（兼容 ESM）
 let Database;

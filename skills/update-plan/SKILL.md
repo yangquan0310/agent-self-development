@@ -110,7 +110,7 @@ description: >
 
 ## 完整模板
 
-需要完整模板时，读取 [references/template.md](references/template.md)。
+需要完整模板时，读取 [assets/template.md](assets/template.md)。
 
 模板包含：
 - YAML frontmatter 规范（版本、状态、日期）

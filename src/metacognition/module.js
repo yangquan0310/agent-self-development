@@ -16,6 +16,7 @@ import { promises as fs } from 'fs';
 import { generatePlan, assignSessionsToPhases, getNow, getToday } from '../common/utils.js';
 import { Stream } from '../common/stream.js';
 import { HookRegistry } from '../common/hook.js';
+import { resolveEventFilePath, resolveTaskFilePath } from '../common/project-context.js';
 
 // v3.5.0: 状态标记正则
 const STATUS_PATTERN = /\[STATUS:\s*(\w+)\]/;
@@ -182,21 +183,6 @@ export class Metacognition {
     return task;
   }
 
-  // v4.0.0: 根据 task 推断事件文件路径
-  _resolveEventFilePath(task) {
-    const createdAt = task.createdAt;
-    if (!createdAt) return null;
-    const date = new Date(createdAt);
-    const dateStr = date.toISOString().slice(0, 10);
-    if (task.eventFilePath) {
-      return task.eventFilePath;
-    }
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    const ss = String(date.getSeconds()).padStart(2, '0');
-    return `.agent/events/${dateStr}/${hh}-${mm}-${ss}.md`;
-  }
-
   // v4.0.0: 读取事件文件，提取偏差和归因信息
   async _readEventFile(eventFilePath) {
     try {
@@ -225,7 +211,7 @@ export class Metacognition {
   // v4.0.0: 从 tasks/{runId}.json 读取文件列表
   async _getTaskFilePaths(runId) {
     try {
-      const content = await fs.readFile(`.agent/tasks/${runId}.json`, 'utf-8');
+      const content = await fs.readFile(resolveTaskFilePath(runId), 'utf-8');
       const taskIndex = JSON.parse(content);
       return taskIndex.files ? taskIndex.files.map(f => f.path) : [];
     } catch {
@@ -438,7 +424,7 @@ ${fileContext}
       phaseInfo = '所有阶段已完成';
     }
 
-    const eventFilePath = this._resolveEventFilePath(task);
+    const eventFilePath = resolveEventFilePath(task);
     const eventData = eventFilePath ? await this._readEventFile(eventFilePath) : null;
 
     let monitoringPrefix = '';
@@ -484,7 +470,7 @@ ${fileContext}
     const planningSkill = await this.skills.load('planning');
     const revisionReason = task.revisionReason || '用户要求修改';
 
-    const eventFilePath = this._resolveEventFilePath(task);
+    const eventFilePath = resolveEventFilePath(task);
     const eventData = eventFilePath ? await this._readEventFile(eventFilePath) : null;
     let regulationPrefix = '';
     if (eventData && eventData.hasDeviation && !eventData.hasAttribution) {
@@ -606,76 +592,65 @@ ${fileContext}
   }
 
   /**
-   * v4.1.0: 解析 tool 调用结果，同步更新 task 状态
-   * 作为 tool handler 的辅助备份（tool handler 已直接更新，这里是双重保险）
+   * v4.2.0: 解析 tool 调用结果，改为只读校验模式
+   * Tool Handler 是状态更新的唯一写入者，Hook 层只做一致性校验
    */
   async _parseToolCallResult(toolCall, runId) {
     if (!toolCall || !toolCall.name) return;
 
-    const { name, result, params } = toolCall;
+    const { name, result } = toolCall;
     const task = await this._getTask(runId);
     if (!task) return;
 
-    this.logger.debug(`[Meta] 解析 tool 调用结果: runId=${runId}, tool=${name}`);
+    this.logger.debug(`[Meta] 校验 tool 调用结果: runId=${runId}, tool=${name}`);
 
     switch (name) {
       case 'update_task_status': {
-        // result 中应包含 { success, status }
         if (result && result.success && result.status) {
-          task.status = result.status;
-          if (result.reason) {
-            task.revisionReason = result.reason;
+          if (task.status !== result.status) {
+            this.logger.warn(`[Meta] 状态不一致: tool 返回 ${result.status}, 但 task 当前为 ${task.status}。Tool Handler 应为唯一写入者。`);
+          } else {
+            this.logger.debug(`[Meta] 状态校验通过: ${task.status}`);
           }
-          await this._saveTask(task);
-          this.logger.info(`[Meta] tool 解析: update_task_status -> ${result.status}`);
         }
         break;
       }
       case 'advance_phase': {
-        // result 中应包含 { success, nextPhase }
         if (result && result.success && typeof result.nextPhase === 'number') {
-          const phases = task.plan?.execution?.phases || [];
-          if (result.previousPhase !== undefined && result.previousPhase < phases.length) {
-            phases[result.previousPhase].status = 'completed';
+          const expectedPhase = task.plan?.execution?.currentPhase;
+          if (expectedPhase !== result.nextPhase) {
+            this.logger.warn(`[Meta] 阶段不一致: tool 返回 nextPhase=${result.nextPhase}, 但 task 当前为 ${expectedPhase}。Tool Handler 应为唯一写入者。`);
+          } else {
+            this.logger.debug(`[Meta] 阶段校验通过: ${expectedPhase}`);
           }
-          task.plan.execution.currentPhase = result.nextPhase;
-          await this._saveTask(task);
-          this.logger.info(`[Meta] tool 解析: advance_phase -> ${result.nextPhase}`);
         }
         break;
       }
       case 'create_plan': {
-        // result 中应包含 { success, task }
         if (result && result.success && result.task) {
-          // create_plan 已创建 task，这里只是日志
           this.logger.info(`[Meta] tool 解析: create_plan -> draft task created`);
         }
         break;
       }
       case 'record_deviation': {
         if (result && result.success && result.deviation) {
-          task.deviations = task.deviations || [];
-          task.deviations.push(result.deviation);
-          await this._saveTask(task);
-          this.logger.info(`[Meta] tool 解析: record_deviation -> ${result.deviation.type}`);
+          const hasDeviation = task.deviations?.some(d => d.id === result.deviation.id);
+          if (!hasDeviation) {
+            this.logger.warn(`[Meta] 偏差未找到: deviationId=${result.deviation.id}。Tool Handler 应为唯一写入者。`);
+          } else {
+            this.logger.debug(`[Meta] 偏差校验通过: ${result.deviation.id}`);
+          }
         }
         break;
       }
       case 'record_attribution': {
         if (result && result.success && result.attribution) {
-          task.attributions = task.attributions || [];
-          task.attributions.push(result.attribution);
-          // 标记偏差为已归因
-          if (task.deviations) {
-            for (const dev of task.deviations) {
-              if (!dev.attributed) {
-                dev.attributed = true;
-                dev.attributionId = result.attribution.id;
-              }
-            }
+          const hasAttribution = task.attributions?.some(a => a.id === result.attribution.id);
+          if (!hasAttribution) {
+            this.logger.warn(`[Meta] 归因未找到: attributionId=${result.attribution.id}。Tool Handler 应为唯一写入者。`);
+          } else {
+            this.logger.debug(`[Meta] 归因校验通过: ${result.attribution.id}`);
           }
-          await this._saveTask(task);
-          this.logger.info(`[Meta] tool 解析: record_attribution -> ${result.attribution.id}`);
         }
         break;
       }

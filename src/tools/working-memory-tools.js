@@ -6,6 +6,8 @@
  */
 
 import { promises as fs } from 'fs';
+import { getRecentTraces, getTraceStats, archiveTraces } from '../common/cognitive-trace.js';
+import { resolveTaskFilePath } from '../common/project-context.js';
 
 /**
  * 构建 working-memory tools 实例
@@ -16,7 +18,13 @@ import { promises as fs } from 'fs';
  * @param {Object} deps.log - Log 实例
  * @param {Object} deps.events - Event 实例
  */
-export function createWorkingMemoryTools({ state, skills, logger, log, events }) {
+function formatDuration(ms) {
+  if (ms < 60000) return `${Math.round(ms / 1000)}秒`;
+  if (ms < 3600000) return `${Math.round(ms / 60000)}分钟`;
+  return `${Math.round(ms / 3600000 * 10) / 10}小时`;
+}
+
+export function createWorkingMemoryTools({ state, skills, logger, log, events, caseIndex }) {
 
   async function get_task_status(params) {
     const { runId } = params || {};
@@ -41,7 +49,7 @@ export function createWorkingMemoryTools({ state, skills, logger, log, events })
 
     // 从项目级 .agent/tasks/{runId}.json 读取文件列表
     try {
-      const content = await fs.readFile(`.agent/tasks/${runId}.json`, 'utf-8');
+      const content = await fs.readFile(resolveTaskFilePath(runId), 'utf-8');
       const taskIndex = JSON.parse(content);
       const files = taskIndex.files ? taskIndex.files.map(f => ({
         path: f.path,
@@ -89,6 +97,66 @@ export function createWorkingMemoryTools({ state, skills, logger, log, events })
           'record_attribution',
           'archive_task'
         ];
+        // v4.2.0: 认知轨迹摘要
+        const traceStats = getTraceStats(runId);
+        const recentTraces = getRecentTraces(runId, 5);
+        diagnosis.cognitiveTraceSummary = {
+          toolCallCount: traceStats.count,
+          lastToolCall: traceStats.lastToolCall,
+          elapsedSinceLastCall: traceStats.elapsedSinceLastCall,
+          recentCalls: recentTraces.map(t => ({ tool: t.tool, t: t.t }))
+        };
+
+        // v4.2.0: 趋势分析 + 风险预警（Diagnosis v2）
+        const allTraces = getRecentTraces(runId, 50);
+        const taskStartTime = task.createdAt ? new Date(task.createdAt).getTime() : Date.now();
+        const now = Date.now();
+
+        // 当前 phase 已耗时：从最近一次 advance_phase 或 task 创建时间算起
+        let phaseStartTime = taskStartTime;
+        const advanceTraces = allTraces.filter(t => t.tool === 'advance_phase');
+        if (advanceTraces.length > 0) {
+          phaseStartTime = advanceTraces[advanceTraces.length - 1].t;
+        }
+        const phaseElapsedMs = now - phaseStartTime;
+
+        // 偏差频率（每小时）
+        const deviationTraces = allTraces.filter(t => t.tool === 'record_deviation');
+        const taskDurationHours = Math.max((now - taskStartTime) / 3600000, 0.01);
+        const deviationRate = deviationTraces.length / taskDurationHours;
+
+        // 历史同类型任务平均 phase 耗时
+        let avgPhaseMs = null;
+        if (caseIndex) {
+          try {
+            const searchGoal = task.plan?.context?.goal || task.plan?.prompt || '';
+            const similarCases = await caseIndex.findSimilarCases(searchGoal, 10);
+            const casesWithDuration = similarCases.filter(c => c.duration && c.phases > 0);
+            if (casesWithDuration.length > 0) {
+              const totalAvg = casesWithDuration.reduce((sum, c) => sum + (c.duration / c.phases), 0);
+              avgPhaseMs = Math.round(totalAvg / casesWithDuration.length);
+            }
+          } catch {}
+        }
+
+        // 风险预警（最多 3 条）
+        const riskFlags = [];
+        if (avgPhaseMs && phaseElapsedMs > avgPhaseMs * 1.5) {
+          riskFlags.push(`phase_time_over_avg: 当前阶段耗时 ${formatDuration(phaseElapsedMs)} 超过历史均值 ${formatDuration(avgPhaseMs)} 50%`);
+        }
+        if (deviationRate > 2) {
+          riskFlags.push(`high_deviation_rate: 偏差频率 ${deviationRate.toFixed(1)}/小时 高于正常水平`);
+        }
+        if (task.deviations?.length > 0 && task.deviations.every(d => !d.attributed)) {
+          riskFlags.push(`unattributed_deviations: 存在 ${task.deviations.length} 条未归因偏差，建议调用 record_attribution`);
+        }
+
+        diagnosis.trendAnalysis = {
+          phaseElapsedTime: formatDuration(phaseElapsedMs),
+          avgPhaseTime: avgPhaseMs ? formatDuration(avgPhaseMs) : null,
+          deviationRate: `${deviationRate.toFixed(1)}/小时`,
+          riskFlags: riskFlags.slice(0, 3)
+        };
       } else {
         diagnosis.taskStatus = 'none';
         diagnosis.note = '当前会话尚无 task';
@@ -153,6 +221,22 @@ export function createWorkingMemoryTools({ state, skills, logger, log, events })
     const archived = await state.archiveTask(runId);
     if (!archived) {
       return { error: '归档失败' };
+    }
+
+    // v4.2.0: 归档时一并迁移认知轨迹文件
+    const tracesArchived = archiveTraces(runId);
+    if (tracesArchived) {
+      logger?.debug?.(`[Tools] archive_task: 认知轨迹已归档 runId=${runId}`);
+    }
+
+    // v4.2.0: 写入案例索引
+    if (caseIndex) {
+      try {
+        await caseIndex.indexTask(task);
+        logger?.debug?.(`[Tools] archive_task: 案例索引已更新 runId=${runId}`);
+      } catch (err) {
+        logger?.warn?.(`[Tools] 案例索引写入失败: ${err.message}`);
+      }
     }
 
     // 触发项目级归档（如果 events 实例可用）

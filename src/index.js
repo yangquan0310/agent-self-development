@@ -7,11 +7,14 @@
 
 
 
+import { join } from 'path';
+import { getBaseDir, getSystemStateDir, getSystemLogsDir, getSystemMemoryDir, getSystemFlowsDir } from './common/project-context.js';
 import { State } from './common/adapters/state.js';
 // v3.5.0: 移除未使用的 Task import
 import { Flow } from './common/adapters/flow.js';
 import { Memory } from './common/adapters/memory.js';
 import { Log } from './common/adapters/log.js';
+import { CaseIndex } from './common/case-index.js';
 // v3.5.0: 移除未使用的 Hook import
 
 import { Metacognition } from './metacognition/module.js';
@@ -33,7 +36,7 @@ const pluginId = 'agent-self-development';
 export default {
   id: pluginId,
   name: 'Agent Self-Development',
-  version: '4.1.0',
+  version: '4.2.0',
   description: 'OpenClaw plugin for agent self-development based on Piaget\'s cognitive development theory',
 
   register(api) {
@@ -44,7 +47,7 @@ export default {
     const config = api.pluginConfig || {};
     const logger = api.logger || console;
 
-    logger.info(`[${pluginId}] Agent Self-Development Plugin v4.1.0 activated`);
+    logger.info(`[${pluginId}] Agent Self-Development Plugin v4.2.0 activated`);
 
     // 检查 conversation hooks 权限
     // OpenClaw 2026.4.21 版本使用 allowPromptInjection 控制对话访问
@@ -54,23 +57,27 @@ export default {
       logger.warn(`[${pluginId}] ⚠️ allowConversationAccess / allowPromptInjection 未启用，元认知功能可能无法工作`);
     }
 
-    // 修复：直接使用 ~/.agent 作为基础目录，避免 resolveStateDir 返回错误路径
-    const baseDir = '/root/.agent';
+    // v4.2.0: 使用 os.homedir() 替代硬编码 /root/.agent，支持 OPENCLAW_AGENT_DIR 环境变量覆盖
+    const baseDir = getBaseDir();
 
     // 获取当前代理ID
     const agentId = api.agentId || 'main';
-    
+
     // 使用当前代理的数据库文件
     // 使用已有的系统数据库
     const state = new State(null, {
-      dir: `${baseDir}/state/agent-self-development`,
+      dir: getSystemStateDir(),
       maxArchivedTasks: config.archive?.maxArchivedTasks
     });
-    const flow = new Flow(null, { dbPath: `${baseDir}/flows/registry.sqlite` });
-    const memory = new Memory(null, { dbPath: `${baseDir}/memory/${agentId}.sqlite` });
-    const log = new Log(null, { 
-      dir: `${baseDir}/logs`, 
-      agentId: agentId 
+    const flow = new Flow(null, { dbPath: join(getSystemFlowsDir(), 'registry.sqlite') });
+    const memory = new Memory(null, { dbPath: join(getSystemMemoryDir(), `${agentId}.sqlite`) });
+    const log = new Log(null, {
+      dir: getSystemLogsDir(),
+      agentId: agentId
+    });
+    const caseIndex = new CaseIndex(null, {
+      dbPath: join(baseDir, 'state', 'case-index.sqlite'),
+      maxArchivedTasks: config.archive?.maxArchivedTasks
     });
     const skills = new Skills(undefined, log);
     // v3.5.0: 移除未使用的 task / hook 实例
@@ -102,8 +109,9 @@ export default {
     heartbeat.register();
 
     // v4.1.0: 注册所有 tools
+    // v4.2.0: 注入 caseIndex 支持 Case-Based Planning
     registerTools(api, {
-      state, skills, logger, log, events: event
+      state, skills, logger, log, events: event, caseIndex
     });
 
     // v3.5.0: Gateway 生命周期钩子

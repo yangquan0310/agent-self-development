@@ -7,6 +7,8 @@
  * 官方钩子：heartbeat_prompt_contribution —— 返回 prependContext / appendContext
  */
 
+import { HookRegistry } from './hook.js';
+
 export class Heartbeat {
   constructor({ api, config, state, memory, logger, log }) {
     this.api = api;
@@ -16,6 +18,8 @@ export class Heartbeat {
     this.logger = logger;
     this.log = log;
     this.enabled = this.config.enabled !== false;
+    // v4.2.0: 接入 HookRegistry，与其他模块保持一致
+    this.hookRegistry = new HookRegistry({ api, logger });
   }
 
   register() {
@@ -25,7 +29,7 @@ export class Heartbeat {
     }
 
     this.logger.info('[Heartbeat] 注册心跳 Hook');
-    this.api.on('heartbeat_prompt_contribution', this.onHeartbeatPromptContribution.bind(this));
+    this.hookRegistry.register('heartbeat_prompt_contribution', this.onHeartbeatPromptContribution, this);
   }
 
   /**

@@ -75,6 +75,49 @@ describe('Metacognition Tools', () => {
         assert.ok(result.guide, `phase=${phase} 应返回 guide`);
       }
     });
+
+    it('taskType=coding 返回编码任务专用模板', async () => {
+      const { tools } = await setup({
+        coding: '【Coding Skill】编码任务专用模板',
+        research: '【Research Skill】调研任务专用模板',
+        documentation: '【Documentation Skill】文档任务专用模板'
+      });
+      const result = await tools.get_planning_guide({ phase: 'draft', taskType: 'coding' });
+      assert.ok(result.guide);
+      assert.ok(result.guide.includes('编码任务'), '应包含编码任务标识');
+      assert.strictEqual(result.taskType, 'coding');
+    });
+
+    it('taskType=research 返回调研任务专用模板', async () => {
+      const { tools } = await setup({
+        coding: '【Coding Skill】编码任务专用模板',
+        research: '【Research Skill】调研任务专用模板',
+        documentation: '【Documentation Skill】文档任务专用模板'
+      });
+      const result = await tools.get_planning_guide({ phase: 'draft', taskType: 'research' });
+      assert.ok(result.guide);
+      assert.ok(result.guide.includes('调研任务'), '应包含调研任务标识');
+      assert.strictEqual(result.taskType, 'research');
+    });
+
+    it('taskType=documentation 返回文档任务专用模板', async () => {
+      const { tools } = await setup({
+        coding: '【Coding Skill】编码任务专用模板',
+        research: '【Research Skill】调研任务专用模板',
+        documentation: '【Documentation Skill】文档任务专用模板'
+      });
+      const result = await tools.get_planning_guide({ phase: 'draft', taskType: 'documentation' });
+      assert.ok(result.guide);
+      assert.ok(result.guide.includes('文档任务'), '应包含文档任务标识');
+      assert.strictEqual(result.taskType, 'documentation');
+    });
+
+    it('无效 taskType 回退到默认 planning 模板', async () => {
+      const { tools } = await setup();
+      const result = await tools.get_planning_guide({ phase: 'draft', taskType: 'invalid' });
+      assert.ok(result.guide);
+      assert.strictEqual(result.taskType, 'default');
+    });
   });
 
   describe('get_monitoring_guide', () => {
@@ -198,6 +241,32 @@ describe('Metacognition Tools', () => {
       const { tools } = await setup();
       const result = await tools.create_plan({ runId: 'x' });
       assert.ok(result.error);
+    });
+
+    it('带 taskType 创建 task 并保存类型', async () => {
+      const { tools, state } = await setup();
+      const result = await tools.create_plan({
+        runId: 'typed-task',
+        prompt: '帮我写一个函数',
+        taskType: 'coding'
+      });
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.task.taskType, 'coding');
+      const saved = await state.getTask('typed-task');
+      assert.strictEqual(saved.taskType, 'coding');
+    });
+
+    it('无效 taskType 不被保存', async () => {
+      const { tools, state } = await setup();
+      const result = await tools.create_plan({
+        runId: 'untyped-task',
+        prompt: 'test',
+        taskType: 'invalid'
+      });
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.task.taskType, undefined);
+      const saved = await state.getTask('untyped-task');
+      assert.strictEqual(saved.taskType, undefined);
     });
   });
 

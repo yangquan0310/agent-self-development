@@ -16,6 +16,7 @@
 import { promises as fs } from 'fs';
 import { getToday, getNow, inferTaskFamily } from '../common/utils.js';
 import { HookRegistry } from '../common/hook.js';
+import { resolveEventFilePath, resolveTaskFilePath, resolveEventFilePathFromComponents } from '../common/project-context.js';
 
 export class WorkingMemory {
   constructor({ api, config, state, skills, logger, log, session, events }) {
@@ -110,7 +111,7 @@ export class WorkingMemory {
   // v4.0.0: 从项目级 tasks/{runId}.json 读取文件列表
   static async getTaskFilePaths(runId, projectRoot = '.') {
     try {
-      const content = await fs.readFile(`${projectRoot}/.agent/tasks/${runId}.json`, 'utf-8');
+      const content = await fs.readFile(`${projectRoot}/${resolveTaskFilePath(runId)}`, 'utf-8');
       const taskIndex = JSON.parse(content);
       return taskIndex.files ? taskIndex.files.map(f => f.path) : [];
     } catch {
@@ -271,7 +272,7 @@ ${filePaths.map(p => `   - ${p}`).join('\n')}
       const hh = String(new Date(task.createdAt).getHours()).padStart(2, '0');
       const mm = String(new Date(task.createdAt).getMinutes()).padStart(2, '0');
       const ss = String(new Date(task.createdAt).getSeconds()).padStart(2, '0');
-      const eventFilePath = `.agent/events/${date}/${hh}-${mm}-${ss}.md`;
+      const eventFilePath = resolveEventFilePathFromComponents(date, hh, mm, ss);
 
       // 读取事件文件的「变更记录」章节
       let eventContent = '';
@@ -433,7 +434,7 @@ ${filePaths.map(p => `   - ${p}`).join('\n')}
 
     // v4.0.0: 读取项目级事件文件和 tasks/{runId}.json，归档到系统层 Memory
     try {
-      const eventFilePath = this._resolveEventFilePath(task);
+      const eventFilePath = resolveEventFilePath(task);
       let eventContent = '';
       if (eventFilePath) {
         try {
@@ -446,7 +447,7 @@ ${filePaths.map(p => `   - ${p}`).join('\n')}
       // 读取项目级 tasks/{runId}.json
       let projectTaskIndex = null;
       try {
-        const taskIndexContent = await fs.readFile(`.agent/tasks/${runId}.json`, 'utf-8');
+        const taskIndexContent = await fs.readFile(resolveTaskFilePath(runId), 'utf-8');
         projectTaskIndex = JSON.parse(taskIndexContent);
       } catch {
         // 项目级 task 索引不存在
@@ -496,21 +497,6 @@ ${filePaths.map(p => `   - ${p}`).join('\n')}
 
     // v3.5.0: agent_end 纯观察，禁止返回注入
     this.logger.debug(`[WM] 任务归档完成: runId=${runId}`);
-  }
-
-  // v4.0.0: 根据 task 推断事件文件路径
-  _resolveEventFilePath(task) {
-    const createdAt = task.createdAt;
-    if (!createdAt) return null;
-    const date = new Date(createdAt);
-    const dateStr = date.toISOString().slice(0, 10);
-    if (task.eventFilePath) {
-      return task.eventFilePath;
-    }
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    const ss = String(date.getSeconds()).padStart(2, '0');
-    return `.agent/events/${dateStr}/${hh}-${mm}-${ss}.md`;
   }
 
   /**

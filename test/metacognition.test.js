@@ -231,9 +231,11 @@ describe('Metacognition', () => {
       assert.strictEqual(result.action, 'finalize');
     });
 
-    it('解析 ctx.toolCalls 中的 update_task_status', async () => {
+    // v4.2.0: Tool Handler 为状态更新唯一写入者，Hook 层只读校验
+    it('校验 ctx.toolCalls 中的 update_task_status 一致性', async () => {
+      // 模拟 tool handler 已更新状态
       const { api, state } = await createMeta({}, {
-        'test-run': { runId: 'test-run', status: 'draft', plan: {} }
+        'test-run': { runId: 'test-run', status: 'active', plan: {} }
       });
       const ctx = createMockCtx();
       ctx.toolCalls = [
@@ -242,17 +244,19 @@ describe('Metacognition', () => {
       await api._emit('before_agent_finalize',
         { output: '我已更新状态。' }, ctx);
       const task = await state.getTask('test-run');
+      // Hook 不应二次写入，状态保持 tool handler 更新后的值
       assert.strictEqual(task.status, 'active');
     });
 
-    it('解析 ctx.toolCalls 中的 advance_phase', async () => {
+    it('校验 ctx.toolCalls 中的 advance_phase 一致性', async () => {
+      // 模拟 tool handler 已推进阶段
       const { api, state } = await createMeta({}, {
         'test-run': {
           runId: 'test-run', status: 'active',
           plan: {
             execution: {
-              phases: [{ id: 'p1', status: 'pending' }, { id: 'p2', status: 'pending' }],
-              currentPhase: 0
+              phases: [{ id: 'p1', status: 'completed' }, { id: 'p2', status: 'pending' }],
+              currentPhase: 1
             }
           }
         }
@@ -264,13 +268,15 @@ describe('Metacognition', () => {
       await api._emit('before_agent_finalize',
         { output: '阶段完成。' }, ctx);
       const task = await state.getTask('test-run');
+      // Hook 不应二次写入，状态保持 tool handler 更新后的值
       assert.strictEqual(task.plan.execution.currentPhase, 1);
       assert.strictEqual(task.plan.execution.phases[0].status, 'completed');
     });
 
-    it('解析 ctx.toolCalls 中的 record_deviation', async () => {
+    it('校验 ctx.toolCalls 中的 record_deviation 一致性', async () => {
+      // 模拟 tool handler 已记录偏差
       const { api, state } = await createMeta({}, {
-        'test-run': { runId: 'test-run', status: 'active', plan: {} }
+        'test-run': { runId: 'test-run', status: 'active', plan: {}, deviations: [{ id: 'dev-1', type: 'scope_creep', description: '范围蔓延' }] }
       });
       const ctx = createMockCtx();
       ctx.toolCalls = [
@@ -279,15 +285,18 @@ describe('Metacognition', () => {
       await api._emit('before_agent_finalize',
         { output: '发现偏差。' }, ctx);
       const task = await state.getTask('test-run');
+      // Hook 不应二次写入，偏差保持 tool handler 更新后的值
       assert.strictEqual(task.deviations.length, 1);
       assert.strictEqual(task.deviations[0].type, 'scope_creep');
     });
 
-    it('解析 ctx.toolCalls 中的 record_attribution', async () => {
+    it('校验 ctx.toolCalls 中的 record_attribution 一致性', async () => {
+      // 模拟 tool handler 已记录归因并标记偏差
       const { api, state } = await createMeta({}, {
         'test-run': {
           runId: 'test-run', status: 'active', plan: {},
-          deviations: [{ id: 'dev-1', type: 'scope_creep', description: '范围蔓延', attributed: false }]
+          deviations: [{ id: 'dev-1', type: 'scope_creep', description: '范围蔓延', attributed: true, attributionId: 'attr-1' }],
+          attributions: [{ id: 'attr-1', rootCause: '计划不清晰', strategy: '重新评估' }]
         }
       });
       const ctx = createMockCtx();
@@ -297,6 +306,7 @@ describe('Metacognition', () => {
       await api._emit('before_agent_finalize',
         { output: '完成归因。' }, ctx);
       const task = await state.getTask('test-run');
+      // Hook 不应二次写入，归因保持 tool handler 更新后的值
       assert.strictEqual(task.attributions.length, 1);
       assert.strictEqual(task.deviations[0].attributed, true);
       assert.strictEqual(task.deviations[0].attributionId, 'attr-1');

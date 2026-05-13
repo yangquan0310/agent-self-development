@@ -8,6 +8,7 @@
 import { TOOL_SCHEMAS, ALL_TOOLS } from './schemas.js';
 import { createMetacognitionTools } from './metacognition-tools.js';
 import { createWorkingMemoryTools } from './working-memory-tools.js';
+import { recordTrace } from '../common/cognitive-trace.js';
 
 /**
  * 注册所有 tools 到 api
@@ -39,12 +40,17 @@ export function registerTools(api, deps) {
       description: schema.description,
       inputSchema: schema.inputSchema,
       handler: async (params) => {
+        const runId = params?.runId || 'default';
         try {
           const result = await handler(params);
+          // v4.2.0: 异步记录认知轨迹（不 await，不阻塞主流程）
+          recordTrace(toolName, params, result, runId);
           deps.logger?.debug?.(`[Tools] ${toolName} 调用成功`);
           return result;
         } catch (err) {
           const errorMsg = err.message || String(err);
+          // v4.2.0: 记录失败轨迹
+          recordTrace(toolName, params, { error: errorMsg }, runId);
           deps.logger?.error?.(`[Tools] ${toolName} 调用失败: ${errorMsg}`);
           return { error: errorMsg };
         }

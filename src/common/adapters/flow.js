@@ -4,6 +4,7 @@
  */
 
 import { join } from 'path';
+import { homedir } from 'os';
 
 // 动态导入 better-sqlite3（兼容 ESM）
 let Database;
@@ -18,7 +19,10 @@ async function getDatabase() {
 export class Flow {
   constructor(api, options = {}) {
     this.api = api;
-    this.dbPath = options.dbPath || '/root/.agent/flows/registry.sqlite';
+    // v4.2.0: 使用 os.homedir() 替代硬编码 /root/.agent，支持 OPENCLAW_AGENT_DIR 环境变量覆盖
+    this.dbPath = options.dbPath || (process.env.OPENCLAW_AGENT_DIR
+      ? join(process.env.OPENCLAW_AGENT_DIR, 'flows', 'registry.sqlite')
+      : join(homedir(), '.agent', 'flows', 'registry.sqlite'));
     this.tablePrefix = options.tablePrefix || 'asd_';
     this._db = null;
   }

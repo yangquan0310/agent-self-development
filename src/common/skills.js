@@ -20,7 +20,11 @@ export class Skills {
       monitoring: 'monitoring.md',
       regulation: 'regulation.md',
       working_memory: 'working-memory.md',
-      development: 'personality.md'
+      development: 'personality.md',
+      // v4.2.0: 任务类型专用模板
+      coding: 'coding.md',
+      research: 'research.md',
+      documentation: 'documentation.md'
     };
     this.cache = new Map();
   }

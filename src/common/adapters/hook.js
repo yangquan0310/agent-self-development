@@ -6,8 +6,12 @@
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 
-const DEFAULT_HOOKS_DIR = '/root/.agent/hooks';
+// v4.2.0: 使用 os.homedir() 替代硬编码 /root/.agent，支持 OPENCLAW_AGENT_DIR 环境变量覆盖
+const DEFAULT_HOOKS_DIR = process.env.OPENCLAW_AGENT_DIR
+  ? join(process.env.OPENCLAW_AGENT_DIR, 'hooks')
+  : join(homedir(), '.agent', 'hooks');
 
 const HOOK_MD_TEMPLATE = `---
 name: agent-self-development

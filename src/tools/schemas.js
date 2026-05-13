@@ -37,7 +37,7 @@ export const TOOL_SCHEMAS = {
 
   get_planning_guide: {
     name: 'get_planning_guide',
-    description: '获取 planning 阶段指导文本，根据 phase 返回对应的 skill 内容',
+    description: '获取 planning 阶段指导文本，根据 phase 和可选 taskType 返回对应的 skill 内容',
     inputSchema: {
       type: 'object',
       properties: {
@@ -45,6 +45,11 @@ export const TOOL_SCHEMAS = {
           type: 'string',
           enum: ['assessment', 'draft', 'pending_approval', 'active', 'revising'],
           description: 'planning 阶段名称'
+        },
+        taskType: {
+          type: 'string',
+          enum: ['coding', 'research', 'documentation'],
+          description: '任务类型（可选），指定后加载对应专用模板'
         }
       },
       required: ['phase']
@@ -108,6 +113,11 @@ export const TOOL_SCHEMAS = {
       properties: {
         runId: { type: 'string', description: '任务运行 ID' },
         prompt: { type: 'string', description: '用户原始输入（前500字）' },
+        taskType: {
+          type: 'string',
+          enum: ['coding', 'research', 'documentation'],
+          description: '任务类型（可选），影响默认阶段和 planning 模板选择'
+        },
         planInput: {
           type: 'object',
           properties: {

@@ -11,8 +11,10 @@
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'fs';
 import { dirname, join } from 'path';
+import { getSystemStateDir } from '../project-context.js';
 
-const DEFAULT_DIR = '/root/.agent/state/agent-self-development';
+// v4.2.0: 使用 os.homedir() 替代硬编码 /root/.agent，支持 OPENCLAW_AGENT_DIR 环境变量覆盖
+const DEFAULT_DIR = getSystemStateDir();
 const TASKS_DIR = 'tasks';
 const ARCHIVE_DIR = 'archive';
 const MAX_ARCHIVED_TASKS = 50;
