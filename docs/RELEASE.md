@@ -5,6 +5,31 @@
 
 ---
 
+## v4.3.0 — Flat Tool Plugin（2026-05-31）
+
+**主题**：从「全功能认知框架」退回到「极简工具插件」
+
+**核心交付**：
+- **扁平架构重构（ADR-014）**：移除所有类和 Hook 注入，采用纯函数 + 直接 IO
+- **目录清理（M1）**：`src/` 下仅剩 `objects/`、`tools/`、`utils/`、`assets/`，旧模块零残留
+- **8 个命名空间工具（M2）**：`task.create/update/advance/get/archive` + `event.report/query/archive`
+- **通用更新入口**：`task.update` 支持 status/deviation/attribution/outcome/eventFilePath/reason 任一字段
+- **延迟事件生成**：`event.report` 任务完成后一次性从 task.json 凝练生成 event.md
+- **归档目录**：`.agent/archive/tasks/` + `.agent/archive/events/` 分离活跃与归档数据
+- **测试套件重写（M3）**：覆盖正常/异常/边界路径
+
+**移除**：
+- 7 个 Hook 注入（`before_prompt_build`、`agent_end` 等）
+- 3 个认知模块（metacognition / working-memory / personality）
+- 适配器层（State / Memory / Flow / Log / Hook 类）
+- 5 个 guide 类工具 + 4 个诊断/文件类工具
+- 系统级持久化（`~/.agent/state/`、`~/.agent/memory/`、`~/.agent/logs/`）
+- 废弃字段 `sessionIds`、`tools`、`revisionReason`
+
+**参考文档同步**：`architecture.md`、`object-model.md`、`data-model.md`、`project-structure.md`、`state-keys.md`、`design-philosophy.md`
+
+---
+
 ## v4.2.0 — Cognitive Intelligence（2026-05-13）
 
 **主题**：让 Tool-Driven 架构从「可用」走向「智能」
@@ -34,12 +59,13 @@
 ## 发布步骤
 
 1. **冻结功能** — 确认当前里程碑所有 P0 任务完成
-2. **全量测试** — `npm test`，确保 120/120 通过
+2. **全量测试** — `npm test`，确保测试通过
 3. **更新版本号** — `package.json` + `src/index.js` plugin version
 4. **更新 TODO.md** — 标记版本发布完成，更新历史版本表
-5. **打 tag** — `git tag v{X.Y.Z} {commit}`
-6. **推送 tag** — `git push origin v{X.Y.Z}`
-7. **生成报告** — `docs/reports/test-YYYY-MM-DD-HH-mm-ss.md`
+5. **更新 CHANGELOG** — 将 `unreleased.md` 内容迁移到 `v{X.Y.Z}.md`
+6. **打 tag** — `git tag v{X.Y.Z} {commit}`
+7. **推送 tag** — `git push origin v{X.Y.Z}`
+8. **生成报告** — `docs/reports/test-YYYY-MM-DD-HH-mm-ss.md`
 
 ## 历史 Tag 链
 
@@ -47,7 +73,7 @@
 v1.0.0 → v1.1.0 → v1.1.1 → v1.1.2 → v1.2.0 → ... → v1.3.0
 v2.0.0 → v2.0.1 → v2.0.2
 v3.0.0 → v3.1.0 → v3.1.1 → v3.1.2 → v3.1.3 → v3.2.0 → v3.2.1 → v3.3.0 → v3.4.0 → v3.4.1 → v3.5.0 → v3.6.0
-v4.0.0 → v4.1.0 → v4.2.0（当前）
+v4.0.0 → v4.1.0 → v4.2.0 → v4.3.0（当前）
 ```
 
 ## 技术债务记录
@@ -59,3 +85,6 @@ v4.0.0 → v4.1.0 → v4.2.0（当前）
 | v4.1.0 | 事件文件路径解析重复 | v4.2.0（RISK-2）✅ |
 | v4.1.0 | Heartbeat 未接入 HookRegistry | v4.2.0（RISK-3）✅ |
 | v4.1.0 | 项目级文件路径未集中抽象 | v4.2.0（RISK-8）✅ |
+| v4.2.0 | 架构过重，与 Tool Plugin 定位不符 | v4.3.0（ADR-014）✅ |
+| v4.2.0 | Hook 注入使 Agent 行为难以预测 | v4.3.0（ADR-014）✅ |
+| v4.2.0 | 13 个工具过多，认知指导类工具越界 | v4.3.0（ADR-014）✅ |

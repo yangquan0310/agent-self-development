@@ -1,31 +1,27 @@
-# 数据模型（v4.1.0）
+# 数据模型（v4.3.0）
 
-> **版本**：v4.1.0
-> **更新**：新增 Tool 调用后的状态变更示例、Task JSON 工具字段说明
+> **版本**：v4.3.0
+> **更新**：移除 `sessionIds` / `tools` / `revisionReason` 字段；状态转换改用 `task.update` 统一入口；事件文件改为延迟一次性生成
 
 ---
 
-## 1. Plan 对象
+## 1. Task 对象（task.json）
+
+**存储位置**：`.agent/tasks/{runId}.json`
 
 ```json
 {
-  "runId": "uuid",
-  "prompt": "用户原始输入",
+  "runId": "20260519-abc123",
   "status": "draft",
-  "createdAt": 1234567890000,
-  "updatedAt": 1234567890000,
+  "taskType": "task",
+  "createdAt": "2026-05-19T10:00:00.000Z",
+  "updatedAt": "2026-05-19T10:00:00.000Z",
   "plan": {
     "prompt": "用户原始输入（截断500字）",
-    "createdAt": 1234567890000,
     "context": {
       "goal": "任务目标",
       "constraints": ["约束条件"],
-      "successCriteria": ["成功标准：创建/修改哪些文档"]
-    },
-    "workspace": {
-      "artifacts": ["预期产出文档"],
-      "tools": ["所用工具"],
-      "skills": ["所用技能"]
+      "successCriteria": ["成功标准"]
     },
     "execution": {
       "phases": [
@@ -33,8 +29,6 @@
           "id": "phase1",
           "name": "子任务名称",
           "goal": "子任务目标",
-          "tools": ["所需工具"],
-          "skills": ["所需技能"],
           "outputs": ["产出文档"],
           "status": "pending"
         }
@@ -45,34 +39,31 @@
   "deviations": [],
   "attributions": [],
   "outcome": {},
-  "sessionIds": [],
-  "tools": [],
-  "revisionReason": ""
+  "eventFilePath": ""
 }
 ```
 
-**Plan 状态转换规则**：
+### 1.1 状态转换规则
 
 | 当前状态 | 触发条件 | 新状态 |
 |----------|----------|--------|
-| 不存在 | Agent 调用 `create_plan()` | `draft` |
-| `draft` | Agent 调用 `update_task_status("pending_approval")` | `pending_approval` |
-| `pending_approval` | 用户确认 → Agent 调用 `update_task_status("active")` | `active` |
-| `pending_approval` | 用户要求修改 → Agent 调用 `update_task_status("revising")` | `revising` → 回到 `draft` |
-| `pending_approval` | 用户取消 → Agent 调用 `update_task_status("completed")` | `completed` |
-| `active` | 阶段正常推进 → Agent 调用 `advance_phase()` | `active`（currentPhase++） |
-| `active` | 所有 phases 完成 → `advance_phase()` 返回 `isComplete=true` | `completed` |
-| `active` | 重大偏差需重规划 → Agent 调用 `update_task_status("revising")` | `revising` → 回到 `draft` |
-| `completed` | `agent_end` 或 Agent 调用 `archive_task()` | 归档到 Memory |
+| 不存在 | Agent 调用 `task.create({ prompt })` | `draft` |
+| `draft` | Agent 调用 `task.update({ status: "pending_approval" })` | `pending_approval` |
+| `pending_approval` | 用户确认 → `task.update({ status: "active" })` | `active` |
+| `pending_approval` | 用户要求修改 → `task.update({ status: "revising" })` | `revising` → 回到 `draft` |
+| `pending_approval` | 用户取消 → `task.update({ status: "completed" })` | `completed` |
+| `active` | 阶段正常推进 → `task.advance({ runId })` | `active`（currentPhase++） |
+| `active` | 所有 phases 完成 → `task.advance()` 返回 `isComplete=true` | `completed` |
+| `active` | 重大偏差需重规划 → `task.update({ status: "revising" })` | `revising` → 回到 `draft` |
+| `completed` | Agent 调用 `task.archive({ runId })` | 移动到 `.agent/tasks/archive/` |
 
-### 1.1 Tool 调用后的状态变更示例
+### 1.2 Tool 调用后的状态变更示例
 
-**示例 1：create_plan → draft**
+**示例 1：task.create → draft**
 
 ```javascript
 // Agent 调用
-const result = await tools.create_plan({
-  runId: 'task-001',
+const result = await tools['task.create']({
   prompt: '帮我设计一个 API',
   planInput: {
     goal: '设计 REST API',
@@ -84,10 +75,10 @@ const result = await tools.create_plan({
 
 // Task JSON 变化
 {
-  "runId": "task-001",
+  "runId": "20260519-xxx",
   "status": "draft",
-  "createdAt": 1715404800000,
-  "updatedAt": 1715404800000,
+  "createdAt": "2026-05-19T10:00:00.000Z",
+  "updatedAt": "2026-05-19T10:00:00.000Z",
   "plan": {
     "prompt": "帮我设计一个 API",
     "context": { "goal": "设计 REST API", "constraints": [], "successCriteria": [] },
@@ -98,36 +89,34 @@ const result = await tools.create_plan({
   },
   "deviations": [],
   "attributions": [],
-  "tools": ["create_plan"]
+  "outcome": {}
 }
 ```
 
-**示例 2：update_task_status → active**
+**示例 2：task.update → 更新状态**
 
 ```javascript
 // Agent 调用
-const result = await tools.update_task_status({
-  runId: 'task-001',
+const result = await tools['task.update']({
+  runId: '20260519-xxx',
   status: 'active',
   reason: '用户确认'
 });
 
 // Task JSON 变化
 {
-  "runId": "task-001",
-  "status": "active",        // ← 变更
-  "updatedAt": 1715404900000, // ← 更新
-  "revisionReason": "用户确认", // ← 新增
-  "tools": ["create_plan", "update_task_status"]
+  "runId": "20260519-xxx",
+  "status": "active",          // ← 变更
+  "updatedAt": "2026-05-19T10:05:00.000Z"  // ← 更新
 }
 ```
 
-**示例 3：advance_phase → 推进阶段**
+**示例 3：task.advance → 推进阶段**
 
 ```javascript
 // Agent 调用
-const result = await tools.advance_phase({ runId: 'task-001' });
-// result: { success: true, previousPhase: 0, nextPhase: 1, isComplete: false }
+const result = await tools['task.advance']({ runId: '20260519-xxx' });
+// result: { success: true, data: { previousPhase: 0, nextPhase: 1, isComplete: false }}
 
 // Task JSON 变化
 {
@@ -140,81 +129,87 @@ const result = await tools.advance_phase({ runId: 'task-001' });
       "currentPhase": 1 // ← 变更
     }
   },
-  "updatedAt": 1715405000000,
-  "tools": ["create_plan", "update_task_status", "advance_phase"]
+  "updatedAt": "2026-05-19T10:10:00.000Z"
 }
 ```
 
-**示例 4：record_deviation → 记录偏差**
+**示例 4：task.update → 记录偏差**
 
 ```javascript
 // Agent 调用
-const result = await tools.record_deviation({
-  runId: 'task-001',
-  type: 'scope_creep',
-  description: '用户要求增加认证模块',
-  impact: '延期1天'
+const result = await tools['task.update']({
+  runId: '20260519-xxx',
+  deviation: {
+    type: 'scope_creep',
+    description: '用户要求增加认证模块',
+    impact: '延期1天'
+  }
 });
 
 // Task JSON 变化
 {
   "deviations": [
     {
-      "id": "dev-1715405100000",
+      "id": "dev-20260519-xxx",
       "type": "scope_creep",
       "description": "用户要求增加认证模块",
       "impact": "延期1天",
-      "timestamp": 1715405100000,
-      "attributed": false
+      "timestamp": "2026-05-19T10:15:00.000Z"
     }
   ],
-  "updatedAt": 1715405100000,
-  "tools": ["create_plan", "update_task_status", "advance_phase", "record_deviation"]
+  "updatedAt": "2026-05-19T10:15:00.000Z"
 }
 ```
 
-**示例 5：record_attribution → 记录归因**
+**示例 5：task.update → 记录归因**
 
 ```javascript
 // Agent 调用
-const result = await tools.record_attribution({
-  runId: 'task-001',
-  rootCause: '需求评审不充分',
-  impact: '返工',
-  strategy: '增加需求评审环节'
+const result = await tools['task.update']({
+  runId: '20260519-xxx',
+  attribution: {
+    rootCause: '需求评审不充分',
+    impact: '返工',
+    strategy: '增加需求评审环节'
+  }
 });
 
 // Task JSON 变化
 {
   "attributions": [
     {
-      "id": "attr-1715405200000",
+      "id": "attr-20260519-xxx",
       "rootCause": "需求评审不充分",
       "impact": "返工",
       "strategy": "增加需求评审环节",
-      "timestamp": 1715405200000
+      "timestamp": "2026-05-19T10:20:00.000Z"
     }
   ],
-  "deviations": [
-    {
-      "id": "dev-1715405100000",
-      "type": "scope_creep",
-      "attributed": true,        // ← 变更
-      "attributionId": "attr-1715405200000" // ← 新增
-    }
-  ],
-  "updatedAt": 1715405200000
+  "updatedAt": "2026-05-19T10:20:00.000Z"
 }
+```
+
+**示例 6：task.update → 记录结果**
+
+```javascript
+// Agent 调用
+const result = await tools['task.update']({
+  runId: '20260519-xxx',
+  outcome: {
+    summary: '完成 API 设计',
+    artifacts: ['openapi.yaml', 'docs/api.md'],
+    metrics: { phasesCompleted: 2 }
+  }
+});
 ```
 
 ---
 
-## 2. Deviation 对象（v4.0.0 偏差类型统一）
+## 2. Deviation 对象（偏差记录）
 
-v4.0.0 中偏差记录已迁移到**事件文件**（`.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md`）的「偏差」章节。
-系统级 `task.deviations` 字段保留但不再作为主要存储（向后兼容）。
+偏差通过 `task.update({ deviation })` 写入 `task.json` 的 `deviations` 数组。
 
-**偏差类型规范（v4.0.0 统一）**：
+**偏差类型规范**：
 
 | 类型 | 定义 | 典型场景 |
 |------|------|----------|
@@ -222,141 +217,150 @@ v4.0.0 中偏差记录已迁移到**事件文件**（`.agent/events/{YYYY-MM-DD}
 | `doc_lag` | 文档/代码不同步 | 代码已改但 README/SKILL.md 未更新 |
 | `context_loss` | 文件系统上下文丢失 | Agent 未读取历史文件、重复劳动、遗漏前置文件 |
 | `file_mismatch` | 文件路径或内容错误 | 写入错误路径、覆盖他人文件、文件格式不符规范 |
-| `other` | 其他未分类偏差 | 用户临时变更需求、外部依赖问题 |
+| `scope_creep` | 范围蔓延 | 用户临时增加需求、任务边界扩大 |
+| `technical_debt` | 技术债务 | 临时方案未记录、代码质量下降 |
+| `other` | 其他未分类偏差 | 外部依赖问题、环境变化 |
+
+**Deviation 字段**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | string | ✅ | 自动生成，格式 `dev-{timestamp}` |
+| `type` | string | ✅ | 偏差类型 |
+| `description` | string | ✅ | 偏差描述 |
+| `impact` | string | — | 影响评估 |
+| `timestamp` | string | ✅ | ISO-8601 时间戳 |
 
 ---
 
-## 3. Attribution 对象
+## 3. Attribution 对象（归因记录）
 
-v4.0.0 中归因记录已迁移到**事件文件**的「归因」章节。
-系统级 `task.attributions` 字段保留但不再作为主要存储（向后兼容）。
+归因通过 `task.update({ attribution })` 写入 `task.json` 的 `attributions` 数组。
+
+**Attribution 字段**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | string | ✅ | 自动生成，格式 `attr-{timestamp}` |
+| `rootCause` | string | ✅ | 根本原因 |
+| `strategy` | string | ✅ | 改进策略 |
+| `impact` | string | — | 影响范围 |
+| `timestamp` | string | ✅ | ISO-8601 时间戳 |
+
+> **v4.3.0 简化**：偏差与归因之间不再强制维护 `attributed` / `attributionId` 关联。Agent 通过 `deviationIds` 数组在归因中引用相关偏差（如需要）。
 
 ---
 
-## 4. 项目级 Task 索引（v4.0.0 新增）
+## 4. Outcome 对象（任务结果）
 
-**存储位置**：`.agent/tasks/{runId}.json`
+通过 `task.update({ outcome })` 写入。
 
 ```json
 {
-  "runId": "uuid",
-  "status": "active",
-  "agentId": "main",
-  "role": "primary",
-  "createdAt": "ISO-8601",
-  "updatedAt": "ISO-8601",
-  "files": [
-    {"path": "manuscripts/plan.md", "agentId": "main", "role": "primary", "type": "draft"},
-    {"path": "src/index.js", "agentId": "coder", "role": "subagent", "type": "artifact"}
-  ]
-}
-```
-
-| 字段 | 说明 |
-|------|------|
-| `agentId` / `role` | 负责该任务的主 Agent ID 及其角色（primary/subagent） |
-| `files[].agentId` / `files[].role` | 产出该文件的 Agent 信息 |
-| `files[].type` | `draft`（草稿）或 `artifact`（定稿） |
-
-**索引文件**：`.agent/tasks/INDEX.md` 按日期分组列出所有任务摘要。
-
----
-
-## 5. 事件文件（v4.0.0 新增）
-
-**存储位置**：`.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md`
-
-事件文件包含 7 个必选部分：
-1. **元信息（Metadata）**：runId、agentId、role、createdAt
-2. **计划（Plan）**：执行计划、验收标准、预估时间
-3. **执行（Execution）**：实际完成的工作、产出文件
-4. **变更记录（ChangeLog）**：`- {HH:MM} {agent-id} {write|edit} {filePath} — {摘要}`
-5. **偏差（Deviation）**：发现的偏差（类型、描述、影响范围）
-6. **归因（Attribution）**：根本原因、影响评估、策略更新
-7. **结果（Outcome）**：最终状态（完成/修正/放弃）
-
-**Tool 调用后的事件文件追加**：
-- `record_deviation()` → 追加到「偏差」章节
-- `record_attribution()` → 追加到「归因」章节
-
----
-
-## 6. Event 对象（系统级）
-
-agent_end 时，插件将项目级事件文件和 task 索引归档到系统层 Memory：
-
-```json
-{
-  "runId": "uuid",
-  "timestamp": "ISO-8601 timestamp",
-  "status": "completed",
-  "eventContent": "事件文件内容摘要（限制 5000 字符）",
-  "projectTaskIndex": { "files": [...] },
-  "outcome": {
-    "archivedAt": "ISO-8601 timestamp",
-    "toolCount": 5
-  }
-}
-```
-
-**Event 生命周期**：
-1. Agent 在任务期间写入项目级事件文件（`.agent/events/...`）
-2. agent_end 时插件读取项目级事件文件和 task 索引
-3. 插件将内容归档到系统层 Memory SQLite（`asd_eventlogs` 表）
-4. 历史查询功能为 [占位符]，待后续按需实现
-
----
-
-## 7. Session 对象
-
-v4.0.0 中 Session 追踪保留但不再维护全局活跃索引。文件系统上下文替代 Session 内存复用。
-
-```json
-{
-  "sessionId": "session:CODE:task-family",
-  "taskFamily": "CODE",
-  "status": "pending",
-  "createdAt": "ISO-8601 timestamp",
-  "activatedAt": "ISO-8601 timestamp|null",
-  "completedAt": "ISO-8601 timestamp|null",
-  "runIds": ["uuid"],
-  "artifacts": ["产出文档路径"],
-  "tools": ["使用过的工具"],
-  "context": {
-    "lastGoal": "最后执行的目标",
-    "lastOutputs": ["最后产出"]
+  "summary": "任务完成摘要",
+  "artifacts": ["产出文件路径1", "产出文件路径2"],
+  "metrics": {
+    "phasesCompleted": 3,
+    "deviationsCount": 1
   }
 }
 ```
 
 ---
 
-## 8. 同化 vs 顺应判定
+## 5. 事件文件（event.md）
 
-- **同化**：原有内容的细化 → 调用子对象的 update 方法
-- **顺应**：新结构的出现 → 调用子对象的 create 方法
+**存储位置**：`.agent/events/{YYYY-MM-DD}/{runId}.md`
+
+**生成时机**：任务完成后，Agent 调用 `event.report({ runId })` **一次性生成**。
+
+**生成流程**：
+1. `event.report` 读取对应 `task.json`（活跃或归档）
+2. 使用 `src/assets/event.md` 模板渲染 Markdown
+3. 写入 `.agent/events/{date}/{runId}.md`
+4. `handlers.report` 自动调用 `task.update` 回写 `eventFilePath`
+
+**事件文件包含内容**（由模板决定）：
+1. **元信息（Metadata）**：runId、status、createdAt、completedAt
+2. **计划（Plan）**：目标、约束、成功标准、阶段化执行
+3. **执行（Execution）**：各阶段实际完成状态
+4. **偏差（Deviation）**：偏差记录汇总
+5. **归因（Attribution）**：归因记录汇总
+6. **结果（Outcome）**：最终结果摘要
+
+> **v4.3.0 变更**：事件文件不再增量追加。所有数据来自 task.json 的当前状态，一次性渲染。这避免了执行期间的频繁 IO 和并发问题。
 
 ---
 
-## 9. Task JSON 字段完整规范（v4.1.0）
+## 6. 归档模型
+
+**任务归档**：
+- 源文件：`.agent/tasks/{runId}.json`
+- 目标文件：`.agent/tasks/archive/{runId}.json`
+- 触发：`task.archive({ runId })`
+
+**事件归档**：
+- 源文件：`.agent/events/{date}/{runId}.md`
+- 目标文件：`.agent/events/archive/{date}-{runId}.md`
+- 触发：`event.archive({ runId })`
+
+**查询回退**：
+- `task.get({ runId })` 先在 `.agent/tasks/` 查找，找不到则回退到 `.agent/tasks/archive/`
+
+---
+
+## 7. Task JSON 字段完整规范（v4.3.0）
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `runId` | string | ✅ | 任务运行 ID |
 | `status` | string | ✅ | `draft` / `pending_approval` / `active` / `revising` / `completed` |
-| `createdAt` | number | ✅ | 创建时间戳 |
-| `updatedAt` | number | ✅ | 最后更新时间戳 |
-| `plan` | object | ✅ | Plan 对象（prompt / context / workspace / execution） |
+| `taskType` | string | — | `task` / `coding` / `research` / `documentation`，默认 `task` |
+| `createdAt` | string | ✅ | 创建时间戳（ISO-8601） |
+| `updatedAt` | string | ✅ | 最后更新时间戳（ISO-8601） |
+| `plan` | object | ✅ | Plan 对象（prompt / context / execution） |
 | `deviations` | array | — | 偏差记录数组 |
 | `attributions` | array | — | 归因记录数组 |
-| `outcome` | object | — | 最终结果 |
-| `sessionIds` | array | — | 关联的 session ID 列表 |
-| `tools` | array | — | 本次任务使用过的 tool 名称列表（v4.1.0 新增） |
-| `revisionReason` | string | — | 修订原因（v4.1.0 新增） |
-| `eventFilePath` | string | — | 关联的事件文件路径 |
+| `outcome` | object | — | 任务结果 |
+| `eventFilePath` | string | — | 关联事件文件路径（由 `event.report` 自动回写） |
+
+### v4.3.0 移除字段
+
+| 字段 | 移除原因 |
+|------|---------|
+| `sessionIds` | Session 模块已移除，Agent 直接管理上下文 |
+| `tools` | Tool 调用历史由 Agent 自行记录，不写入 task.json |
+| `revisionReason` | 修订原因由 Agent 在偏差/归因中自由描述，不再强制字段 |
 
 ---
 
-*文档版本：v4.1.0*
-*最后更新：2026-05-11*
+## 8. 状态机与工具映射
+
+```
+不存在 ──task.create──→ draft
+  │
+  ▼
+draft ──task.update(status: pending_approval)──→ pending_approval
+  │                                              │
+  │                                              ├─task.update(status: active)──→ active
+  │                                              │                           │
+  │                                              │                           ├─task.advance()──→ active (currentPhase++)
+  │                                              │                           │               │
+  │                                              │                           │               └─isComplete?──→ completed
+  │                                              │                           │
+  │                                              │                           └─task.update(deviation)──→ (记录偏差)
+  │                                              │
+  │                                              ├─task.update(status: revising)──→ revising ──→ draft
+  │                                              │
+  │                                              └─task.update(status: completed)──→ completed
+  │                                                                                  │
+  │                                                                                  ├─event.report()──→ 生成 event.md
+  │                                                                                  │
+  │                                                                                  └─task.archive()──→ 归档
+```
+
+---
+
+*文档版本：v4.3.0*
+*最后更新：2026-05-19*
 *维护者：Developer*

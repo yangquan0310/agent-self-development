@@ -1,356 +1,342 @@
 # Tool Registry 接口规范
 
 > **版本**：v4.3.0  
-> **范围**：`src/tools/index.js`, `src/tools/schemas.js`  
+> **范围**：`src/tools/`（注册层 + handler 层 + adapter 层）+ `src/objects/`（业务函数层）  
 > **状态**：[ARCH_READY]  
-> **作者**：Architect
+> **作者**：Architect  
+> **更新日期**：2026-05-19  
+> **关联 ADR**：`docs/adr/adr-014.md`（扁平化架构）
 
 ---
 
 ## 1. 概述
 
-Tool Registry 负责将插件的所有能力注册到 OpenClaw 核心，仅支持新注册方式：
+v4.3.0 采用扁平化架构：业务逻辑在 `objects/` 纯函数中，Handler 层负责参数解包和返回值适配。
 
-- **新注册方式**（v4.3.0 唯一路径）：`api.registerTool({ name, description, parameters, execute })`
-
-> ⚠️ **v4.3.0 不保留任何向后兼容层**。13 个旧工具名已废弃，Agent 必须直接使用新命名空间工具名。
+本规范定义 8 个工具的注册方式和 handler 契约。
 
 ---
 
-## 2. 模块结构
+## 2. 注册接口
 
-```
-src/tools/
-├── index.js              # 统一注册入口 registerTools(api, deps)
-├── schemas.js            # 所有工具的 JSON Schema 定义（parameters 格式）
-├── return-adapter.js     # 返回值格式适配器
-└── namespaced/           # 按命名空间组织的 tool handlers
-    ├── task-tools.js     # task.* 命名空间（7 个工具）
-    ├── event-tools.js    # event.* 命名空间（2 个工具）
-    └── guide-tools.js    # guide.* 命名空间（4 个工具）
-```
-
----
-
-## 3. 注册入口
-
-### 3.1 registerTools 函数
+### 2.1 registerTools
 
 ```typescript
-function registerTools(
-  api: OpenClawApi,
-  deps: {
-    state: State;
-    skills: Skills;
-    logger: Logger;
-    log: Log;
-    events: Event;           // v4.3.0: 可选，MemoryArchive 保留兼容
-    caseIndex: CaseIndex;
-    taskObject: TaskObject;   // v4.3.0 新增
-    eventObject: EventObject; // v4.3.0 新增
-  }
-): void;
-```
+function registerTools(api: OpenClawAPI, context: ToolContext): void;
 
-**注册顺序**：
-1. 注册命名空间 tools（`task.*`, `event.*`, `guide.*`）— 使用新注册方式
-2. 记录注册结果日志
+interface ToolContext {
+  templates: { task: object, event: string };  // 加载后的模板
+  baseDir: string;                              // 项目根目录
+  logger?: Logger;
+}
 
----
+interface OpenClawAPI {
+  registerTool(spec: ToolSpec): void;
+}
 
-## 4. 新注册方式契约
-
-### 4.1 工具定义结构
-
-```typescript
-interface ToolDefinition {
-  name: string;                    // 命名空间格式：'task.create', 'event.record'
+interface ToolSpec {
+  name: string;
   description: string;
-  parameters: JSONSchema;          // 原 inputSchema，JSON Schema 格式
-  execute: ExecuteFunction;
-}
-
-type ExecuteFunction = (
-  _id: string,                    // tool call ID（OpenClaw 生成）
-  params: Record<string, any>    // 用户传入的参数
-) => Promise<ToolResult>;
-
-interface ToolResult {
-  content: Array<{
-    type: 'text' | 'image' | 'resource';
-    text?: string;                // type='text' 时必填
-    [key: string]: any;
-  }>;
-  isError?: boolean;
+  parameters: JSONSchema;
+  execute: (id: string, args: any) => Promise<any>;
 }
 ```
 
-### 4.2 返回值适配
-
-所有 `execute` 函数通过 `ReturnAdapter` 统一包装：
-
-```typescript
-// src/tools/return-adapter.js
-
-function adaptReturn(
-  result: object,
-  options?: {
-    pretty?: boolean;            // 是否格式化 JSON（默认 false）
-  }
-): ToolResult;
-
-function adaptError(
-  error: Error | string,
-  options?: object
-): ToolResult;
-```
-
-**使用示例**：
-
-```typescript
-// task-tools.js
-async function executeCreate(_id, params) {
-  try {
-    const result = await taskObject.create(params);
-    return adaptReturn(result);
-  } catch (err) {
-    return adaptError(err);
-  }
-}
-```
-
-### 4.3 参数结构变更对照
-
-| 字段 | v4.2.0（旧，已废弃） | v4.3.0（新） | 说明 |
-|------|-------------|-------------|------|
-| 注册函数 | `api.registerTool(name, definition)` | `api.registerTool(definition)` | 第一个参数合并到 definition |
-| 名称 | `definition.name` | `definition.name` | 格式变为 `task.create` |
-| Schema | `definition.inputSchema` | `definition.parameters` | 字段名变更，结构不变 |
-| 执行函数 | `definition.handler(params)` | `definition.execute(_id, params)` | 签名变更，增加 `_id` |
-| 返回值 | `object`（任意） | `{ content: [{ type: 'text', text: string }] }` | 必须包装 |
+**注册逻辑**：
+1. 从 `schemas.js` 导入 8 个工具的定义（name, description, parameters）
+2. 从 `handlers.js` 导入对应的 handler 函数
+3. 对每个工具调用 `api.registerTool({ name, description, parameters, execute })`
+4. `execute` 内部调用 `adaptReturn()` 或 `adaptError()` 包装返回值
 
 ---
 
-## 5. 命名空间工具清单
+## 3. 工具详细定义
 
-### 5.1 task.* 命名空间
+### 3.1 task.create
 
-```javascript
-// schemas.js 中的定义示例
-export const TOOL_SCHEMAS = {
-  'task.create': {
-    name: 'task.create',
-    description: '创建 draft task',
-    parameters: {
-      type: 'object',
-      properties: {
-        runId: { type: 'string', description: '任务运行 ID' },
-        prompt: { type: 'string', description: '用户原始输入（前500字）' },
-        taskType: {
-          type: 'string',
-          enum: ['coding', 'research', 'documentation'],
-          description: '任务类型（可选）'
+```json
+{
+  "name": "task.create",
+  "description": "创建一个新的任务草案。根据用户输入生成任务计划和阶段。",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "runId": { "type": "string", "description": "任务唯一标识" },
+      "prompt": { "type": "string", "description": "用户原始输入" },
+      "taskType": { "type": "string", "enum": ["coding", "research", "documentation"] }
+    },
+    "required": ["runId", "prompt"]
+  }
+}
+```
+
+**Handler**：`objects/task.create(params, context)` → `{ task }`
+
+---
+
+### 3.2 task.update
+
+```json
+{
+  "name": "task.update",
+  "description": "更新任务状态、记录偏差、归因、结果或关联 event.md。至少提供一个可选字段。",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "runId": { "type": "string" },
+      "status": { "type": "string", "enum": ["draft", "pending_approval", "active", "revising", "completed"] },
+      "reason": { "type": "string", "description": "状态变更原因" },
+      "deviation": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "description": { "type": "string" },
+          "impact": { "type": "string" }
         },
-        planInput: {
-          type: 'object',
-          properties: {
-            goal: { type: 'string' },
-            constraints: { type: 'array', items: { type: 'string' } },
-            successCriteria: { type: 'array', items: { type: 'string' } },
-            phases: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  name: { type: 'string' },
-                  goal: { type: 'string' },
-                  outputs: { type: 'array', items: { type: 'string' } },
-                  status: { type: 'string', enum: ['pending', 'in_progress', 'completed'] }
-                }
-              }
-            }
-          }
+        "required": ["type", "description"]
+      },
+      "attribution": {
+        "type": "object",
+        "properties": {
+          "rootCause": { "type": "string" },
+          "strategy": { "type": "string" },
+          "impact": { "type": "string" },
+          "deviationIds": { "type": "array", "items": { "type": "string" }, "description": "精确关联指定偏差 ID" }
+        },
+        "required": ["rootCause", "strategy"]
+      },
+      "outcome": {
+        "type": "object",
+        "properties": {
+          "summary": { "type": "string" },
+          "deliverables": { "type": "array", "items": { "type": "string" } },
+          "lessonsLearned": { "type": "string" }
         }
       },
-      required: ['runId', 'prompt']
-    }
-  },
-  // ... 其他工具
-};
-```
-
-| 工具名 | 参数 | 返回核心字段 |
-|--------|------|-------------|
-| `task.create` | `runId`, `prompt`, `taskType?`, `planInput?` | `{ task, similarCases? }` |
-| `task.update` | `runId`, `status`, `reason?` | `{ task, previousStatus }` |
-| `task.advance` | `runId`, `phaseId?` | `{ task, previousPhase, nextPhase, isComplete }` |
-| `task.query` | `runId` | `{ task }` |
-| `task.files` | `runId` | `{ files, count }` |
-| `task.diagnose` | `runId?` | `{ diagnosis }` |
-| `task.archive` | `runId` | `{ archived, archivedAt? }` |
-
-### 5.2 event.* 命名空间
-
-| 工具名 | 参数 | 返回核心字段 |
-|--------|------|-------------|
-| `event.record` | `runId`, `recordType`, `data` | `{ recorded, eventFilePath? }` |
-| `event.query` | `runId?`, `date?`, `type?` | `{ events, count }` |
-
-**`event.record` 参数详细结构**：
-
-```json
-{
-  "runId": "task-001",
-  "recordType": "deviation",
-  "data": {
-    "type": "scope_creep",
-    "description": "用户要求增加认证模块",
-    "impact": "延期1天"
+      "eventFilePath": { "type": "string" }
+    },
+    "required": ["runId"]
   }
 }
 ```
 
-或：
+**Handler**：`objects/task.update(params, context)` → `{ task, updatedFields }`
+
+**特殊说明**：`task.update` 是 task.json 的**唯一更新入口**。内部按顺序处理：
+1. `status` → 状态机校验
+2. `deviation` → 追加偏差
+3. `attribution` → 追加归因 + 标记偏差
+4. `outcome` → 浅合并
+5. `eventFilePath` → 关联事件文件
+
+---
+
+### 3.3 task.advance
 
 ```json
 {
-  "runId": "task-001",
-  "recordType": "attribution",
-  "data": {
-    "rootCause": "需求评审不充分",
-    "impact": "返工",
-    "strategy": "增加需求评审环节"
-  }
-}
-```
-
-### 5.3 guide.* 命名空间
-
-| 工具名 | 参数 | 返回核心字段 |
-|--------|------|-------------|
-| `guide.planning` | `phase`, `taskType?` | `{ guide, phase, taskType }` |
-| `guide.monitoring` | `runId` | `{ guide, currentPhase, totalPhases, historyDeviations }` |
-| `guide.regulation` | `runId` | `{ guide, available, deviationCount, unattributedCount }` |
-| `guide.development` | `runId` | `{ guide, status, deviationCount, attributionCount }` |
-
----
-
-## 6. 废弃声明
-
-以下 13 个旧工具名在 v4.3.0 中**全部废弃**，不再保留任何映射、shim 或向后兼容层。Agent 必须直接使用新命名空间工具名调用。
-
-| 序号 | 旧工具名 | 新命名空间工具名 | 所属命名空间 |
-|------|----------|------------------|--------------|
-| 1 | `create_plan` | `task.create` | task |
-| 2 | `update_task_status` | `task.update` | task |
-| 3 | `advance_phase` | `task.advance` | task |
-| 4 | `get_task_status` | `task.query` | task |
-| 5 | `get_task_files` | `task.files` | task |
-| 6 | `self_diagnose` | `task.diagnose` | task |
-| 7 | `archive_task` | `task.archive` | task |
-| 8 | `record_deviation` | `event.record` | event |
-| 9 | `record_attribution` | `event.record` | event |
-| 10 | `get_planning_guide` | `guide.planning` | guide |
-| 11 | `get_monitoring_guide` | `guide.monitoring` | guide |
-| 12 | `get_regulation_guide` | `guide.regulation` | guide |
-| 13 | `get_development_guide` | `guide.development` | guide |
-
-> ⚠️ **重要**：v4.3.0 发布后，任何使用旧工具名的 Agent 配置、脚本、白名单将直接报错，不存在过渡期。所有 Agent 必须在 v4.3.0 发布前完成白名单更新。
-
----
-
-## 7. 错误处理统一策略
-
-### 7.1 错误返回格式
-
-```json
-{
-  "content": [{
-    "type": "text",
-    "text": "{\"error\":\"task 不存在: task-001\"}"
-  }],
-  "isError": true
-}
-```
-
-### 7.2 错误分类
-
-| 错误类型 | 触发场景 | HTTP 语义映射 | Agent 行为建议 |
-|----------|----------|--------------|---------------|
-| 参数校验失败 | `runId` 缺失、`status` 无效 | 400 Bad Request | 检查参数并重试 |
-| 资源不存在 | task 不存在、事件文件不存在 | 404 Not Found | 先创建资源 |
-| 状态冲突 | 已完成 task 再次推进 | 409 Conflict | 检查任务状态 |
-| 权限不足 | 归档非 completed task | 403 Forbidden | 先完成任务 |
-| 内部错误 | 文件系统写入失败 | 500 Internal Error | 报告开发者 |
-
----
-
-## 8. 测试要求
-
-| 测试类别 | 数量 | 覆盖要求 |
-|----------|------|----------|
-| 命名空间工具正向调用 | ≥ 15 | 每个工具至少 1 个正向用例 |
-| 命名空间工具错误路径 | ≥ 15 | 参数缺失、资源不存在、状态冲突 |
-| 返回值格式校验 | ≥ 30 | 所有返回均为 `{ content: [...] }` 格式 |
-| 参数转换校验 | 2 | `record_deviation` / `record_attribution` → `event.record` |
-| 旧名零残留 | 1 | `grep` 全量旧工具名零匹配 |
-
----
-
-## 9. 与 openclaw.plugin.json 的同步
-
-### 9.1 需更新的字段
-
-```json
-{
-  "version": "4.3.0",
-  "minVersion": "2026.5.0",
-  "configSchema": {
+  "name": "task.advance",
+  "description": "推进任务到下一阶段，或标记指定阶段为已完成。",
+  "parameters": {
+    "type": "object",
     "properties": {
-      "injectionMode": { ... },
-      "tools": {
-        "type": "object",
-        "description": "命名空间工具分组配置",
-        "properties": {
-          "task": { "type": "object", "description": "task.* 工具配置" },
-          "event": { "type": "object", "description": "event.* 工具配置" },
-          "guide": { "type": "object", "description": "guide.* 工具配置" }
-        }
-      }
+      "runId": { "type": "string" },
+      "phaseId": { "type": "string", "description": "指定阶段 ID（可选）" }
+    },
+    "required": ["runId"]
+  }
+}
+```
+
+**Handler**：`objects/task.advance(params, context)` → `{ task, previousPhase, nextPhase, isComplete }`
+
+---
+
+### 3.4 task.get
+
+```json
+{
+  "name": "task.get",
+  "description": "查询任务完整状态。支持从活跃目录或归档目录读取。",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "runId": { "type": "string" }
+    },
+    "required": ["runId"]
+  }
+}
+```
+
+**Handler**：`objects/task.get(params, context)` → `{ task }`
+
+**注意**：若 task 不存在返回 `{ task: null }`，不返回错误。
+
+---
+
+### 3.5 task.archive
+
+```json
+{
+  "name": "task.archive",
+  "description": "归档已完成的任务。仅允许归档 status=completed 的任务。",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "runId": { "type": "string" }
+    },
+    "required": ["runId"]
+  }
+}
+```
+
+**Handler**：`objects/task.archive(params, context)` → `{ archived, archivedAt, archivedPath }`
+
+---
+
+### 3.6 event.report
+
+```json
+{
+  "name": "event.report",
+  "description": "为已完成的任务生成 event.md 报告。仅当 task.status=completed 时允许调用。",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "runId": { "type": "string" }
+    },
+    "required": ["runId"]
+  }
+}
+```
+
+**Handler**：`objects/event.report(params, context)` → `{ eventFilePath, content }`
+
+**Handler 内部逻辑**：
+1. 双路径扫描读取 task.json（活跃 → 归档）
+2. 校验 `task.status === 'completed'`
+3. 渲染模板，写入 `.agent/events/{date}/{runId}.md`
+4. 返回 `eventFilePath`
+
+**Tool Handler 层协调**（在 `tools/handlers.js` 中）：
+```javascript
+import * as task from '../objects/task.js';
+import * as event from '../objects/event.js';
+
+export async function report(params, context) {
+  const result = await event.report(params, context);
+  if (result.error) return adaptError(new Error(result.error));
+  
+  // 关联 eventFilePath 到 task.json
+  await task.update(
+    { runId: params.runId, eventFilePath: result.eventFilePath },
+    context
+  );
+  
+  return adaptReturn(result);
+}
+```
+
+---
+
+### 3.7 event.query
+
+```json
+{
+  "name": "event.query",
+  "description": "查询 event.md 文件列表。支持按 runId、日期、事件类型筛选。",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "runId": { "type": "string", "description": "精确匹配 runId（可选）" },
+      "date": { "type": "string", "description": "匹配 YYYY-MM-DD 格式日期（可选）" },
+      "type": { "type": "string", "enum": ["deviation", "attribution"], "description": "筛选事件类型（可选）" }
     }
   }
 }
 ```
 
-### 9.2 metadata.json 同步
+**Handler**：`objects/event.query(params, context)` → `{ events, total }`
 
-`metadata.json` 中 `tools` 字段需同步更新为命名空间格式，并标注分组：
+---
+
+### 3.8 event.archive
 
 ```json
 {
-  "tools": {
-    "task": ["create", "update", "advance", "query", "files", "diagnose", "archive"],
-    "event": ["record", "query"],
-    "guide": ["planning", "monitoring", "regulation", "development"]
+  "name": "event.archive",
+  "description": "归档指定 runId 的 event.md 文件。",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "runId": { "type": "string" }
+    },
+    "required": ["runId"]
   }
+}
+```
+
+**Handler**：`objects/event.archive(params, context)` → `{ archived, archivedAt, archivedPath }`
+
+---
+
+## 4. 返回值适配
+
+所有工具 execute 函数通过 `src/tools/adapter.js` 包装返回值。
+
+```javascript
+// adapter.js
+export function adaptReturn(result, options = {}) {
+  const { pretty = false } = options;
+  const text = pretty ? JSON.stringify(result, null, 2) : JSON.stringify(result);
+  return { content: [{ type: 'text', text }] };
+}
+
+export function adaptError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return { content: [{ type: 'text', text: JSON.stringify({ error: message }) }], isError: true };
 }
 ```
 
 ---
 
-## 10. 废弃清单
+## 5. 插件入口示例
 
-以下文件/模块在 v4.3.0 中不再存在：
+```javascript
+// src/index.js（目标：<50 行）
+import { readFileSync } from 'fs';
+import { registerTools } from './tools/index.js';
 
-| 文件 | 说明 |
-|------|------|
-| `src/tools/compat-shim.js` | 向后兼容层已移除 |
-| `src/tools/schemas.js`（旧版） | 旧 schema 定义已重写为 parameters 格式 |
+export async function initialize(api, config) {
+  const baseDir = config.projectRoot || process.cwd();
+  
+  const templates = {
+    task: JSON.parse(readFileSync(`${baseDir}/src/assets/task.json`, 'utf-8')),
+    event: readFileSync(`${baseDir}/src/assets/event.md`, 'utf-8')
+  };
+  
+  const context = { templates, baseDir, logger: api.logger };
+  registerTools(api, context);
+}
+```
 
 ---
 
-*文档版本：v2.0.0（无向后兼容层）*  
-*维护者：Architect*  
-*最后更新：2026-05-19*  
-*[ARCH_READY]*
+## 6. 权限与校验
+
+| 工具 | 前置校验 |
+|------|----------|
+| `task.create` | runId 格式、prompt 非空、runId 不存在 |
+| `task.update` | runId 存在、状态机合法、至少一个可选字段 |
+| `task.advance` | runId 存在 |
+| `task.get` | runId 存在（不存在返回 null，不报错） |
+| `task.archive` | runId 存在、status === completed |
+| `event.report` | runId 存在、status === completed |
+| `event.query` | 无（返回空列表也是有效结果） |
+| `event.archive` | runId 存在、event.md 文件存在 |
+
+---
+
+*文档版本：v3.0.0*  
+*状态：[ARCH_READY]*  
+*关联 ADR：ADR-014（扁平化架构）*

@@ -1,312 +1,273 @@
-# TaskObject 接口规范
+# Task Handler 接口规范
 
 > **版本**：v4.3.0  
-> **范围**：`src/objects/task-object.js`  
+> **范围**：`src/objects/task.js` 中任务管理相关函数  
 > **状态**：[ARCH_READY]  
-> **作者**：Architect
+> **作者**：Architect  
+> **更新日期**：2026-05-19  
+> **关联 ADR**：`docs/adr/adr-014.md`（扁平化架构）  
+> **关联文档**：`docs/roadmap/v4.3.0.md` v2.0.0
 
 ---
 
 ## 1. 概述
 
-TaskObject 是 `task.json` 的**唯一写入者**，负责任务全生命周期的业务规则、数据校验和状态机管理。
+v4.3.0 采用扁平化架构：**Tool Handler 直接读写 `task.json`**，不引入 TaskObject 中间层。
+
+本规范定义 5 个任务管理业务函数的接口契约。
 
 ---
 
-## 2. 类定义
+## 2. 依赖
 
-```typescript
-class TaskObject {
-  constructor(deps: TaskObjectDeps);
-  
-  async create(params: CreateParams): Promise<CreateResult>;
-  async get(runId: string): Promise<GetResult>;
-  async getFiles(runId: string): Promise<GetFilesResult>;
-  async update(params: UpdateParams): Promise<UpdateResult>;
-  async advance(params: AdvanceParams): Promise<AdvanceResult>;
-  async archive(runId: string): Promise<ArchiveResult>;
-  async diagnose(runId?: string): Promise<DiagnoseResult>;
-  validate(task: Task): ValidationResult;
-}
+```javascript
+// Handler 通过 context 接收以下依赖
+const context = {
+  templates: { task: object },    // 加载后的 task.json 模板
+  logger: Logger,                 // 可选：OpenClaw api.logger
+  baseDir: string                 // 项目根目录绝对路径
+};
+```
+
+Handler 内部通过 `utils/resolve.js` 解析路径，通过 `utils/io.js` 读写文件。
+
+---
+
+## 3. 函数定义
+
+```javascript
+// objects/task.js
+export async function create(params, context)
+export async function update(params, context)
+export async function advance(params, context)
+export async function get(params, context)
+export async function archive(params, context)
 ```
 
 ---
 
-## 3. 依赖注入
+## 4. create
+
+创建 draft task，写入 `.agent/tasks/{runId}.json`。
+
+**输入**：
 
 ```typescript
-interface TaskObjectDeps {
-  state: State;                    // 纯 IO adapter（降级后的 State）
-  logger?: Logger;                 // 可选日志
-  log?: Log;                       // 可选结构化日志
-  caseIndex?: CaseIndex;           // 可选案例索引
-  taskSchema: object;              // assets/task.json 加载后的 schema 对象
-  maxArchivedTasks?: number;        // 归档清理阈值，默认 50
-}
-```
-
----
-
-## 4. 方法契约
-
-### 4.1 create — 创建任务
-
-```typescript
-interface CreateParams {
-  runId: string;                          // 任务 ID，必填
-  prompt: string;                         // 用户原始输入，必填
-  taskType?: 'coding' | 'research' | 'documentation';  // 任务类型，可选
-  planInput?: {
+interface CreateTaskParams {
+  runId: string;                 // 必填，任务唯一标识（^[a-zA-Z0-9_-]+$）
+  prompt: string;                // 必填，用户原始输入
+  taskType?: 'coding' | 'research' | 'documentation';
+  plan?: {
     goal?: string;
     constraints?: string[];
     successCriteria?: string[];
-    phases?: {
-      id?: string;
-      name?: string;
-      goal?: string;
-      outputs?: string[];
-      status?: 'pending' | 'in_progress' | 'completed';
-    }[];
+    phases?: PhaseInput[];       // 若提供直接采用，否则从模板生成
   };
 }
 
-interface CreateResult {
-  task: Task;                             // 创建后的完整 task 对象
-  similarCases?: Array<{
-    runId: string;
-    goal: string;
-    similarity: number;
-  }>;  // 相似案例（若 caseIndex 不可用则无）
+interface PhaseInput {
+  id?: string;                   // 默认 p{index+1}
+  name: string;
+  goal?: string;
+  outputs?: string[];
+  status?: 'pending' | 'in_progress' | 'completed';
 }
 ```
 
-**前置条件**：
-- `runId` 非空，匹配 `[a-zA-Z0-9_-]+`
-- 同 `runId` 的任务不存在（通过 `state.exists()` 检查）
-
-**后置条件**：
-- 系统级 `tasks/{runId}.json` 已创建
-- `task.status === 'draft'`
-- `task.createdAt === task.updatedAt === Date.now()`
-- `task.deviations === []`, `task.attributions === []`
-
-**错误**：
-- `ValidationError`：参数校验失败（返回 `{ valid: false, errors: string[] }`）
-- `DuplicateError`：`runId` 已存在
-
----
-
-### 4.2 get — 查询任务
+**输出**：
 
 ```typescript
-interface GetResult {
-  task: Task | null;
-}
-```
-
-**行为**：
-- 读取系统级 `tasks/{runId}.json`
-- 若文件不存在，返回 `{ task: null }`
-
----
-
-### 4.3 getFiles — 查询任务关联文件
-
-```typescript
-interface FileRef {
-  path: string;
-  type: string;
-  description?: string;
-}
-
-interface GetFilesResult {
-  files: FileRef[];
-  count: number;
-  note?: string;     // 例如："无项目级文件索引"
-}
-```
-
-**行为**：
-- 读取项目级 `.agent/tasks/{runId}.json`
-- 若文件不存在或 `files` 字段缺失，返回 `{ files: [], count: 0, note: '无项目级文件索引' }`
-
----
-
-### 4.4 update — 更新任务状态
-
-```typescript
-interface UpdateParams {
-  runId: string;
-  status: 'draft' | 'pending_approval' | 'active' | 'revising' | 'completed';
-  reason?: string;
-}
-
-interface UpdateResult {
+interface CreateTaskResult {
   task: Task;
-  previousStatus: string;
+}
+
+interface CreateTaskError {
+  error: string;
+  errors?: string[];
 }
 ```
 
-**前置条件**：
-- `runId` 存在
-- `status` 为有效枚举值
-
-**后置条件**：
-- `task.status === params.status`
-- `task.updatedAt` 更新为当前时间戳
-- 若 `reason` 存在，`task.revisionReason = reason`
-
-**状态机校验**：
-
-| 当前状态 | 允许的新状态 | 说明 |
-|----------|-------------|------|
-| `draft` | `pending_approval`, `completed` | — |
-| `pending_approval` | `active`, `revising`, `completed` | — |
-| `active` | `revising`, `completed` | — |
-| `revising` | `draft` | 修订后回到 draft |
-| `completed` | *(无)* | 已完成不可直接变更，需先 archive |
-
-**错误**：
-- `NotFoundError`：task 不存在
-- `InvalidStatusError`：status 枚举值无效
-- `StateTransitionError`：状态转换不符合状态机规则
+**业务规则**：
+- `runId` 只允许字母、数字、下划线、连字符
+- `prompt` 必填且非空
+- 若 `runId` 已存在，返回错误 `task 已存在: {runId}`
+- 若未提供 `plan.phases`，从 `templates.task` 生成默认阶段
+- 写入路径：`{baseDir}/.agent/tasks/{runId}.json`
 
 ---
 
-### 4.5 advance — 推进阶段
+## 5. update
+
+通用更新接口。支持状态更新、偏差记录、归因记录、结果设置、event.md 路径关联的任意组合。
+
+**输入**：
 
 ```typescript
-interface AdvanceParams {
-  runId: string;
-  phaseId?: string;    // 可选，指定阶段 ID；未指定则推进到下一阶段
+interface UpdateTaskParams {
+  runId: string;                 // 必填
+
+  // 状态更新
+  status?: 'draft' | 'pending_approval' | 'active' | 'revising' | 'completed';
+  reason?: string;               // 状态变更原因（日志用，不持久化到 task.json）
+
+  // 偏差记录
+  deviation?: {
+    type: string;
+    description: string;
+    impact?: string;
+  };
+
+  // 归因记录
+  attribution?: {
+    rootCause: string;
+    strategy: string;
+    impact?: string;
+    deviationIds?: string[];     // 精确关联指定偏差；不提供则标记全部未归因
+  };
+
+  // 结果设置
+  outcome?: {
+    summary?: string;
+    deliverables?: string[];
+    lessonsLearned?: string;
+  };
+
+  // event.md 关联
+  eventFilePath?: string;
+}
+```
+
+**输出**：
+
+```typescript
+interface UpdateTaskResult {
+  task: Task;
+  updatedFields: string[];       // 实际更新的字段列表
 }
 
-interface AdvanceResult {
+interface UpdateTaskError {
+  error: string;
+}
+```
+
+**业务规则**：
+- 至少提供一个可选字段，否则返回错误
+- `status` 变更需通过状态机校验（见 5.1）
+- `deviation` 传入时：追加到 `task.deviations[]`，id 按 `dev-${timestamp}-${random4}` 生成
+- `attribution` 传入时：
+  - 追加到 `task.attributions[]`，id 按 `attr-${timestamp}-${random4}` 生成
+  - 提供 `deviationIds`：只标记指定 ID 且未归因的偏差
+  - 未提供 `deviationIds`：标记所有 `attributed === false` 的偏差
+- `outcome` 传入时：浅合并 `task.outcome = { ...task.outcome, ...params.outcome }`，`deliverables` 替换不追加
+- `eventFilePath` 传入时：写入 `task.eventFilePath`
+- 任何写入自动刷新 `task.updatedAt = Date.now()`
+
+### 5.1 状态机
+
+```
+draft ──────────→ pending_approval ───────→ active ─────────→ completed
+     │                  │                    │
+     │                  ↓ revising           ↓ revising
+     └──────────────────┘                    │
+                                              │
+           revising ──────→ draft ────────────┘
+```
+
+| 当前状态 | 允许的新状态 |
+|----------|-------------|
+| `draft` | `pending_approval`, `completed` |
+| `pending_approval` | `active`, `revising`, `completed` |
+| `active` | `revising`, `completed` |
+| `revising` | `draft` |
+| `completed` | （无） |
+
+---
+
+## 6. advance
+
+推进 task 阶段。
+
+**输入**：
+
+```typescript
+interface AdvanceTaskParams {
+  runId: string;                 // 必填
+  phaseId?: string;              // 可选，指定阶段 ID；默认推进到下一阶段
+}
+```
+
+**输出**：
+
+```typescript
+interface AdvanceTaskResult {
   task: Task;
   previousPhase: number;
   nextPhase: number;
   isComplete: boolean;
 }
+
+interface AdvanceTaskError {
+  error: string;
+}
 ```
 
-**前置条件**：
-- `runId` 存在
-- `task.plan.execution.phases.length > 0`
-
-**行为**：
-- 若指定 `phaseId`，找到对应索引，标记该阶段为 `completed`，设置 `currentPhase` 为该索引
-- 若未指定 `phaseId`，标记当前阶段为 `completed`，`currentPhase++`
-- 若 `nextPhase >= phases.length`，`isComplete = true`，同时 `task.status = 'completed'`
-
-**后置条件**：
-- 被推进的阶段 `status === 'completed'`
-- `task.updatedAt` 更新
-- `task.plan.execution.currentPhase === nextPhase`
+**业务规则**：
+- 若 `phaseId` 提供：标记目标阶段及之前所有阶段为 `completed`
+- 若 `phaseId` 未提供：标记当前阶段为 `completed`，`currentPhase++`
+- 若 `nextPhase >= phases.length`：设置 `task.status = 'completed'`
+- 写入原路径：`{baseDir}/.agent/tasks/{runId}.json`
 
 ---
 
-### 4.6 archive — 归档任务
+## 7. get
+
+查询 task 完整状态。
+
+**输入**：`{ runId: string }`
+
+**输出**：
 
 ```typescript
-interface ArchiveResult {
+interface GetTaskResult {
+  task: Task | null;             // null 表示 task 不存在
+}
+```
+
+**读取路径**：
+1. `{baseDir}/.agent/tasks/{runId}.json`
+2. `{baseDir}/.agent/tasks/archive/{runId}.json`（若活跃目录不存在）
+
+---
+
+## 8. archive
+
+归档 completed task。
+
+**输入**：`{ runId: string }`
+
+**输出**：
+
+```typescript
+interface ArchiveTaskResult {
   archived: boolean;
-  archivedAt?: string;
-  error?: string;
+  archivedAt: string;            // ISO-8601
+  archivedPath: string;
+}
+
+interface ArchiveTaskError {
+  error: string;
 }
 ```
 
-**前置条件**：
-- `runId` 存在
-- `task.status === 'completed'`
-
-**行为**：
-1. 读取 task
-2. 校验 `status === 'completed'`
-3. 从 `tasks/` 移至 `archive/`
-4. 追加 `archivedAt` 字段
-5. 清理旧归档（保留最近 `maxArchivedTasks` 个）
-6. 归档认知轨迹（调用 `archiveTraces(runId)`）
-7. 写入案例索引（若 `caseIndex` 可用）
-8. 触发系统级归档（若 `events` 实例可用）
-
-**后置条件**：
-- 系统级 `tasks/{runId}.json` 已删除
-- 系统级 `archive/{runId}.json` 已创建
-
-**错误**：
-- `NotFoundError`：task 不存在
-- `NotCompletedError`：task 状态不是 completed
+**业务规则**：
+- 仅允许归档 `status === 'completed'` 的 task
+- 源路径：`{baseDir}/.agent/tasks/{runId}.json`
+- 目标路径：`{baseDir}/.agent/tasks/archive/{runId}.json`
+- 若 archive/ 目录不存在，自动创建
 
 ---
 
-### 4.7 diagnose — 诊断任务
-
-```typescript
-interface DiagnoseResult {
-  diagnosis: Diagnosis;
-}
-
-interface Diagnosis {
-  plugin: string;
-  version: string;
-  timestamp: string;
-  mode?: 'task' | 'global';
-  taskStatus?: string;
-  phase?: number;
-  totalPhases?: number;
-  deviations?: number;
-  attributions?: number;
-  activeTasks?: number;
-  completedTasks?: number;
-  cognitiveTraceSummary?: {
-    toolCallCount: number;
-    lastToolCall?: string;
-    elapsedSinceLastCall?: string;
-    recentCalls: Array<{ tool: string; t: number }>;
-  };
-  trendAnalysis?: {
-    phaseElapsedTime: string;
-    avgPhaseTime: string | null;
-    deviationRate: string;
-    riskFlags: string[];
-  };
-  toolsAvailable?: string[];
-}
-```
-
-**行为**：
-- 若提供 `runId`，返回该任务的诊断信息
-- 若未提供 `runId`，返回全局诊断信息
-
----
-
-### 4.8 validate — 校验任务结构
-
-```typescript
-interface ValidationResult {
-  valid: boolean;
-  errors?: string[];
-}
-```
-
-**校验规则**：
-
-| 字段 | 类型 | 必填 | 规则 |
-|------|------|------|------|
-| `runId` | string | ✅ | 非空，匹配 `[a-zA-Z0-9_-]+` |
-| `status` | string | ✅ | 枚举：`draft`, `pending_approval`, `active`, `revising`, `completed` |
-| `createdAt` | number | ✅ | 正整数时间戳 |
-| `updatedAt` | number | ✅ | ≥ `createdAt` |
-| `plan` | object | ✅ | 必须包含 `prompt`, `context`, `workspace`, `execution` |
-| `plan.execution.phases` | array | ✅ | 长度 ≥ 1，每个元素有 `id`, `name`, `status` |
-| `deviations` | array | — | 若存在，元素必须有 `id`, `type`, `description`, `timestamp` |
-| `attributions` | array | — | 若存在，元素必须有 `id`, `rootCause`, `strategy`, `timestamp` |
-
----
-
-## 5. 数据结构
-
-### 5.1 Task 对象（系统级）
+## 9. Task 数据结构
 
 ```typescript
 interface Task {
@@ -335,11 +296,12 @@ interface Task {
   };
   deviations: Deviation[];
   attributions: Attribution[];
-  outcome?: object;
-  sessionIds: string[];
-  tools: string[];
-  revisionReason?: string;
-  eventFilePath?: string;
+  outcome: {
+    summary?: string;
+    deliverables?: string[];
+    lessonsLearned?: string;
+  };
+  eventFilePath: string;
 }
 
 interface Phase {
@@ -348,96 +310,53 @@ interface Phase {
   goal: string;
   outputs: string[];
   status: 'pending' | 'in_progress' | 'completed';
-  tools?: string[];
-  skills?: string[];
+  tools: string[];
+  skills: string[];
 }
 
 interface Deviation {
-  id: string;
+  id: string;                    // dev-${timestamp}-${random4}
   type: string;
   description: string;
-  impact?: string;
+  impact: string;
   timestamp: number;
   attributed: boolean;
   attributionId?: string;
 }
 
 interface Attribution {
-  id: string;
+  id: string;                    // attr-${timestamp}-${random4}
   rootCause: string;
-  impact?: string;
   strategy: string;
+  impact: string;
   timestamp: number;
 }
 ```
 
 ---
 
-## 6. 错误类型
+## 10. 错误码
 
-| 错误类 | 触发条件 | 返回示例 |
-|--------|----------|----------|
-| `ValidationError` | `validate()` 失败 | `{ valid: false, errors: ['runId 不能为空'] }` |
-| `DuplicateError` | `create()` 时 runId 已存在 | `{ error: 'task 已存在: task-001' }` |
-| `NotFoundError` | `get()` / `update()` / `advance()` / `archive()` 时 task 不存在 | `{ error: 'task 不存在: task-001' }` |
-| `InvalidStatusError` | `status` 不是有效枚举值 | `{ error: '无效状态: xxx，有效值: ...' }` |
-| `StateTransitionError` | 状态转换不符合状态机 | `{ error: '不允许从 completed 转换到 active' }` |
-| `NotCompletedError` | `archive()` 时 status ≠ completed | `{ error: 'task 状态不是 completed（当前: draft），无法归档' }` |
-
----
-
-## 7. 序列图
-
-### 7.1 任务创建
-
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant ToolHandler as task-tools.js
-    participant TaskObject
-    participant State
-    participant CaseIndex
-
-    Agent->>ToolHandler: task.create({ runId, prompt })
-    ToolHandler->>TaskObject: create(params)
-    TaskObject->>TaskObject: _buildTask()
-    TaskObject->>TaskObject: validate(task)
-    TaskObject->>State: writeJsonAtomic(taskFile, task)
-    State-->>TaskObject: ok
-    TaskObject->>CaseIndex: findSimilarCases(goal, 3)
-    CaseIndex-->>TaskObject: [cases]
-    TaskObject-->>ToolHandler: { task, similarCases }
-    ToolHandler-->>Agent: { content: [{ type: 'text', text: '...' }] }
-```
-
-### 7.2 任务归档
-
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant ToolHandler
-    participant TaskObject
-    participant State
-    participant CognitiveTrace
-    participant CaseIndex
-
-    Agent->>ToolHandler: task.archive({ runId })
-    ToolHandler->>TaskObject: archive(runId)
-    TaskObject->>State: readJson(taskFile)
-    State-->>TaskObject: task
-    TaskObject->>TaskObject: assert status === 'completed'
-    TaskObject->>State: writeJsonAtomic(archiveFile, task)
-    TaskObject->>State: deleteJson(taskFile)
-    TaskObject->>TaskObject: _cleanupOldArchives()
-    TaskObject->>CognitiveTrace: archiveTraces(runId)
-    TaskObject->>CaseIndex: indexTask(task)
-    TaskObject-->>ToolHandler: { archived: true, archivedAt: '...' }
-    ToolHandler-->>Agent: { content: [...] }
-```
+| 错误码 | 场景 |
+|--------|------|
+| `task_not_found` | runId 不存在 |
+| `task_already_exists` | create 时 runId 已存在 |
+| `invalid_status_transition` | 状态机非法转换 |
+| `invalid_params` | 参数校验失败 |
+| `archive_failed` | 归档时 IO 错误 |
+| `not_completed` | archive 时 status ≠ completed |
 
 ---
 
-*文档版本：v1.0.0*  
-*维护者：Architect*  
-*最后更新：2026-05-19*  
-*[ARCH_READY]*
+## 11. 文件路径映射
+
+| 操作 | 活跃路径 | 归档路径 |
+|------|---------|---------|
+| create / get / update / advance | `{baseDir}/.agent/tasks/{runId}.json` | — |
+| archive | 从活跃路径移动 | `{baseDir}/.agent/tasks/archive/{runId}.json` |
+
+---
+
+*文档版本：v3.0.0*  
+*状态：[ARCH_READY]*  
+*关联 ADR：ADR-014（扁平化架构）*

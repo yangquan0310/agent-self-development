@@ -1,97 +1,102 @@
 ---
 name: task-management
 description: >
-  指导 Agent 使用 task.* 命名空间工具管理任务（Task）全生命周期。
-  当 Agent 需要创建任务、更新任务状态、推进阶段、查询任务信息、
-  记录偏差/归因、归档任务时，使用此技能。
-  触发条件：(1) 用户要求完成项目TODO中的任务，(2) Agent 需要记录任务状态变更，
-  (3) 需要查询 task.json 状态，(4) 需要记录偏差(deviate)或归因(attribute)。
+  指导 Agent 使用 task.* 命名空间工具管理任务全生命周期。
+  当 Agent 需要执行以下操作时触发本技能：
+  (1) 根据用户需求在项目中执行任务，
+  (2) 更新任务状态或记录偏差/归因/结果，
+  (3) 推进多阶段任务的下一阶段，
+  (4) 查询任务进度或历史状态，
+  (5) 归档已完成的任务。
+  如果仅涉及事件报告（生成 event.md），请使用 event-management 技能。
 ---
 
-# 任务管理技能（Task Management）
+# 任务管理
 
-> 版本：v1.0.0
-> 对应插件：agent-self-development v4.3.0+
+通过 `task.*` 命名空间工具管理任务全生命周期。
 
-## 核心对象：TaskObject
+## 5 个工具
 
-TaskObject 是 `task.json` 的唯一写入者。所有任务状态变更必须通过 task.* 工具调用，Agent 不得直接读写 task.json 文件。
-
-## 工具清单（9 个）
-
-| 工具 | 用途 | 触发场景 |
+| 工具 | 用途 | 触发时机 |
 |------|------|----------|
-| `task.create` | 创建 draft 任务 | 收到新需求，需要制定计划时 |
-| `task.update` | 更新任务状态 | 任务状态变更（draft→active→completed） |
-| `task.advance` | 推进阶段 | 完成当前阶段，进入下一阶段 |
-| `task.query` | 查询任务状态 | 需要了解任务当前进度 |
-| `task.files` | 获取关联文件 | 需要查看任务涉及的所有文件 |
-| `task.diagnose` | 诊断任务 | 检查任务健康度、风险预警 |
-| `task.archive` | 归档任务 | 任务完成，需要归档到 archive/ |
-| `task.deviate` | 记录偏差 | 发现范围蔓延、技术债务等偏差 |
-| `task.attribute` | 记录归因 | 分析偏差根因，制定改进策略 |
+| `task.create` | 创建 draft 任务 | 收到新需求，需要制定计划 |
+| `task.update` | 通用更新入口 | 状态变更、记录偏差、记录归因、记录结果、关联事件文件 |
+| `task.advance` | 推进阶段 | 当前阶段已完成 |
+| `task.get` | 查询任务 | 需要查看进度或历史状态 |
+| `task.archive` | 归档任务 | 任务已完成，清理活跃目录 |
 
-## 标准工作流
+## 核心工作流
 
 ### 创建任务
+
 ```
-1. 评估任务复杂度 → 决定是否需要制定 Plan
-2. 调用 task.create({
-     runId: "uuid",
-     prompt: "用户原始输入",
-     taskType: "coding | research | documentation",
-     planInput: { goal, constraints, successCriteria, phases }
-   })
-3. 获取返回的 task JSON，展示给用户确认
+task.create({
+  prompt: "用户需求",
+  taskType?: "task | coding | research | documentation",
+  planInput?: { goal, constraints, successCriteria, phases }
+})
 ```
 
-### 推进任务
-```
-1. 完成当前阶段工作
-2. 调用 task.advance({ runId, phaseId? })
-3. 检查 isComplete，若 true 则进入归档流程
-```
+- `runId` 可省略，系统自动生成
+- 返回 task JSON，向用户展示计划等待确认
 
-### 记录偏差
+### 推进阶段
+
 ```
-1. 发现偏差（范围蔓延、技术债务等）
-2. 调用 task.deviate({
-     runId,
-     type: "scope_creep | technical_debt | ...",
-     description: "偏差描述",
-     impact: "影响评估（可选）"
-   })
-3. 偏差自动存入 task.json 的 deviations 数组
+task.advance({ runId, phaseId? })
 ```
 
-### 记录归因
+- 检查返回的 `isComplete`：
+  - `true` → 全部完成，进入结果记录 + 事件生成 + 归档
+  - `false` → 继续下一阶段
+
+### 记录偏差（通过 task.update）
+
 ```
-1. 分析偏差根因
-2. 调用 task.attribute({
-     runId,
-     rootCause: "根本原因",
-     strategy: "改进策略",
-     impact: "影响范围（可选）"
-   })
-3. 归因自动存入 task.json 的 attributions 数组
-4. 系统自动标记相关偏差为已归因（attributed: true）
+task.update({
+  runId,
+  deviation: { type, description, impact? }
+})
 ```
 
-## 数据结构参考
+偏差类型：`scope_creep`（范围蔓延）、`technical_debt`（技术债务）、`output_mismatch`（输出不符）、`doc_lag`（文档滞后）、`context_loss`（上下文丢失）、`file_mismatch`（文件不匹配）、`other`
 
-Task JSON 完整结构见 `references/task-schema.json`
+### 记录归因（通过 task.update）
 
-核心字段：
-- `runId` — 任务唯一标识
-- `status` — draft | pending_approval | active | revising | completed
-- `plan` — 包含 prompt, context, workspace, execution(phases)
-- `deviations` — 偏差记录数组
-- `attributions` — 归因记录数组
-- `outcome` — 结果摘要
+```
+task.update({
+  runId,
+  attribution: { rootCause, strategy, impact? }
+})
+```
 
-## 注意事项
+### 记录结果（通过 task.update）
 
-- 每个阶段推进后，currentPhase 自动递增
-- 归档前必须先 completed，否则报错
-- 偏差和归因必须通过工具调用记录，不得直接修改 task.json
-- diagnose 返回 cognitiveTraceSummary 和 trendAnalysis，用于风险预警
+```
+task.update({
+  runId,
+  outcome: { summary, artifacts?, metrics? }
+})
+```
+
+### 状态转换
+
+```
+draft → pending_approval → active → completed
+              ↑_____________|
+                    ↓ revising → draft
+```
+
+所有状态变更通过 `task.update({ status })` 完成。
+
+## 参考资料
+
+- **详细工作流**：[references/workflow.md](references/workflow.md) — 包含完整参数示例的分步指南
+- **数据结构**：[references/schema.md](references/schema.md) — 完整的 Task JSON 字段参考
+
+## 关键规则
+
+- **task.update 是唯一更新入口** — 所有变更（状态/偏差/归因/结果/事件路径）都通过它完成
+- **不要直接读写 task.json** — 所有操作通过工具调用
+- **归档不可逆** — task.json 移动到 `.agent/tasks/archive/`
+- **task.get 支持双路径回退** — 先查活跃目录，再查归档目录

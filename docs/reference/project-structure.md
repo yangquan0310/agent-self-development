@@ -1,6 +1,6 @@
 # 项目目录结构（Project Structure）
 
-> **版本**：v1.0.0
+> **版本**：v2.0.0
 > **用途**：被 `agent-self-development` 插件管理的项目，初始化后应具备的标准目录结构
 > **更新频率**：仅当项目上下文层协议变更时同步更新
 
@@ -19,10 +19,12 @@
 ├── skills/                # 项目级技能（协作协议、技术规范、上下文管理）
 │
 ├── .agent/                # 元数据层（隐藏目录）
-│   ├── events/            # 事件流：.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md
+│   ├── events/            # 事件流：.agent/events/{YYYY-MM-DD}/{runId}.md
+│   │   └── archive/       # 归档事件：.agent/events/archive/{date}-{runId}.md
 │   ├── locks/             # 并发控制：.agent/locks/{文件路径替换-为-}.json
 │   ├── decisions/         # 决策存档：.agent/decisions/{YYYYMMDD-HHMM}-标题.md
-│   └── tasks/             # 任务索引：.agent/tasks/{runId}.json + INDEX.md
+│   └── tasks/             # 任务索引：.agent/tasks/{runId}.json
+│       └── archive/       # 归档任务：.agent/tasks/archive/{runId}.json
 │
 ├── uploads/               # 用户上传的原始材料（Agent 只读）
 ├── manuscripts/           # Agent 工作草稿（进行中、未确认）
@@ -79,15 +81,15 @@
 | `title` | ✅ | 项目标题 | `Agent Self-Development` |
 | `created_date` | ✅ | 创建日期，ISO 8601 | `2026-05-08` |
 | `status` | ✅ | 项目状态 | `active` / `completed` / `archived` |
-| `version` | ✅ | 当前版本 | `v4.0.0` |
+| `version` | ✅ | 当前版本 | `v4.3.0` |
 | `description` | — | 项目描述 | — |
 | `type` | ✅ | 项目类型，驱动 Agent 差异化处理 | `openclaw-plugin`、`nodejs-service`、`docs`、`research` |
 | `directories` | ✅ | 目录结构映射，**key 用中文，value 用英文路径** | `{ "源码": "src/", "文档": "docs/" }` |
 | `tags` | — | 项目标签数组，用于分类和检索 | `["openclaw", "plugin"]` |
 | `agents` | — | 可协作的 Agent 列表，`handles` 描述其负责的事项 | `[{ "id": "pm", "role": "product-manager", "handles": ["架构"] }]` |
 | `collaboration.mode` | — | 协作模式 | `multi-agent` / `single-agent` |
-| `collaboration.protocol` | — | 项目上下文层协议版本 | `4.0.0` |
-| `updated_at` | ✅ | 最后更新时间（自动维护） | `2026-05-09T13:00:00` |
+| `collaboration.protocol` | — | 项目上下文层协议版本 | `4.3.0` |
+| `updated_at` | ✅ | 最后更新时间（自动维护） | `2026-05-19T10:00:00` |
 
 **通用原则**：
 - 顶层扁平化，Agent 读取后无需深度解析即可掌握全貌
@@ -101,42 +103,32 @@
 
 | 子目录 | 职责 | 结构 | 读写规则 |
 |--------|------|------|----------|
-| `events/` | 事件流 | 按天分文件夹：`events/{YYYY-MM-DD}/{HH-MM-SS}.md` | Agent 只写入 |
-| `locks/` | 并发控制 | 单文件：`locks/{文件路径替换-为-}.json` | Agent 创建/删除 |
-| `decisions/` | 决策存档 | 单文件：`decisions/{YYYYMMDD-HHMM}-标题.md` | Agent 写入 |
-| `tasks/` | 任务文件索引 | JSON：`tasks/{runId}.json` + 索引：`tasks/INDEX.md` | Agent 读写 |
-
-### events/ 详细设计
-
-- **目录结构**：`.agent/events/{YYYY-MM-DD}/`
-- **文件命名**：`{HH-MM-SS}.md`（精确到秒，单文件记录完整事件）
-- **文件内容**（7 个必选部分）：
-  1. **元信息（Metadata）**：runId、agentId、role、createdAt
-  2. **计划（Plan）**：执行计划、验收标准、预估时间
-  3. **执行（Execution）**：实际完成的工作、产出文件
-  4. **变更记录（ChangeLog）**：`- {HH:MM} {agent-id} {write|edit} {filePath} — {摘要}`
-  5. **偏差（Deviation）**：发现的偏差（类型、描述、影响范围）
-  6. **归因（Attribution）**：根本原因、影响评估、策略更新
-  7. **结果（Outcome）**：最终状态（完成/修正/放弃）
+| `tasks/` | 活跃任务文件 | `tasks/{runId}.json` | Tool handler 读写 |
+| `events/` | 事件流 | `events/{YYYY-MM-DD}/{runId}.md` | Tool handler 写入（一次性生成） |
+| `tasks/archive/` | 归档任务 | `tasks/archive/{runId}.json` | Tool handler 移动写入 |
+| `events/archive/` | 归档事件 | `events/archive/{date}-{runId}.md` | Tool handler 移动写入 |
+| `locks/` | 并发控制 | `locks/{文件路径替换-为-}.json` | Agent 创建/删除 |
+| `decisions/` | 决策存档 | `decisions/{YYYYMMDD-HHMM}-标题.md` | Agent 写入 |
 
 ### tasks/ 详细设计
 
 - **文件命名**：`tasks/{runId}.json`（与 task.runId 一一对应）
-- **内容**：
-  ```json
-  {
-    "runId": "uuid",
-    "status": "active",
-    "agentId": "main",
-    "role": "primary",
-    "createdAt": "ISO-8601",
-    "updatedAt": "ISO-8601",
-    "files": [
-      {"path": "manuscripts/plan.md", "agentId": "main", "role": "primary", "type": "draft"}
-    ]
-  }
-  ```
-- **索引文件**：`tasks/INDEX.md` 按日期分组列出所有任务摘要
+- **内容**：完整的 Task JSON（见 [`data-model.md`](data-model.md)）
+- **生命周期**：`create` → 活跃目录 → `archive` → `tasks/archive/`
+
+### events/ 详细设计
+
+- **目录结构**：`.agent/events/{YYYY-MM-DD}/`
+- **文件命名**：`{runId}.md`（与 task.runId 对应）
+- **生成时机**：任务完成后由 `event.report` **一次性生成**
+- **内容**：基于 `src/assets/event.md` 模板渲染，包含 Metadata、Plan、Execution、Deviation、Attribution、Outcome
+
+### archive/ 详细设计（v4.3.0 新增）
+
+- **目的**：分离活跃数据与归档数据，简化查询逻辑
+- **任务归档**：`.agent/tasks/{runId}.json` → `.agent/tasks/archive/{runId}.json`
+- **事件归档**：`.agent/events/{date}/{runId}.md` → `.agent/events/archive/{date}-{runId}.md`
+- **查询回退**：`task.get` 先在活跃目录查找，找不到自动回退到归档目录
 
 ---
 
@@ -191,23 +183,48 @@ mkdir -p {uploads,manuscripts,docs,knowledge,skills,temp}
 
 ---
 
+## 插件源码目录结构（v4.3.0）
+
+```
+src/
+├── index.js                  # 插件入口：registerTools(api, context)
+├── assets/                   # 模板文件
+│   ├── task.json             # task 初始模板
+│   └── event.md              # event Markdown 模板
+├── objects/                  # 对象层（裸函数）
+│   ├── task.js               # 5 个 task 函数
+│   └── event.js              # 3 个 event 函数
+├── tools/                    # 工具层
+│   ├── index.js              # 注册 8 个 tools
+│   ├── schemas.js            # 8 个 tool 的 parameters schema
+│   ├── handlers.js           # handler 映射 + 薄适配
+│   └── return-adapter.js     # adaptReturn / adaptError
+└── utils/                    # 基础设施
+    ├── io.js                 # 原子文件 IO
+    ├── resolve.js            # 路径解析
+    ├── validate.js           # 校验逻辑
+    └── helpers.js            # 生成器工具
+```
+
+> **v4.3.0 变更**：移除了 `src/metacognition/`、`src/working-memory/`、`src/personality/`、`src/common/` 目录。所有功能收敛到 `objects/` + `tools/` + `utils/` 三层。
+
+---
+
 ## 与系统层（插件）的文件系统映射
 
 | 存储类型 | 路径 | 格式 | 写入者 | 读取者 |
 |----------|------|------|--------|--------|
-| 项目级 Task 索引 | `.agent/tasks/{runId}.json` | JSON | Agent + 插件（Tool 被动响应） | Agent + 插件 |
-| 项目级 Event | `.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md` | Markdown | Agent + 插件（Tool 被动响应） | Agent + 插件 |
-| 项目级 Lock | `.agent/locks/{file-path}.json` | JSON | Agent | Agent + 插件 |
-| 系统级 State | `~/.agent/state/agent-self-development/` | JSON | 插件 | 插件 |
-| 系统级 Memory | `~/.agent/memory/{agentId}.sqlite` | SQLite | 插件 | 插件 |
-| 系统级 Log | `~/.agent/logs/{agentId}.log` | 文本 | 插件 | 插件 |
-| 系统级 Hook 链日志 | `~/.agent/logs/agent-self-development-hooks.log` | 文本 | 插件 | 插件 |
+| 活跃任务 | `.agent/tasks/{runId}.json` | JSON | Tool handler | Agent + Tool |
+| 归档任务 | `.agent/tasks/archive/{runId}.json` | JSON | Tool handler | Agent + Tool |
+| 事件文件 | `.agent/events/{YYYY-MM-DD}/{runId}.md` | Markdown | Tool handler | Agent + Tool |
+| 归档事件 | `.agent/events/archive/{date}-{runId}.md` | Markdown | Tool handler | Agent + Tool |
+| 项目级 Lock | `.agent/locks/{文件路径替换-为-}.json` | JSON | Agent | Agent + Tool |
 
-> **双系统原则**：Agent 是项目文件系统的唯一写入者；插件只读取项目文件，将关键状态归档到系统层。
-> **v4.1.0 变更**：操作型 Tool（如 `create_plan`、`record_deviation`）在 Agent 调用时执行文件写入，插件不再主动代劳。
+> **双系统原则**：Agent 是项目文件系统的主要写入者；插件只响应 Tool 调用执行文件写入。
+> **v4.3.0 变更**：插件不再通过 Hook 主动操作文件。所有文件写入均由 Agent 显式调用 Tool 触发。
 
 ---
 
-*文档版本：v1.0.0*
-*最后更新：2026-05-09*
-*维护者：PM*
+*文档版本：v2.0.0*
+*最后更新：2026-05-19*
+*维护者：Developer*

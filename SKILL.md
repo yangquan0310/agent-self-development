@@ -1,6 +1,6 @@
 # agent-self-development 操作手册
 
-> 版本：4.2.0
+> 版本：4.3.0
 > 类型：OpenClaw 插件项目
 
 ---
@@ -11,7 +11,7 @@
 
 ```
 1. 阅读 README.md
-   └── 了解插件架构、三层认知理论、设计哲学
+   └── 了解插件架构、设计哲学、6 个工具
 
 2. 打开 metadata.json 和 openclaw.plugin.json
    └── 了解插件元数据、configSchema、已注册 tools
@@ -21,7 +21,7 @@
    └── 明确自己的职责边界
 
 4. 打开 TODO.md
-   └── 了解当前版本目标（v4.2.0 Cognitive Intelligence）
+   └── 了解当前版本目标（v4.3.0 Flat Architecture）
    └── 确认自己负责的任务项（P0/P1/P2）
 ```
 
@@ -39,7 +39,7 @@
   ↓ 返回主代理
 主代理 → 创建子代理2：架构师
   ↓ 加载 .agent/agents/architect.md
-架构师：审核插件架构 → 评估 Hook/tool 设计 → 更新 TODO
+架构师：审核插件架构 → 评估工具设计 → 更新 TODO
   ↓ 返回主代理
 主代理 → 创建子代理3：程序员（Developer）
   ↓ 加载 .agent/agents/developer.md
@@ -75,15 +75,15 @@
 
 | 产出类型 | 归档目录 | 说明 |
 |----------|----------|------|
-| 插件源代码 | `src/` | .js 模块文件，含 metacognition/、working-memory/、personality/、common/ |
+| 插件源代码 | `src/` | .js 模块文件，含 `tools/`、`utils/`、`index.js` |
 | 测试代码 | `test/` | .test.js 测试套件 |
 | 项目级技能 | `.agent/skills/` | 协作协议、技术规范、上下文管理 |
 | 角色定义 | `.agent/agents/` | PM / Developer / Reviewer 角色 .md 文件 |
-| 架构文档 | `docs/reference/` | architecture.md、data-model.md、hook-reference.md 等 |
+| 架构文档 | `docs/reference/` | architecture.md、data-model.md 等 |
 | 版本路线图 | `docs/roadmap/` | v4.x ~ v5.0 规划 |
 | 变更日志 | `docs/changelog/` | 完整版本历史 |
 | 测试报告 | `docs/reports/` | 测试覆盖率、审查报告 |
-| 运行日志 | `logs/` | 插件运行时日志、认知轨迹日志 |
+| 运行日志 | `logs/` | 插件运行时日志 |
 | 临时文件 | `temp/` | .tmp/.temp/.bak 等中间文件 |
 
 > **禁止在根目录存放任何文档**。所有产出物必须归入上表目录。如有例外，需经主代理确认。
@@ -92,10 +92,11 @@
 
 | 文件 | 说明 | 修改权限 |
 |------|------|----------|
-| `openclaw.plugin.json` | 插件清单（id、configSchema、skills 等） | PM + 架构师 |
+| `openclaw.plugin.json` | 插件清单（id、configSchema 等） | PM + 架构师 |
 | `package.json` | npm 配置（dependencies、scripts 等） | Developer |
-| `src/index.js` | 插件入口（register/activate） | Developer |
-| `src/tools/` | 13 个 tools 实现 | Developer |
+| `src/index.js` | 插件入口（initialize） | Developer |
+| `src/tools/` | 8 个 tools 实现 + schemas + handlers | Developer |
+| `src/utils/` | 工具函数（path、io、validate、helpers） | Developer |
 
 ---
 
@@ -112,29 +113,45 @@
 | openclaw.plugin.json | 插件清单 |
 | package.json | npm 配置 |
 | .gitignore | 版本控制忽略 |
-| .agentignore | 可见性控制 |
 
 ---
 
-## 插件工具清单（13个）
+## 插件工具清单（8 个）
 
 Agent 可通过 `api.callTool()` 调用以下工具：
 
-| Tool | 功能 | 所属模块 |
+| 工具 | 功能 | 必填参数 |
 |------|------|----------|
-| `get_task_status` | 查询任务状态 | Working Memory |
-| `get_task_files` | 获取任务关联文件 | Working Memory |
-| `get_planning_guide` | 获取计划指南 | Metacognition |
-| `get_monitoring_guide` | 获取监控指南 | Metacognition |
-| `get_regulation_guide` | 获取调节指南 | Metacognition |
-| `get_development_guide` | 获取发展指南 | Personality |
-| `self_diagnose` | 自我诊断 | Working Memory |
-| `create_plan` | 创建计划 | Metacognition |
-| `update_task_status` | 更新任务状态 | Working Memory |
-| `advance_phase` | 推进阶段 | Metacognition |
-| `record_deviation` | 记录偏差 | Metacognition |
-| `record_attribution` | 记录归因 | Metacognition |
-| `archive_task` | 归档任务 | Working Memory |
+| `task.create` | 创建 draft task | `prompt` |
+| `task.update` | 更新 task（状态/偏差/归因/结果/事件路径） | `runId` |
+| `task.advance` | 推进到下一阶段 | `runId` |
+| `task.get` | 查询完整 task JSON（支持双路径扫描） | `runId` |
+| `task.archive` | 归档 completed task | `runId` |
+| `event.report` | 从 task.json 生成 event.md | `runId` |
+| `event.query` | 查询事件记录 | — |
+| `event.archive` | 归档事件文件 | `runId` |
+
+**状态机**：
+```
+draft → pending_approval → active → completed
+              ↑_____________|
+                    ↓ revising → draft
+```
+
+**Agent 典型工作流**：
+```
+1. task.create({ prompt: "..." }) → 获取 runId
+2. task.update({ runId, status: "pending_approval" })
+3. task.update({ runId, status: "active" })
+4. 执行任务中... task.advance({ runId }) 推进阶段
+5. 发现偏差 → task.update({ runId, deviation: {...} })
+6. 分析归因 → task.update({ runId, attribution: {...} })
+7. 任务完成 → task.update({ runId, status: "completed", outcome: {...} })
+8. event.report({ runId }) → 生成事件文件，自动关联 task.eventFilePath
+9. event.query({ runId, date, type }) → 按需查询历史事件
+10. event.archive({ runId }) → 归档事件文件
+11. task.archive({ runId }) → 归档任务
+```
 
 ---
 
@@ -147,7 +164,7 @@ main（主分支）
   ↑
   │  ← 完成整体任务时合并
   │
-development（开发分支）
+dev（开发分支）
   ├── commit: feat: 需求分析
   ├── commit: feat: 核心模块开发
   ├── commit: fix: 修复边界条件
@@ -157,12 +174,12 @@ development（开发分支）
 | 分支 | 用途 | 推送时机 |
 |------|------|---------|
 | `main` | 稳定版本，已发布的功能 | **完成整体任务时** |
-| `development` | 日常开发，功能迭代中 | **完成阶段子任务时** |
+| `dev` | 日常开发，功能迭代中 | **完成阶段子任务时** |
 
 ### 规则
 
-- **日常开发**：只推送到 `development`
-- **完成整体任务**：同时推送到 `main` 和 `development`
+- **日常开发**：只推送到 `dev`
+- **完成整体任务**：同时推送到 `main` 和 `dev`
 - **禁止直接推 main**：除非在完成整体任务流程中
 
 ### Commit Message 格式
@@ -173,35 +190,35 @@ development（开发分支）
 
 | 类型 | 使用场景 | 示例 |
 |------|---------|------|
-| `feat` | 新增功能 | `feat: 添加用户认证模块` |
+| `feat` | 新增功能 | `feat: 添加 task.advance Handler` |
 | `fix` | 修复问题 | `fix: 修复空指针异常` |
 | `docs` | 文档更新 | `docs: 更新 API 文档` |
-| `refactor` | 代码重构 | `refactor: 优化查询逻辑` |
-| `test` | 测试相关 | `test: 补充单元测试` |
+| `refactor` | 代码重构 | `refactor: 扁平化 Handler 架构` |
+| `test` | 测试相关 | `test: 补充边界用例` |
 | `chore` | 构建/工具 | `chore: 更新依赖版本` |
 
 ### 完成整体任务流程
 
 ```bash
-# 确保在 development 分支
-git checkout development
+# 确保在 dev 分支
+git checkout dev
 
 # 提交所有变更
 git add -A
 git commit -m "feat: 功能完成"
 
-# 推送到 development
-git push origin development
+# 推送到 dev
+git push origin dev
 
 # 合并到 main
 git checkout main
-git merge development
+git merge dev
 
 # 推送到 main
 git push origin main
 
-# 回到 development 继续下一任务
-git checkout development
+# 回到 dev 继续下一任务
+git checkout dev
 ```
 
 ---

@@ -7,58 +7,16 @@
   "type": "native",
   "extensions": ["./src/index.js"],
   "minVersion": "2026.5.0",
-  "skills": [],
+  "skills": [
+    "./skills/task-management",
+    "./skills/event-management"
+  ],
   "configSchema": {
     "type": "object",
     "properties": {
-      "injectionMode": {
-        "type": "string",
-        "enum": ["legacy", "tool-driven"],
-        "default": "tool-driven",
-        "description": "Hook 注入模式：tool-driven 为最小化注入，legacy 为完整 skill 注入（向后兼容）"
-      },
-      "tools": {
-        "type": "object",
-        "description": "命名空间工具分组配置",
-        "properties": {
-          "task": { "type": "object", "description": "task.* 工具配置" },
-          "event": { "type": "object", "description": "event.* 工具配置" },
-          "guide": { "type": "object", "description": "guide.* 工具配置" }
-        }
-      },
-      "metacognition": {
-        "type": "object",
-        "properties": {
-          "enabled": { "type": "boolean", "default": true },
-          "planning": { "type": "boolean", "default": true },
-          "monitoring": { "type": "boolean", "default": true },
-          "regulation": { "type": "boolean", "default": true }
-        }
-      },
-      "workingMemory": {
-        "type": "object",
-        "properties": {
-          "enabled": { "type": "boolean", "default": true },
-          "trackSubagents": { "type": "boolean", "default": true },
-          "autoArchive": { "type": "boolean", "default": true }
-        }
-      },
-      "personality": {
-        "type": "object",
-        "properties": {
-          "enabled": { "type": "boolean", "default": true }
-        }
-      },
-      "heartbeat": {
-        "type": "object",
-        "description": "后台心跳监控配置",
-        "properties": {
-          "enabled": { "type": "boolean", "default": true }
-        }
-      },
       "archive": {
         "type": "object",
-        "description": "已完成任务归档配置",
+        "description": "任务归档配置",
         "properties": {
           "maxArchivedTasks": { "type": "number", "default": 50, "description": "archive/ 目录保留的最大已完成任务数" }
         }

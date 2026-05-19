@@ -1,7 +1,6 @@
 {
   "$schema": "./task-schema.json",
   "_template": true,
-  "_description": "Agent Self-Development Task 数据结构模板。由 TaskObject 在 create() 时加载并渲染占位符。",
   "runId": "{{runId}}",
   "status": "draft",
   "taskType": "{{taskType}}",
@@ -38,8 +37,5 @@
   "deviations": [],
   "attributions": [],
   "outcome": {},
-  "sessionIds": [],
-  "tools": [],
-  "revisionReason": "",
   "eventFilePath": ""
 }

@@ -1,250 +1,78 @@
 # agent-self-development
 
-OpenClaw 插件 — Agent 自我发展框架
+OpenClaw 插件 — Agent 自我发展工具集
 
-> **核心原则**：用户领航 → Agent 执行 → 插件史官只记录（Plugin asks, Agent decides, Plugin records）
+> **核心原则**：用户领航 → Agent 执行 → 插件只记录（Plugin asks, Agent decides, Plugin records）
 >
-> **当前版本**：v4.2.0（Cognitive Intelligence）
+> **当前版本**：v4.3.0（Flat Architecture）
 >
-> **设计哲学**：从"代劳"到"赋能"——插件不再告诉 Agent 该做什么，而是让 Agent 自己决定需要什么。详见 [`docs/reference/design-philosophy.md`](docs/reference/design-philosophy.md)
+> **设计哲学**：从"代劳"到"赋能"——插件暴露工具，Agent 自主决定需要什么。
 
 ---
 
-## 三层认知架构 + 项目上下文层 + Tool 驱动
+## 扁平化架构（v4.3.0）
 
-v4.1.0 引入 **Tool-Driven 架构**：插件通过 `api.registerTool()` 暴露 13 个 tools，Agent 按需主动调用，从"推送式"转为"拉取式"。
+v4.3.0 是纯粹的 **Tool Plugin**：仅通过 `api.registerTool()` 暴露 8 个命名空间工具，Handler 直接读写文件，无类、无 Hook、无依赖注入。
 
-v4.0.0 引入 **项目上下文层**：位于 OpenClaw 会话层之下的持久化协作层，通过标准化的项目目录结构和文件协议，使多个独立的 Agent 能够在同一项目中共享上下文、协作完成任务。
+**8 个命名空间工具**：
 
-**双系统平行架构**：
-- **Agent 自行行动系统**（文件系统）：Agent 是唯一写入者，通过读写项目文件推进任务
-- **史官系统**（插件记录系统）：插件只读取项目文件，将内容归档到系统层 Memory/Log
-
-**认知层**：
-- **元认知层**：计划（Plan）→ 监控（Deviation）→ 调节（Attribution）
-- **工作记忆层**：文件系统上下文管理、任务文件索引、归档
-- **人格发展层**：任务完成后分析同化/顺应，更新人格文件
-- **项目上下文层**：通过 **Tool 暴露 + 最小化 Hook 注入** 驱动 Agent 建立标准化的项目级协作协议
-
----
-
-## 一、理论基础
-
-本框架的理论基础来源于**仓库作者的博士论文**《数字化存储对自传体记忆的影响及其机制》中的记忆系统研究，将人类自传体记忆的机制迁移至 Agent 记忆设计。
-
-### 1. 核心问题：为什么语义检索不够？
-
-当前主流 Agent 系统的记忆架构存在两种模式：
-- **上下文窗口内记忆**：窗口溢出即截断丢失
-- **文件系统持久化 + 语义检索**：如 OpenClaw memory-core 插件
-
-二者的共同瓶颈不在于存储能力，而在于**记忆的索引键是语义向量而非行动序列**。Agent 能够检索到"与当前问题语义相近的过往记录"，但无法以"我之前做了什么、为什么那样做、结果如何"为主线组织这些记录。
-
-这正是人类**自传体记忆**解决的核心问题：不存储所有原始事件，而是经过工作自我筛选和编码后，形成按自我目标组织的分层表征——细节事件用于情景追溯，语义概括用于模式识别——使个体能够以"我"为索引高效提取相关经验。
-
-### 2. 自传体记忆：以"我"为索引的记忆系统
-
-| 记忆类型 | 索引方式 | 适用场景 | Agent 对应 |
-|----------|----------|----------|-----------|
-| **语义记忆** | 语义向量相似度 | 知识查询、概念关联 | memory-core 的语义检索 |
-| **自传体记忆** | 行动序列 + 自我目标 | 经验追溯、策略反思、身份建构 | `.agent/events/` 事件流 |
-
-**核心特征**：
-- **自我关联性**：每个记忆都以"我"为中心组织
-- **时间序列性**：按行动发生的时间线排列
-- **因果编码**：记录"做了什么 → 结果如何 → 为什么"
-- **分层表征**：细节事件用于情景追溯，语义概括用于模式识别
-
-### 3. 分布式自传体记忆
-
-人类自传体记忆并非全部存储于大脑内部，而是通过外部设备（照片、笔记、云盘）与内部记忆形成功能分化的交互记忆系统（Wegner, 1987; Hutmacher et al., 2024）。
-
-本框架采用同样的**分布式架构**：
-- **外部文件系统**：`.agent/events/` 目录存储 Agent 的行动轨迹，承担"辅助记忆"功能
-- **内部上下文窗口**：Agent 的 Session 承担"内部记忆"功能
-- **二者协同**：扩展 Agent 的自我加工能力
-
-```
-┌─────────────────────────────────────────┐
-│           内部记忆（Session）            │
-│  · 当前任务上下文                       │
-│  · 正在进行的推理过程                   │
-│  · 短期状态保持                         │
-└─────────────────────────────────────────┘
-                    ↑↓ 双向交互
-┌─────────────────────────────────────────┐
-│           外部记忆（.agent/events/）      │
-│  · 按时间序列组织的事件记录             │
-│  · 计划、偏差、归因的完整轨迹           │
-│  · 长期可检索的行动历史                 │
-└─────────────────────────────────────────┘
-```
-
-### 4. 工作自我：Agent 的执行控制系统
-
-自我记忆系统模型（Conway & Pleydell-Pearce, 2000）指出，工作自我作为执行控制系统，根据当前目标动态调控记忆的编码与提取。
-
-本框架将工作自我的调控功能映射为 Agent 的三个核心操作：
-
-| 工作自我功能 | 代理操作 | 记录位置 | 说明 |
-|-------------|---------|---------|------|
-| **计划** | 任务启动前制定执行方案 | `.agent/tasks/{runId}.json` | 明确目标、约束、验收标准 |
-| **偏差** | 实际执行与预期的差异 | `.agent/tasks/{runId}.json` | 记录执行中的偏离 |
-| **归因** | 对偏差的分析与策略调整 | `.agent/tasks/{runId}.json` | 分析原因，更新 If-Then 规则 |
-
-任务完成后，插件将 `.agent/tasks/{runId}.json` 中的计划、偏差和归因整合为事件，形成按时间序列组织的自传体记忆，使代理能够以"我之前的某次行动"为索引追溯经验。
-
-### 5. 同化与顺应：Agent 的认知发展动力
-
-皮亚杰认知发展理论中的同化与顺应机制，在本框架中体现为 Agent 对事件与长时自我认知结构的平衡分析。
-
-| 机制 | 定义 | Agent 表现 | 文件更新 |
-|------|------|-----------|----------|
-| **同化** | 新经验与现有结构兼容 → 强化现有结构 | 成功经验与自我认知一致，强化自我效能感 | MEMORY.md 中 If-Then 规则细化 |
-| **顺应** | 新经验与现有结构冲突 → 重构结构 | 遭遇能力盲区或价值观冲突，重新定义边界 | SOUL.md / IDENTITY.md 更新 |
-
-**六个维度的平衡分析**：
-
-| 人格成分 | 内容 | 同化示例 | 顺应示例 |
-|---------|------|---------|---------|
-| **自我** | 核心自我认知、能力边界、存在意义 | 成功经验丰富自我效能感 | 遭遇能力盲区，重新定义"我能做什么" |
-| **风格** | 响应风格、表达习惯、交互/文档/代码/任务执行风格 | 同类任务强化既有风格 | 新渠道/新用户群体要求调整风格 |
-| **信念** | 工作信念、价值观优先级 | 日常经验强化核心信念 | 重大失败/价值观冲突导致信念更新 |
-| **身份** | 角色集、社会定位、责任范围 | 同类角色强化身份认同 | 新角色/新职责要求身份重构 |
-| **技能** | 技能体系、工具熟练度、领域知识 | 同类任务提升技能熟练度 | 全新领域要求创建新技能文档 |
-| **程序性记忆** | If-Then 规则、操作习惯 | 成功经验固化为规则 | 规则失效时更新或删除 |
-
-执行时机：`agent_end` 钩子触发时，代理读取事件文件中的偏差与归因，与现有自我认知对比，执行同化或顺应。
-
-### 6. 理论整合：三层认知架构
-
-```
-┌─────────────────────────────────────────┐
-│         元认知层（Metacognition）          │
-│  计划 → 监控 → 调节                      │
-│  （工作自我的三种功能：计划、偏差、归因）   │
-├─────────────────────────────────────────┤
-│         工作记忆层（Working Memory）        │
-│  Session = 情景缓冲器                    │
-│  （整合历史上下文与当前任务）              │
-├─────────────────────────────────────────┤
-│         人格发展层（Personality）          │
-│  同化/顺应 → 人格文件更新                 │
-│  （皮亚杰认知发展的动力机制）              │
-└─────────────────────────────────────────┘
-```
-
-**关键洞见**：Agent 的自我发展不是单一维度的"能力提升"，而是**三层系统的协同演化**——
-- 元认知能力监控和调节工作记忆
-- 工作记忆承载的任务经验通过同化/顺应更新人格结构
-- 人格结构的更新又反过来影响元认知策略（更成熟的 Agent 会制定更精细的 Plan）
-
----
-
-## 二、技术文档链接
-
-| 文档 | 路径 | 说明 |
+| 工具 | 功能 | 说明 |
 |------|------|------|
-| **架构总览** | `docs/reference/architecture.md` | 四层架构、双系统平行架构、数据流图 |
-| **数据模型** | `docs/reference/data-model.md` | Task JSON Schema、Event 文件格式、状态键规范 |
-| **对象模型** | `docs/reference/object-model.md` | 插件内部对象关系、职责边界、接口定义 |
-| **项目结构** | `docs/reference/project-structure.md` | 标准项目目录、四文件契约、协作协议 |
-| **Hook 参考** | `docs/reference/hook-reference.md` | 所有 Hook 触发时机、参数、返回值 |
-| **设计哲学** | `docs/reference/design-philosophy.md` | Tool-Driven 架构、从"代劳"到"赋能" |
-| **状态键规范** | `docs/reference/state-keys.md` | 任务状态流转、阶段定义、状态机 |
-| **协作协议** | `docs/COLLABORATION.md` | 多 Agent 协作标记规范、冲突解决机制 |
-| **编码规范** | `docs/CONVENTIONS.md` | 代码风格、目录命名、提交规范 |
-| **版本路线图** | `docs/roadmap/` | v4.x ~ v5.0 版本规划 |
-| **变更日志** | `docs/changelog/` | 完整版本历史 |
-| **测试报告** | `docs/reports/` | 测试覆盖率、审查报告 |
+| `task.create` | 创建 draft task | 基于 prompt 自动推断 plan，写入 `.agent/tasks/{runId}.json` |
+| `task.update` | 更新 task | 唯一更新入口，支持 status / deviation / attribution / outcome / eventFilePath 任意组合 |
+| `task.advance` | 推进阶段 | 推进到下一阶段或指定 phaseId |
+| `task.get` | 查询 task | 返回完整 task.json（支持活跃/归档双路径回退） |
+| `task.archive` | 归档 task | 移动 task.json 到 `.agent/tasks/archive/` |
+| `event.report` | 生成事件文件 | 任务完成后从 task.json 一次性凝练生成 event.md，并回写 task.eventFilePath |
+| `event.query` | 查询事件 | 按 runId / date / type 筛选 |
+| `event.archive` | 归档事件 | 移动 event.md 到 `.agent/events/archive/` |
+
+**状态机**：
+```
+draft → pending_approval → active → completed
+              ↑_____________|
+                    ↓ revising → draft
+```
 
 ---
 
-## 三、安装流程
+## 快速开始
 
-### 前置条件
-
-- OpenClaw >= 2026.4.0
-- Node.js >= 18
-
-### 步骤 1：安装插件
+### 安装
 
 ```bash
-# 通过 Git 直接安装
 openclaw plugins install git:github.com/yangquan0310/agent-self-development
-
-# 启用插件
 openclaw plugins enable agent-self-development
 ```
 
-### 步骤 2：配置插件
+### Agent 白名单配置
 
-在 `openclaw.json` 中添加配置：
-
-```json
-{
-  "plugins": {
-    "entries": {
-      "agent-self-development": {
-        "enabled": true,
-        "hooks": { "allowConversationAccess": true },
-        "config": {
-          "metacognition": { "enabled": true },
-          "workingMemory": { "enabled": true },
-          "personality": { "enabled": true }
-        }
-      }
-    }
-  }
-}
-```
-
-### 步骤 3：配置 Agent 白名单
-
-为需要使用该插件的 Agent 添加工具白名单：
+在 `openclaw.json` 中启用 8 个工具：
 
 ```json
 {
   "tools": {
     "alsoAllow": [
-      "agent_self_development"
+      "task.create", "task.update", "task.advance",
+      "task.get", "task.archive",
+      "event.report", "event.query", "event.archive"
     ]
   }
 }
 ```
 
-### 步骤 4：重启 Gateway
-
-```bash
-openclaw gateway restart
-```
-
-### 步骤 5：验证安装
-
-```bash
-# 查看插件状态
-openclaw plugins list
-
-# 检查 Agent 是否加载插件工具
-openclaw agents status <agent-name>
-```
+重启 Gateway 后生效。
 
 ---
 
-## 四层架构与权力边界
+## 理论基础
 
-| 层级 | 职责 | 权力边界 |
-|------|------|----------|
-| **用户层** | 下达任务、审核 Plan、确认完成 | 拥有最终审核权和完成判定权 |
-| **代理层** | 制定 Plan、管理 Session、推进执行 | 自行决策，向用户汇报，向插件上报状态 |
-| **插件层** | Hook 注入、状态记录、API 调用 | 只记录和注入无可争议的流程/参数，不做业务决策 |
-| **系统底层** | 文件系统、SQLite、日志、Hook 总线 | 提供基础设施，不替任何层级决策 |
+本框架的理论基础来源于**仓库作者的博士论文**《数字化存储对自传体记忆的影响及其机制》。将人类自传体记忆机制迁移至 Agent 记忆设计：
 
-**记忆存储原则**：
+- **语义记忆** → 语义向量检索（memory-core）
+- **自传体记忆** → 行动序列索引（`.agent/events/` 事件流）
 
-- 代理任务进程中的计划、偏差和归因暂时存在代理的工作自我（`.agent/tasks/{runId}.json`）中
-- 代理的整合（计划/偏差/归因）以事件记忆写入项目 `.agent/events/`
-- 代理的长期自我认知（If-Then 规则、身份定义）写入 `SOUL.md / IDENTITY.md / MEMORY.md`
+详见 [`docs/reference/theory.md`](docs/reference/theory.md)。
 
 ---
 
@@ -253,18 +81,29 @@ openclaw agents status <agent-name>
 ```
 agent-self-development/
 ├── src/                    # 插件源码
-│   ├── metacognition/      # 元认知模块（计划/监控/调节）
-│   ├── working-memory/     # 工作记忆模块（文件系统上下文管理）
-│   ├── personality/        # 人格发展模块（同化/顺应）
-│   └── common/             # 公共组件（适配器、心跳、流式处理）
+│   ├── index.js            # 入口：加载模板 + 注册 8 个工具
+│   ├── objects/            # 业务函数（task.js / event.js）
+│   ├── tools/              # 工具注册 + Handler + Schema
+│   ├── utils/              # IO / 路径解析 / 校验 / 生成器
+│   └── assets/             # 模板文件（task.json / event.md）
 ├── test/                   # 测试套件
-├── skills/                 # 项目级技能（协作协议、技术规范、上下文管理）
-├── .agent/                 # 多 Agent 角色定义（PM / Developer / Reviewer）
-├── docs/
-│   ├── roadmap/            # 版本路线图
-│   └── reference/          # 技术文档（架构、数据模型、Hook 参考）
+├── docs/                   # 文档
 └── README.md               # 本文档
 ```
+
+---
+
+## 文档导航
+
+| 文档 | 说明 |
+|------|------|
+| [`docs/reference/architecture.md`](docs/reference/architecture.md) | 三层架构、数据流、模块职责 |
+| [`docs/reference/data-model.md`](docs/reference/data-model.md) | Task JSON Schema、状态转换、工具示例 |
+| [`docs/reference/design-philosophy.md`](docs/reference/design-philosophy.md) | "从代劳到赋能"的设计哲学 |
+| [`docs/COLLABORATION.md`](docs/COLLABORATION.md) | 多 Agent 协作协议、角色边界 |
+| [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) | 编码规范、目录命名 |
+| [`docs/roadmap/`](docs/roadmap/) | 版本路线图 |
+| [`docs/changelog/`](docs/changelog/) | 完整版本历史 |
 
 ---
 
@@ -272,23 +111,11 @@ agent-self-development/
 
 | 版本 | 日期 | 变更摘要 |
 |------|------|----------|
-| **v4.2.0** | 2026-05-14 | Cognitive Intelligence：认知轨迹、模板引擎、案例索引、诊断增强 v2、架构风险修复、任务类型模板 |
-| **v4.1.0** | 2026-05-14 | Tool-Driven 架构：13 个 tools 暴露、Agent 自主调用、Hook 注入最小化、`.openclaw` → `.agent` |
-| **v4.0.0** | 2026-05-08 | 项目上下文层：文件系统协作协议、Hook 职责对齐修复、事件文件驱动偏差/归因 |
-| **v3.6.0** | 2026-05-08 | 多 Agent 协作体系、项目级 skills、文档分层 |
-| **v3.5.0** | 2026-05-04 | Hooks 合规重构、Heartbeat、subagent 钩子、task 扁平化 |
-| v3.4.0 | 2026-04-29 | 延迟创建 task JSON；Agent 自主评估 |
-| v3.3.0 | 2026-04-29 | 统一 task JSON；移除 Cron/Diary；6 维度人格 |
+| **v4.3.0** | 2026-05-31（预计） | 扁平化架构：纯 Tool Plugin，8 个命名空间工具，Handler 直接 IO |
+| v4.2.0 | 2026-05-13 | Cognitive Intelligence：认知轨迹、模板引擎、案例索引 |
+| v4.1.0 | 2026-05-11 | Tool-Driven 架构：13 个 tools 暴露、Hook 注入最小化 |
 
-完整版本历史见 [`docs/changelog/`](docs/changelog/)。
-
----
-
-## 贡献
-
-- **编码规范**：[`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)
-- **协作协议**：[`docs/COLLABORATION.md`](docs/COLLABORATION.md)
-- **技术文档**：[`docs/reference/`](docs/reference/)
+完整历史见 [`docs/changelog/`](docs/changelog/)。
 
 ---
 

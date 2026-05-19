@@ -1,156 +1,272 @@
 ---
 name: project-conventions
 description: >
-  Coding conventions, hook compliance rules, and data model standards
-  for the agent-self-development plugin project.
-  Use when: (1) Writing or reviewing JavaScript code for this project,
-  (2) Adding new hooks, modules, or skills,
-  (3) Refactoring existing hook registration logic,
-  (4) Updating SKILL.md frontmatter or data model documentation.
+  agent-self-development 插件项目的编码规范、目录结构标准与数据模型约定。
+  适用场景：(1) 为项目编写或审查 JavaScript 代码，
+  (2) 新增工具或 handler，
+  (3) 更新 SKILL.md 前言或数据模型文档。
 ---
 
-# Project Conventions
+# 项目规范
 
-Apply these standards when writing code for agent-self-development.
+为 agent-self-development 编写代码时遵循以下标准。
 
-## Hook Compliance — Red Lines
+## 目录结构（v4.3.0+）
 
-**Never** return `prependSystemContext` or `action` from pure observation hooks.
+v4.3.0 采用**扁平化工具插件架构**：业务逻辑在 `objects/` 纯函数模块中，无类封装、无依赖注入。
 
-| Hook Type | Hooks | Can Inject | Can Return Action |
-|-----------|-------|------------|-------------------|
-| Decision/Injection | `before_prompt_build` | Yes | No |
-| Decision/Injection | `before_agent_finalize` | No | Yes `{action, reason, retry?}` |
-| Decision/Injection | `heartbeat_prompt_contribution` | Yes (`prependContext`) | No |
-| Pure Observation | `llm_output` | **No** | **No** |
-| Pure Observation | `agent_end` | **No** | **No** |
-| Pure Observation | `before_tool_call` / `after_tool_call` | No | No |
-| Pure Observation | `subagent_spawning` / `subagent_spawned` / `subagent_ended` | **No** | No |
+```
+src/
+├── index.js              # 插件入口：加载模板，注册工具
+├── objects/
+│   ├── task.js           # 任务业务函数（create / update / advance / get / archive）
+│   └── event.js          # 事件业务函数（report / query / archive）
+├── assets/
+│   ├── task.json         # Task 数据结构模板
+│   ├── event.md          # Event Markdown 模板
+│   └── templates/        # 可选 Skill 模板
+├── tools/
+│   ├── index.js          # 注册入口
+│   ├── schemas.js        # 工具参数 JSON Schema
+│   ├── handlers.js       # 工具 handler（调用 objects/ 函数 + 返回值适配）
+│   └── adapter.js        # 返回值统一适配
+└── utils/
+    ├── io.js             # 文件 IO 原子操作
+    └── resolve.js        # 路径解析
+```
 
-**Violation fix**: If a skill currently injects at `llm_output` or `agent_end`, refactor it to `before_prompt_build` with a status condition.
+**红线**：
+- `src/` 下不得出现 `metacognition/`、`working-memory/`、`personality/`、`common/adapters/` 等旧目录
+- `objects/` 中**禁止定义类** — 仅允许导出纯函数
 
-## Skill Injection Mapping
+---
 
-Register skills in `src/{module}/module.js` according to this mapping:
+## 命名规范
 
-| Task Status | Skill to Inject at `before_prompt_build` |
-|-------------|------------------------------------------|
-| No task | `planning` (assessment phase) |
-| `draft` | `planning` (planning phase) |
-| `pending_approval` | `planning` (reporting/handling feedback) |
-| `revising` | `planning` + revision context |
-| `active` | `monitoring` + execution context |
-| `completed` | `development` (personality review) |
+| 元素 | 规则 | 示例 |
+|------|------|------|
+| 函数名 | 动词前缀，camelCase | `createTask()`, `updateTask()`, `generateReport()` |
+| 文件名 | 小写，语义化 | `handlers.js`, `schemas.js`, `adapter.js` |
+| 工具名 | 命名空间 + 动词，snake_case | `task.create`, `event.report` |
+| 常量 | 全大写 SNAKE_CASE | `VALID_STATUSES`, `STATE_MACHINE` |
 
-**Keep frontmatter aligned**: The `injected_at` field in every SKILL.md must match the actual hook registration in code. After changing hook registration, update the skill's frontmatter and its "Related Skills" cross-reference table.
+---
 
-## Naming Conventions
+## 分层规范
 
-| Element | Rule | Example |
-|---------|------|---------|
-| Class name | Single noun, PascalCase | `Metacognition`, `WorkingMemory` |
-| Method name | Verb prefix, camelCase | `createPlan()`, `onBeforePromptBuild()` |
-| File name | Lowercase, match class | `module.js`, `plan.js` |
-| Module entry | Always `module.js` | `metacognition/module.js` |
-| Skill name | snake_case in frontmatter | `planning`, `monitoring` |
+### objects/ 层（业务逻辑）
 
-## Module Structure
-
-Every new business module must follow this exact structure:
+- **纯函数**：`objects/task.js` 和 `objects/event.js` 仅导出纯函数，不定义类
+- **直接 IO**：业务函数直接调用 `utils/io.js` 读写文件
+- **无依赖注入**：函数通过 `context` 参数接收 `templates` / `logger` / `baseDir`
+- **错误返回**：所有错误返回 `{ error: '...' }`，不抛出异常
 
 ```javascript
-export class ModuleName {
-  constructor({ api, config, state, skills, logger, log, ...deps }) {
-    // Dependency injection
-  }
+// objects/task.js
+export async function create(params, context) { ... }
+export async function update(params, context) { ... }
+export async function advance(params, context) { ... }
+export async function get(params, context) { ... }
+export async function archive(params, context) { ... }
+```
 
-  register() {
-    // Register all hooks here
-  }
+```javascript
+// objects/event.js
+export async function report(params, context) { ... }
+export async function query(params, context) { ... }
+export async function archive(params, context) { ... }
+```
 
-  // Unified cleanup interface (v3.5.0+)
-  stop() {
-    // Release resources when Gateway stops
-  }
+### tools/ 层（Handler + 注册）
+
+- **薄适配**：Handler 调用 `objects/` 函数，仅做参数解包和返回值适配
+- **校验双重化**：JSON Schema（Tool 层）+ 运行时校验（objects/ 层）
+
+```javascript
+// tools/handlers.js
+import * as task from '../objects/task.js';
+import * as event from '../objects/event.js';
+
+export async function create(params, context) {
+  const result = await task.create(params, context);
+  return adaptReturn(result);
 }
 ```
 
-## Error Handling
+### updateTask 参数（万能更新）
 
-- Wrap adapter methods in try-catch. Log failures but do not block the flow.
-- Protect hook handlers so internal errors do not crash OpenClaw.
-- Close database connections in `gateway_stop` or `stop()`.
+```javascript
+{
+  runId: string,                    // 必填
+  status?: string,                  // 状态变更（状态机校验）
+  reason?: string,                  // 变更原因（日志用，不持久化）
+  deviation?: {                     // 记录偏差
+    type: string,
+    description: string,
+    impact?: string
+  },
+  attribution?: {                   // 记录归因
+    rootCause: string,
+    strategy: string,
+    impact?: string,
+    deviationIds?: string[]         // 精确关联；不提供则标记全部未归因
+  },
+  outcome?: {                       // 设置结果（浅合并）
+    summary?: string,
+    deliverables?: string[],
+    lessonsLearned?: string
+  },
+  eventFilePath?: string            // 关联 event.md
+}
+```
 
-## Data Model
+**业务规则**：
+- `deviation` 追加到 `task.deviations[]`，id 按 `dev-${timestamp}-${random4}` 生成
+- `attribution` 追加到 `task.attributions[]`，id 按 `attr-${timestamp}-${random4}` 生成
+- `outcome` 浅合并：`task.outcome = { ...task.outcome, ...params.outcome }`，`deliverables` 替换不追加
+- 任何写入自动刷新 `task.updatedAt = Date.now()`
 
-### Task JSON (v3.5.0+)
+---
 
-Use flat top-level fields. Never nest under `event`.
+## 工具注册规范
+
+### 注册方式
+
+```javascript
+api.registerTool({
+  name: 'task.create',
+  description: '创建 draft task',
+  parameters: { type: 'object', properties: { ... } },
+  async execute(_id, params) {
+    const result = await handlers.createTask(params, context);
+    return adaptReturn(result);
+  }
+});
+```
+
+### 返回值格式
+
+所有工具统一返回：
+
+```javascript
+{
+  content: [{ type: 'text', text: JSON.stringify(result) }]
+}
+```
+
+错误时：
+
+```javascript
+{
+  content: [{ type: 'text', text: JSON.stringify({ error: '...' }) }],
+  isError: true
+}
+```
+
+通过 `src/tools/adapter.js` 统一包裹，业务层不处理格式。
+
+---
+
+## 数据模型
+
+### Task JSON（v4.3.0）
 
 ```json
 {
   "runId": "uuid",
   "status": "draft | pending_approval | active | revising | completed",
+  "taskType": "coding | research | documentation",
   "createdAt": 1234567890000,
   "updatedAt": 1234567890000,
-  "plan": { "prompt", "context", "workspace", "execution" },
-  "deviations": [],
-  "attributions": [],
-  "outcome": {},
-  "sessionIds": [],
-  "tools": []
+  "plan": {
+    "prompt": "...",
+    "context": { "goal", "constraints", "successCriteria" },
+    "workspace": { "artifacts", "tools", "skills" },
+    "execution": {
+      "phases": [
+        { "id", "name", "goal", "outputs", "status", "tools", "skills" }
+      ],
+      "currentPhase": 0
+    }
+  },
+  "deviations": [
+    { "id", "type", "description", "impact", "timestamp", "attributed", "attributionId" }
+  ],
+  "attributions": [
+    { "id", "rootCause", "strategy", "impact", "timestamp" }
+  ],
+  "outcome": { "summary", "deliverables", "lessonsLearned" },
+  "eventFilePath": ""
 }
 ```
 
-### Status Markers
+### Event Markdown（v4.3.0）
 
-Agent outputs these markers at the end of responses. `before_agent_finalize` parses them:
+文件路径：`./.agent/events/{YYYY-MM-DD}/{runId}.md`
 
+七章节结构：
+
+```markdown
+# Event: {runId}
+
+## 1. 元信息
+
+## 2. 计划
+
+## 3. 执行
+
+## 4. 变更记录
+
+## 5. 偏差
+
+## 6. 归因
+
+## 7. 结果
 ```
-[STATUS: pending_approval]
-[STATUS: active]
-[STATUS: revising] [REASON: xxx]
-[STATUS: completed]
-```
 
-## Development Principles
+**生成规则**：task 完成后，`event.report` 从 task.json 一次性凝练渲染，不再增量追加。
 
-- **Minimal changes**: Only modify what is necessary. Do not refactor unrelated code.
-- **Backward compatibility**: Adapters must fall back to file system when `api === null`.
-- **Defensive programming**: Wrap optional hooks in try-catch or flag checks — they may not exist.
-- **Logging**: Use `[Module] message` prefix. Levels: `logger.debug/info/warn/error`.
-- **Version comments**: Add `// v3.x.y: description` for significant changes.
+---
 
-## State Keys
+## 错误处理
 
-| Key | Domain | Type | Lifecycle | Storage |
-|-----|--------|------|-----------|---------|
-| `task:{runId}` | State | Task JSON | runId | `state/tasks/{runId}.json` |
-| `session:{sessionId}` | State | Session | Long-term | `state/sessions.json` |
-| `working_memory:active_sessions` | State | Session[] | Global | `state/sessions.json` |
-| `prompt:${runId}` | State | String | runId | Cached by `before_prompt_build` |
+- 文件 IO 使用 try-catch，失败时返回 `{ error: '...' }` 而非抛出
+- 工具层捕获所有异常，通过 `adaptError()` 包裹后返回
+- 关闭资源（如数据库连接）在 `gateway_stop` 或进程退出时处理
 
-## File Map
+---
 
-| Path | Responsibility | Change Frequency |
-|------|---------------|------------------|
-| `src/index.js` | Plugin entry, dependency injection | Low |
-| `src/metacognition/module.js` | Hook registration and dispatch | Medium |
-| `src/metacognition/plan.js` | Plan business logic | Low |
-| `src/metacognition/deviation.js` | Deviation business logic | Low |
-| `src/metacognition/attribution.js` | Attribution business logic | Low |
-| `src/working-memory/module.js` | Session lifecycle hooks | Medium |
-| `src/working-memory/session.js` | Session business logic | Low |
-| `src/personality/module.js` | Personality hook registration | Medium |
-| `src/common/heartbeat.js` | Background monitoring | Low |
-| `src/common/adapters/*.js` | Adapter layer | Low |
+## 开发原则
 
-## External References
+- **最小变更**：只修改必要的部分，不重构无关代码
+- **扁平化**：Handler 直接操作文件，不引入中间抽象
+- **防御式编程**：工具参数校验在 Tool Handler 层和 Handler 函数内部双重进行
+- **日志前缀**：使用 `[task.create]` `[event.report]` 等工具名前缀
+- **版本注释**：重大变更添加 `// v4.3.0: description`
 
-For detailed technical documentation beyond this skill, see:
+---
 
-- `../../docs/reference/data-model.md` — complete JSON schemas and state transition rules for all data objects
-- `../../docs/reference/hook-reference.md` — full hook type matrix and injection mapping by task status
-- `../../docs/reference/state-keys.md` — complete `ctx.state` key space reference
-- `../../docs/reference/object-model.md` — adapter layer, manager layer, and module class design
+## 文件映射
 
+| 路径 | 职责 | 变更频率 |
+|------|------|----------|
+| `src/index.js` | 插件入口，加载模板，注册工具 | 低 |
+| `src/objects/task.js` | 任务业务逻辑（纯函数） | 中 |
+| `src/objects/event.js` | 事件业务逻辑（纯函数） | 中 |
+| `src/tools/index.js` | 工具注册入口 | 低 |
+| `src/tools/schemas.js` | 工具参数 schema | 中 |
+| `src/tools/handlers.js` | 工具 handler（调用 objects/ + 适配返回值） | 中 |
+| `src/tools/adapter.js` | 返回值格式适配 | 低 |
+| `src/utils/resolve.js` | 路径解析 | 低 |
+| `src/utils/io.js` | 文件原子读写 | 低 |
+| `src/assets/task.json` | Task 数据结构模板 | 低 |
+| `src/assets/event.md` | Event Markdown 模板 | 低 |
+
+---
+
+## 外部参考
+
+- `../../docs/roadmap/v4.3.0.md` — 工具插件架构蓝图
+- `../../docs/specs/` — 接口规范（扁平化 handler 层）
+- `../../docs/adr/adr-014.md` — 扁平化架构决策记录
+- `../../docs/COLLABORATION.md` — 跨角色协作协议与标记规范

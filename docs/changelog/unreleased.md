@@ -1,23 +1,46 @@
 # Unreleased
 
 ## Added
-- `skills/openclaw-skill-dev/` — skill authoring guide for OpenClaw plugin development
-- `.agent/` 目录结构 — 项目级元数据层（events, locks, decisions, tasks）
-- `.agentignore` — 可见性控制文件
-- 业务目录 — manuscripts/, knowledge/, temp/, uploads/
-- 四文件契约 — README.md（更新）, metadata.json, SKILL.md（项目级）, TODO.md
-- `.mcp.json` — 项目级配置占位
-- `getTaskFilePaths()` 静态方法 — 从项目级 tasks/{runId}.json 读取文件列表
-- WM `before_prompt_build` 注入 — 文件系统上下文管理（条件注入）
-- 文件变更审计追踪 — after_tool_call 扩展，读取事件文件变更记录
+- `src/objects/task.js` — 5 个裸函数（create/update/advance/get/archive），直接读写 `.agent/tasks/{runId}.json`
+- `src/objects/event.js` — 3 个裸函数（report/query/archive），直接读写 `.agent/events/` 和 `.agent/archive/events/`
+- `src/tools/index.js` — 注册 8 个命名空间工具（task.* + event.*）
+- `src/tools/schemas.js` — 8 个工具的 parameters schema
+- `src/tools/handlers.js` — 薄适配层，包装 objects 函数返回值
+- `src/tools/return-adapter.js` — 统一返回格式 `adaptReturn` / `adaptError`
+- `src/utils/io.js` — 原子文件操作（ensureDir, readJson, writeJson, writeMarkdown, moveFile）
+- `src/utils/resolve.js` — 路径解析器
+- `src/utils/validate.js` — runId / status / 状态转换校验
+- `src/utils/helpers.js` — getNow, generateRunId, generatePlan
+- `src/assets/task.json` + `src/assets/event.md` — 模板文件
+- `.agent/archive/` — 归档目录结构（tasks/ + events/）
+- `task.update` — 通用更新入口，支持 status/deviation/attribution/outcome/eventFilePath/reason 任一字段
+- `event.report` — 任务完成后一次性从 task.json 生成 event.md
+- `event.query` — 按 runId/date/type 筛选查询事件
+- `event.archive` — 归档事件文件
 
 ## Changed
-- `docs/technical/` renamed to `docs/reference/`
-- **版本升级至 v4.0.0** — 项目上下文层 & 多 Agent 协作体系
-- monitoring 职责重定义 — 从"偏差检测器"改为"偏差预防提醒 + 自我监控指引"
-- regulation 注入改为条件注入 — 事件文件中有未处理偏差时触发
-- Personality 数据供给改为事件文件驱动 — 向后兼容回退到 task 顶层字段
-- WM 移除全局索引 `working_memory:active_sessions` — 上下文保持转向文件系统
-- 所有 SKILL.md 更新至 v4.0.0 — planning, monitoring, regulation, working_memory, development
-- 参考文档同步更新 — data-model.md, hook-reference.md, state-keys.md, architecture.md
-- 归档逻辑调整 — agent_end 读取项目级事件文件和 task 索引，写入系统层 Memory
+- **架构扁平化（ADR-014）** — 从四层架构 + 类层次 退回到 Agent/Tool/文件系统三层
+- **版本升级至 v4.3.0** — 纯 Tool Plugin，无 Hook 注入
+- `src/` 目录重构 — 移除 `metacognition/`、`working-memory/`、`personality/`、`common/adapters/`，收敛为 `objects/` + `tools/` + `utils/` + `assets/`
+- 工具注册方式 — 从 13 个工具（含 guide 类）精简为 8 个命名空间工具（task 5 个 + event 3 个）
+- 事件生成策略 — 从增量追加改为延迟一次性生成（`event.report`）
+- task.json 字段 — 移除 `sessionIds`、`tools`、`revisionReason`
+- 时间戳格式 — 从 Unix 毫秒数改为 ISO-8601 字符串
+- 参考文档同步更新 — `architecture.md`、`object-model.md`、`data-model.md`、`project-structure.md`、`state-keys.md`、`design-philosophy.md`、`hook-reference.md`（标记废弃）
+
+## Removed
+- Hook 注入层 — `before_prompt_build`、`before_agent_finalize`、`agent_end` 等 7 个 Hook 全部移除
+- 认知模块 — `src/metacognition/`（plan/deviation/attribution/event）
+- 工作记忆模块 — `src/working-memory/`（session 生命周期管理）
+- 人格模块 — `src/personality/`（同化/顺应驱动）
+- 适配器层 — `State` / `Memory` / `Flow` / `Log` / `Hook` 类
+- 管理器层 — `Plan` / `Session` / `Deviation` / `Attribution` 类
+- Guide 类工具 — `guide.planning`、`guide.monitoring`、`guide.regulation`、`guide.development`
+- 诊断/文件类工具 — `task.files`、`task.diagnose`、`task.deviate`、`task.attribute`
+- 旧版 flat 工具名 — `create_plan`、`update_task_status`、`advance_phase`、`archive_task` 等
+- 系统级持久化 — `~/.agent/state/`、`~/.agent/memory/`、`~/.agent/logs/` 等系统层存储
+- `src/common/hook.js` — HookRegistry
+- `src/common/heartbeat.js` — 后台监控（如有）
+
+## Deprecated
+- `docs/reference/hook-reference.md` — v4.2.x Hook + Tool 混合架构，仅作历史存档
