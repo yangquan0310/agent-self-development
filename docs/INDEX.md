@@ -1,6 +1,6 @@
 # 项目文档索引（Project Document Index）
 
-> **版本**：v1.2.0
+> **版本**：v1.3.0
 > **用途**：新 Agent 进入项目时的「文档地图」，按角色和任务快速导航
 > **更新频率**：每次新增/删除文档时同步更新
 
@@ -13,8 +13,8 @@
 | 项目总览 | `README.md` | 2 分钟 | 理解项目定位、技术栈、如何安装 |
 | 文档索引 | `docs/INDEX.md`（本文件） | 1 分钟 | 知道所有文档的位置和用途 |
 | 协作协议 | `docs/COLLABORATION.md` | 2 分钟 | 知道自己的角色边界和协作标记 |
-| **设计哲学** | `docs/reference/design-philosophy.md` | 3 分钟 | 理解 "从代劳到赋能" 的核心思想 |
-| **理论基础** | `docs/reference/theory.md` | 5 分钟 | 理解自传体记忆、工作自我、同化/顺应如何映射到架构 |
+| **设计哲学** | `docs/reference/design-philosophy.md` | 3 分钟 | 理解 v4.3.0 "从代劳到赋能" 的核心思想，纯 Tool 驱动 |
+| **理论基础** | `docs/reference/theory.md` | 5 分钟 | 理解自传体记忆、工作自我、同化/顺应如何映射到 Agent 自主行为 |
 
 ---
 
@@ -51,6 +51,7 @@
 | 历史测试报告 | `docs/reports/review-YYYY-MM-DD-*.md` | 旧审查报告，已关闭的问题 |
 | 历史变更日志 | `docs/changelog/v3.5.0.md` 及之前 | 旧版本的详细变更记录 |
 | 历史 ADR | `docs/adr/adr-001.md` ~ `adr-009.md` | 部分过时的架构决策记录 |
+| 废弃 Hook 参考 | `docs/reference/hook-reference.md` | v4.2.x Hook + Tool 混合架构，仅历史存档 |
 
 ---
 
@@ -102,6 +103,6 @@
 
 ---
 
-*文档版本：v1.2.0*  
+*文档版本：v1.3.0*  
 *最后更新：2026-05-19*  
 *维护者：PM（产品经理）*

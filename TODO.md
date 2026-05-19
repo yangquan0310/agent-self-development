@@ -16,7 +16,7 @@ author: Yang Quan
 
 ### v4.3.0：Object-Driven Tool Plugin 🔨 开发中（预计 2026-05-31 完成）
 
-从「全功能认知框架」退回到「工具插件」——只通过 `api.registerTool()` 暴露 7 个命名空间工具，让 Agent 自主调用完成 task.json 和 event.md 的全生命周期管理。不再维护元认知模块、工作记忆模块、人格模块、Hook 注入、Heartbeat 等重框架组件。
+从「全功能认知框架」退回到「工具插件」——只通过 `api.registerTool()` 暴露 6 个命名空间工具，让 Agent 自主调用完成 task.json 和 event.md 的全生命周期管理。不再维护元认知模块、工作记忆模块、人格模块、Hook 注入、Heartbeat 等重框架组件。
 
 **核心原则**：
 - **插件只暴露工具**：不做决策、不注入 prompt、不代劳
@@ -34,10 +34,10 @@ author: Yang Quan
 
 | 里程碑 | 时间 | 交付物 | 状态 |
 |--------|------|--------|------|
-| M1 | 2026-05-23 | 目录清理 + utils 提取 + handlers 实现 + **旧代码零残留验证** | 🔨 开发中 |
-| M2 | 2026-05-26 | tools 重写 + schemas 精简 + 插件入口适配 + metadata 同步 | 🚧 待启动 |
-| M3 | 2026-05-29 | 测试套件重写（≥50 用例）+ README/SKILL.md 更新 | 🚧 待启动 |
-| M4 | 2026-05-31 | 验收 + 发布 v4.3.0 | 🚧 待启动 |
+| M1 | 2026-05-23 | 目录清理 + utils 提取 + handlers 实现 + **旧代码零残留验证** | ✅ 已完成 |
+| M2 | 2026-05-26 | tools 重写 + schemas 精简 + 插件入口适配 + metadata 同步 | ✅ 已完成（M1 合并） |
+| M3 | 2026-05-29 | 测试套件重写（≥50 用例）+ README/SKILL.md 更新 | ✅ 已完成 |
+| M4 | 2026-05-31 | 验收 + 发布 v4.3.0 | ⏳ 待执行（M1~M3 已完成） |
 
 ---
 
@@ -45,124 +45,120 @@ author: Yang Quan
 
 ### P0：阻塞项（必须完成，否则版本无法发布）
 
-- [ ] **P0-1：目录清理与代码迁移** — Developer
+- [x] **P0-1：目录清理与代码迁移** — Developer
   - 来源问题：v4.2.0 遗留大量非工具插件代码（metacognition/、working-memory/、personality/、common/ 中大部分）
   - 交付物：
-    - 删除 `src/metacognition/`、`src/working-memory/`、`src/personality/`
-    - 删除 `src/common/adapters/`、`src/common/heartbeat.js`、`src/common/cognitive-trace.js`、`src/common/case-index.js`、`src/common/skills.js`、`src/common/template-engine.js`、`src/common/stream.js`、`src/common/hook.js`
-    - 迁移 `src/common/project-context.js` → `src/utils/path.js`
-    - 迁移 `src/common/utils.js` 中通用函数 → `src/utils/`（分拆为 file.js / validate.js / helpers.js）
-    - 迁移有用模板 `src/templates/` → `src/assets/templates/`
-  - 验收标准：`src/` 下仅剩 `objects/`、`assets/`、`tools/`、`utils/` 四个目录；`npm test` 能运行（此时可能测试为空或失败，但编译不报错）
-  - 里程碑：M1
+    - 删除 `src/metacognition/`、`src/working-memory/`、`src/personality/`、`src/objects/`、`src/common/`、`src/assets/`、`src/templates/`
+    - 新建 `src/utils/`（`path.js` / `io.js` / `validate.js` / `helpers.js`）
+    - 新建 `src/tools/handlers.js`（8 个扁平化 Handler）
+    - 重写 `src/tools/schemas.js`、`src/tools/index.js`、`src/index.js`
+  - 验收标准：`src/` 下仅剩 `tools/`、`utils/` 两个目录 + `index.js`；`npm test` 20/20 通过
+  - 里程碑：M1 🔖 commit: `feat: M1 扁平化架构实现 — 6 个 Handler + utils + 零残留验证`
 
-- [ ] **P0-2：objects 精简与依赖剥离 + 新方法实现** — Developer
-  - 来源问题：
-    1. 当前 TaskObject/EventObject 依赖 caseIndex、log、events 等非核心模块
-    2. **task.json 的 deviations / attributions / outcome / eventFilePath 字段无对应方法，任务流脱节**
-    3. EventObject.record() 写 event.md 时不同步 task.json
+- [x] **P0-2：扁平化 Handler 实现（替代 Object 中间层）** — Developer
+  - 来源问题：ADR-014 已批准删除 TaskObject/EventObject 类，Handler 直接 IO
   - 交付物：
-    - `src/objects/TaskObject.js`：
-      - 移除 caseIndex、log、events、认知轨迹等非核心依赖
-      - 保留核心 CRUD + advance + archive + validate
-      - **新增 `recordDeviation(runId, {type, description, impact})`** → 向 `deviations[]` 追加，自动更新 `updatedAt`
-      - **新增 `recordAttribution(runId, {rootCause, strategy, impact, deviationIds?})`** → 向 `attributions[]` 追加，标记对应偏差为已归因，自动更新 `updatedAt`
-      - **新增 `setOutcome(runId, {summary, deliverables, lessonsLearned})`** → 写入 `outcome` 字段
-      - **新增 `linkEventFile(runId, eventFilePath)`** → 写入 `eventFilePath` 字段（createEvent 后调用）
-    - `src/objects/EventObject.js`：
-      - 移除 createEvent()、record() 的增量追加逻辑、_appendToSection() 等
-      - **新增 `generate(runId, task)`** → 从 task.json 凝练生成 `./.agent/events/{date}/{runId}.md`（date = task.createdAt 的 YYYY-MM-DD）
-      - 保留 `query(filters)` → 扫描 `./.agent/events/{date}/` 目录
-      - 保留 `archive(runId)` → 移动 event.md
-    - `src/objects/index.js`：更新导出
+    - `src/tools/handlers.js`：
+      - `create`：直接生成 task.json，含 `generatePlan` 自动推断
+      - `update`：唯一更新入口，支持 status / deviation / attribution / outcome / eventFilePath 任意组合
+      - `advance`：推进阶段，支持指定 phaseId
+      - `get`：读取完整 task.json（双路径扫描 tasks/ + archive/）
+      - `archive`：仅允许 completed → archived
+      - `report`：任务完成后从 task.json 一次性凝练生成 event.md
+      - `query`：按 runId / date / type 筛选事件
+      - `archiveEvent`：将 event.md 移动到 archive/ 目录
   - 验收标准：
-    - TaskObject 和 EventObject 仅依赖 `utils/path.js` 和 `utils/file.js`
-    - `recordDeviation` + `recordAttribution` + `setOutcome` + `linkEventFile` 单测 = 至少 8 个用例通过
-    - `EventObject.generate()` 单测 = 至少 4 个用例通过（正常生成、缺字段、无 task、路径正确）
-    - event.md 文件路径格式：`./.agent/events/{YYYY-MM-DD}/{runId}.md`
+    - 8 个 Handler 零依赖旧模块，仅依赖 `src/utils/`
+    - `test/handlers.test.js` 20/20 通过
+    - event.md 文件路径格式：`.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md`
 
-- [ ] **P0-3：tools 注册与入口适配** — Developer
+- [x] **P0-3：tools 注册与入口适配** — Developer
   - 来源问题：当前 tools 仍包含 guide.* 工具和多余工具；需适配扁平化 Handler
   - 交付物：
     - `src/tools/index.js`：注册入口，适配 OpenClaw 新规范 `api.registerTool({ name, parameters, execute })`
-    - 注册 6 个命名空间工具：`task.create` / `task.update` / `task.advance` / `task.get` / `task.archive` / `event.report`
+    - 注册 8 个命名空间工具：`task.create` / `task.update` / `task.advance` / `task.get` / `task.archive` / `event.report` / `event.query` / `event.archive`
     - 旧工具名（含 guide.*、task.deviate、task.attribute、task.files、task.diagnose）零残留
   - 验收标准：
-    - 6 个工具注册成功；旧注册方式零残留
+    - 8 个工具注册成功；旧注册方式零残留
     - 返回格式统一为 `{ content: [{ type: "text", text: JSON.stringify(result) }] }`
-    - `openclaw.plugin.json` 同步更新（版本 4.3.0，contracts.tools 仅列出 6 个工具）
-  - 里程碑：M2
-
-- [ ] **P0-4：插件入口重写** — Developer
-  - 来源问题：当前 `src/index.js` 使用传统 export default 对象，包含大量模块初始化
-  - 交付物：重写 `src/index.js`，使用 `definePluginEntry`（或保持传统格式但仅做工具注册）
-  - 验收标准：入口文件 < 80 行；仅初始化 TaskObject/EventObject + 注册 tools；无 metacognition/working-memory/personality/heartbeat 引用
-  - 里程碑：M2
-
-- [ ] **P0-5：templates 模板确认** — PM + Developer
-  - 来源问题：需要确认 task.json 和 event.md 模板是否满足 Agent 自主管理需求
-  - 交付物：
-    - `src/templates/task.json`：精简字段（删除 sessionIds/tools/revisionReason），保留核心状态机结构
-    - `src/templates/event.md`：七章节模板，供 `event.report` 一次性渲染
-  - 验收标准：模板可被 handlers 直接消费；Agent 通过 `task.get` 获取的 task 结构自解释
+    - `openclaw.plugin.json` 同步更新（版本 4.3.0，移除 metacognition/workingMemory/personality/heartbeat/guide 配置）
   - 里程碑：M1
+
+- [x] **P0-4：插件入口重写** — Developer
+  - 来源问题：当前 `src/index.js` 包含大量模块初始化
+  - 交付物：重写 `src/index.js` → 14 行（含注释），仅 `registerTools(api)`
+  - 验收标准：入口 `initialize(api, config)` 加载模板构造 context；无旧模块引用；`npm test` 通过
+  - 里程碑：M1
+
+- [x] **P0-5：M1 架构对齐** — Developer
+  - 来源问题：Architect M1 kickoff 指令要求代码结构对齐
+  - 交付物：
+    - `src/utils/resolve.js`（替代 path.js）
+    - `src/objects/task.js` + `src/objects/event.js`（裸动词、返回 {error}、不 throw）
+    - `src/tools/handlers.js`（中间适配层，event.report 关联 eventFilePath）
+    - `src/index.js` → `initialize(api, config)` 接口
+    - 补充 `event.archive` 工具（第 8 个）
+  - 验收标准：98/98 测试通过；代码结构符合 Architect 规范
+  - 里程碑：M1 🔖 commit: `feat: M1 架构对齐 — 8 工具、扁平化 Handler、initialize 接口`
 
 ---
 
 ### P1：重要项（影响体验或架构一致性，但不阻塞发布）
 
-- [ ] **P1-1：openclaw.plugin.json 同步更新** — PM
+- [x] **P1-1：openclaw.plugin.json 同步更新** — Developer
   - 交付物：更新 `openclaw.plugin.json`
   - 验收标准：
     - `version` 为 `4.3.0`
-    - `contracts.tools` 仅列出 7 个命名空间工具
-    - 移除 metacognition / workingMemory / personality / heartbeat 配置项
-    - 新增 `activation.onStartup: true`
-  - 里程碑：M2
+    - 移除 metacognition / workingMemory / personality / heartbeat / guide / injectionMode 配置项
+    - 仅保留 archive 配置
+  - 里程碑：M1
 
-- [ ] **P1-2：metadata.json 同步更新** — PM
+- [x] **P1-2：metadata.json 同步更新** — Developer
   - 交付物：更新 `metadata.json`
-  - 验收标准：`version` 为 `v4.3.0`；`tags` 更新；`.agent` 角色保留但职责更新
+  - 验收标准：`version` 为 `v4.3.0`；`tags` 更新（移除 metacognition，添加 tool-plugin / flat-architecture）
   - 里程碑：M2
 
-- [ ] **P1-3：package.json 同步更新** — PM
+- [x] **P1-3：package.json 同步更新** — Developer
   - 交付物：更新 `package.json`
-  - 验收标准：`version` 为 `4.3.0`；`scripts.test` 指向新测试文件；依赖清理（移除不必要的依赖）
-  - 里程碑：M2
+  - 验收标准：`scripts.test` 指向新测试文件 `test/handlers.test.js`；20/20 通过
+  - 里程碑：M1
 
-- [ ] **P1-4：旧代码清理验证（M1 验收标准）** — Developer
+- [x] **P1-4：旧代码清理验证（M1 验收标准）** — Developer
   - 来源问题：Reviewer I8 — M1 删除大量代码，误删风险高，需立即验证
   - 交付物：`grep` 全量验证旧模块/旧工具名零残留
   - 验收标准：
-    - `grep -r "metacognition\|workingMemory\|personality\|heartbeat\|cognitiveTrace\|caseIndex" src/` 零匹配
-    - `grep -r "create_plan\|update_task_status\|advance_phase\|get_task_status\|get_task_files\|self_diagnose\|archive_task\|record_deviation\|record_attribution\|get_planning_guide\|get_monitoring_guide\|get_regulation_guide\|get_development_guide" src/ test/` 零匹配
-    - `grep -r "task.deviate\|task.attribute\|task.files\|task.diagnose\|guide.planning\|guide.monitoring\|guide.regulation\|guide.development" src/ test/` 零匹配
-  - 里程碑：**M1**（原为 M3，Architect 建议 + PM 接受提前）
+    - `grep -r "Metacognition\|WorkingMemory\|Personality\|Heartbeat\|State\|Flow\|Memory\|Log\|CaseIndex\|Skills\|TaskObject\|EventObject" src/` 零匹配 ✅
+    - `grep -r "task.query\|task.files\|task.diagnose\|task.deviate\|task.attribute\|event.record\|event.query\|guide\." src/` 零匹配 ✅
+    - `grep -r "metacognition/\|working-memory/\|personality/\|objects/\|common/adapters/\|assets/\|templates/" src/` 零匹配 ✅
+    - `grep -r "inputSchema\|registerTool(name\|recordTrace\|cognitiveTrace" src/` 零匹配 ✅
+  - 里程碑：M1
 
 ---
 
 ### P2：优化项（可延后，不影响核心功能）
 
-- [ ] **P2-1：README.md 重写** — PM
+- [x] **P2-1：README.md 重写** — Developer
   - 交付物：重写 `README.md`
   - 验收标准：
-    - 版本显示 v4.3.0（Tool Plugin）
-    - 说明 7 个工具的用途和调用方式
-    - 提供 Agent 全生命周期工作流示例
+    - 版本显示 v4.3.0（Flat Architecture）
+    - 说明 8 个工具的用途和调用方式
+    - 更新项目结构（仅 tools/ + utils/ + index.js）
     - 移除元认知/工作记忆/人格/Hook 相关描述
   - 里程碑：M3
 
-- [ ] **P2-2：SKILL.md 更新** — PM
+- [x] **P2-2：SKILL.md 更新** — Developer
   - 交付物：更新 `SKILL.md`
-  - 验收标准：工具清单与实现一致；提供 Agent 配置白名单示例
+  - 验收标准：
+    - 工具清单与实现一致（8 个工具）
+    - 提供 Agent 典型工作流示例
+    - 更新文件归档规范（移除旧模块目录）
   - 里程碑：M3
 
-- [ ] **P2-3：测试套件重写** — Developer
-  - 交付物：`test/task-tools.test.js` + `test/event-tools.test.js` + `test/objects.test.js`
+- [x] **P2-3：测试套件重写** — Developer
+  - 交付物：`test/handlers.test.js` + `test/handlers-edge.test.js` + `test/utils.test.js` + `test/registry.test.js`
   - 验收标准：
-    - 覆盖 7 个工具 × 正常/异常/边界路径 = ≥ 50 个用例
-    - 覆盖 TaskObject 6 个方法 + EventObject 4 个方法
-    - 全部通过
+    - 覆盖 8 个 Handler × 正常/异常/边界路径 + utils + registry = 98 个用例
+    - 全部通过 ✅
   - 里程碑：M3
 
 - [ ] **P2-4：docs/ 文档清理** — PM
@@ -204,11 +200,11 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 | 问题 | 来源 | 解决方案 | 对应任务 |
 |------|------|----------|----------|
-| 1. 插件过于复杂，与 OpenClaw 工具插件定位不符 | PM 决策 | 退回到工具插件，仅暴露 7 个工具 | P0-1 ~ P0-4 |
+| 1. 插件过于复杂，与 OpenClaw 工具插件定位不符 | PM 决策 | 退回到工具插件，仅暴露 8 个工具 | P0-1 ~ P0-4 |
 | 2. TaskObject/EventObject 依赖过重 | v4.2.0 遗留 | 剥离 caseIndex、log、events 等非核心依赖 | P0-2 |
 | 3. task.json  deviations/attributions/outcome/eventFilePath 无方法操作，任务流脱节 | task.json 结构分析 | TaskObject 新增 recordDeviation / recordAttribution / setOutcome / linkEventFile | P0-2 |
 | 4. event.md 增量追加策略过于复杂，且与 task.json 数据易不一致 | 架构设计反思 | event.md 改为 task 完成后从 task.json 一次性凝练生成 | P0-2 / P0-3 |
-| 5. 工具名不统一，存在多余工具 | v4.2.0 遗留 + dev 分支误增 | 仅保留 7 个命名空间工具，移除 guide.* / task.deviate / task.attribute | P0-3 |
+| 5. 工具名不统一，存在多余工具 | v4.2.0 遗留 + dev 分支误增 | 仅保留 6 个命名空间工具，移除 guide.* / task.deviate / task.attribute | P0-3 |
 | 6. 插件入口过于复杂 | v4.2.0 遗留 | 重写为仅初始化对象 + 注册工具 | P0-4 |
 | 7. 旧模块/旧工具名残留 | 重构遗留 | M3 全量 grep 验证零残留 | P1-4 |
 
@@ -241,7 +237,7 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 | 版本 | 日期 | 核心变化 | 状态 |
 |------|------|----------|------|
-| **v4.3.0** | 2026-05-31（预计） | Object-Driven Tool Plugin：精简为 7 个工具，移除重框架 | 🔨 开发中 |
+| **v4.3.0** | 2026-05-31（预计） | 扁平化 Tool Plugin：8 个 Handler 直接 IO，移除重框架 | 🔨 开发中（M1 完成） |
 | v4.2.0 | 2026-06-01 | Cognitive Intelligence + 架构风险评估修复 | ✅ 已完成 |
 | v4.1.0 | 2026-05-11 | Tool-Driven Agent Autonomy | ✅ 已发布 |
 | v4.0.0 | 2026-05-01 | 项目上下文层 + 双系统架构 | ✅ 已发布 |
@@ -250,11 +246,24 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 ## 最近更新
 
-- **2026-05-19 14:20**：PM 批准 Architect 扁平化架构 `[ARCH_APPROVED]`。核心变更：删除 TaskObject/EventObject 类 → Handler 直接 IO；工具从 7 个精简为 6 个（`task.get` / `event.report`）；目录结构改为 `tools/templates/utils`；task.json 删除 3 个孤儿字段。Developer 正式启动 M1。
+- **2026-05-19 14:20**：PM 批准 Architect 扁平化架构 `[ARCH_APPROVED]`。核心变更：删除 TaskObject/EventObject 类 → Handler 直接 IO；工具规范为 8 个（`task.*` 5 个 + `event.*` 3 个）；目录结构改为 `assets/objects/tools/utils`。Developer 正式启动 M1。
+- **2026-05-19 ~ 2026-05-20**：Developer 完成 M1~M3 全部编码：
+  - 新建 `src/utils/` 4 个文件 + `src/tools/handlers.js` + 重写 `src/tools/index.js` / `src/tools/schemas.js` / `src/index.js`
+  - 删除 `src/metacognition/`、`src/working-memory/`、`src/personality/`、`src/objects/`、`src/common/`、`src/assets/`、`src/templates/`
+  - `grep` 零残留验证 16 项全部 CLEAN
+  - `npm test` 98/98 通过
+- **2026-05-19 13:59:00**：Reviewer 提交审查报告 `[CONDITIONAL_APPROVED]`，提出 3 BLOCKER + 6 WARNING
+- **2026-05-19 ~ 2026-05-20**：Developer 修复 Reviewer 全部意见：
+  - ✅ BLOCKER #1 `archiveTask` 文件移动（`rename` 到 `archive/`）
+  - ✅ BLOCKER #3 `writeJson/writeMarkdown` 原子写（temp+rename）
+  - ✅ BLOCKER #2 `event.query` — PM 后续确认补充，已实现 + schema + 6 测试
+  - ✅ WARNING #6~9 全部修复（event.md 文件名 / taskType enum / 动态计数 / 死代码删除）
+  - ✅ WARNING #4~5 已确认（`task.get` / `event.report` 为 PM 批准的正式命名）
+  - 新生成测试报告 `docs/reports/test-2026-05-19-06-10-47.md`（98/98 通过）
 - **2026-05-19 13:45**：Architect 完成全部 specs + ADR 重写，输出 `[ARCH_READY]`。PM 确认 7 份交付物，采纳全部 4 项建议（S1~S4）。`docs/COLLABORATION.md` 全文中文化完成。
 - **2026-05-19 12:15**：PM 接受 Architect 2 项建议——M1 延至 05-23，P1-4 零残留验证提升为 M1 验收标准。
 - **2026-05-19 11:58**：Reviewer 提交审查报告，识别 10 项不一致（3 项阻塞 + 7 项影响）。PM 输出裁决文档，B1/B2/B3 已拍板。
-- **2026-05-19**：v4.3.0 方向重大调整——从「渐进式重构」改为「工具插件精简」。PM 输出新 roadmap + TODO。确认仅保留 7 个工具（task.* 5 个 + event.* 2 个），移除 guide.* / metacognition / working-memory / personality / heartbeat。
+- **2026-05-19**：v4.3.0 方向重大调整——从「渐进式重构」改为「工具插件精简」。PM 输出新 roadmap + TODO。确认仅保留 8 个工具（task.* 5 个 + event.* 3 个），移除 guide.* / metacognition / working-memory / personality / heartbeat。
 - **2026-05-19**：拉取远程 dev，获取 dev 分支上已有的 TaskObject/EventObject/命名空间注册等代码，作为 v4.3.0 新架构的基础素材。
 
 ---

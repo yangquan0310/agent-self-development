@@ -1,168 +1,131 @@
-# 四层架构与权力边界（v4.1.0）
+# 扁平工具架构（v4.3.0）
 
-> **设计哲学**：从"代劳"到"赋能"——插件做"能力的提供者"，不做"决策的替代者"。详见 [`design-philosophy.md`](design-philosophy.md)。
+> **设计哲学**：插件做"能力的提供者"，不做"决策的替代者"。详见 [`design-philosophy.md`](design-philosophy.md)。
 >
-> **理论基础**：基于博士论文《数字化存储对自传体记忆的影响及其机制》的记忆系统研究。详见 [`theory.md`](theory.md)。
+> **架构决策**：ADR-014 移除所有类和 Hook 注入，采用纯函数 + 直接 IO 的扁平架构。
 
 ```
 ┌─────────────────────────────────────────────┐
-│             用户层（User）                   │
-│  · 下达任务需求（自然语言）                   │
-│  · 审核代理制定的 Plan                        │
-│  · 确认/修改/取消 Plan                        │
-│  · 判断任务是否完成                           │
-└─────────────────────────────────────────────┘
-  ↓ 自然语言指令        ↑ 自然语言汇报
-  ↓ 任务需求/确认反馈   ↑ Plan 状态/执行结果
-  ↓ 审核意见            ↑ 任务完成报告
-┌─────────────────────────────────────────────┐
-│            代理层（Agent）                   │
+│             Agent 层（自主决策）              │
 │  · 接收用户任务，制定 Plan                    │
-│  · 向用户汇报 Plan，等待审核                  │
-│  · 审核通过后，在 Session（任务族）中推进执行 │
-│  · 管理多个 Session，复用上下文               │
-│  · 向插件层上报：Plan 状态、Session 状态      │
+│  · 按需调用 Tools 推进状态                    │
+│  · 直接读写项目文件（可选）                   │
 └─────────────────────────────────────────────┘
-  ↓ 状态上报              ↑ skill 注入
-  ↓ Plan 状态             ↑ planning skill
-  ↓ Session 状态          ↑ monitoring skill
-  ↓ 执行结果              ↑ 执行上下文提示
-┌─────────────────────────────────────────┐
-│              插件层（Plugin）            │
-│  · 注册 Hook 事件处理器                   │
-│  · 在事件触发时调用系统底层 API           │
-│  · 接收代理层状态，写入系统底层            │
-│  · 注入无可争议的流程/参数 skill           │
-└─────────────────────────────────────────┘
-  ↓ API 调用              ↑ Hook 事件触发
-  ↓ State.saveTask        ↑ before_prompt_build
-  ↓ State.saveSession     ↑ before_tool_call / after_tool_call
-  ↓ Memory.archiveSession ↑ agent_end
-┌─────────────────────────────────────────┐
-│           系统底层（文件系统）              │
-│  · 提供 Hook 事件总线（Plugin api.on）    │
-│  · 插件专属持久化（JSON 文件 + SQLite）   │
-│  · State / Flow / Memory / Log / Hook   │
-└─────────────────────────────────────────┘
+              ↓ 显式 Tool 调用
+┌─────────────────────────────────────────────┐
+│              Tool 层（8 个 Tools）            │
+│  · task.create / task.update / task.advance  │
+│  · task.get / task.archive                   │
+│  · event.report / event.query / event.archive│
+│  · 纯函数 handler，无类、无状态、无 Hook      │
+└─────────────────────────────────────────────┘
+              ↓ 直接文件 IO
+┌─────────────────────────────────────────────┐
+│           文件系统（项目级持久化）              │
+│  · .agent/tasks/{runId}.json                 │
+│  · .agent/events/{YYYY-MM-DD}/{runId}.md     │
+│  · .agent/tasks/archive/{runId}.json         │
+│  · .agent/events/archive/{date}-{runId}.md   │
+└─────────────────────────────────────────────┘
 ```
 
-## v4.1.0 新增：Tool 驱动架构
+## v4.3.0 核心变更
 
-在四层架构之上，v4.1.0 引入 **Tool-Driven Agent Autonomy**：
+### 从 Hook 驱动到 Tool 驱动
 
-> 插件通过 `api.registerTool()` 暴露 13 个 tools，Agent 按需主动调用。从"推送式"（插件决定注入什么）转为"拉取式"（Agent 决定需要什么）。
+| 维度 | v4.2.0 及以前 | v4.3.0 |
+|------|--------------|--------|
+| 能力暴露 | `api.on()` Hook 注入 + `api.registerTool()` | **仅** `api.registerTool()` |
+| 架构风格 | 四层架构（用户/代理/插件/系统）+ 类层次 | **扁平三层**（Agent/Tool/文件系统） |
+| 状态管理 | 适配器类 + 管理器类 + 模块类 | **裸函数直接读写 JSON** |
+| 业务模块 | Metacognition / WorkingMemory / Personality | **全部移除** |
+| 代码组织 | `src/metacognition/`, `src/working-memory/`, `src/personality/`, `src/common/adapters/` | `src/objects/`, `src/tools/`, `src/utils/` |
 
-**三层 Tool 架构**：
-- **第一层：查询型 Tool**（插件只读）：`get_task_status`、`get_planning_guide`、`self_diagnose`
-- **第二层：操作型 Tool**（插件被动响应读写）：`create_plan`、`update_task_status`、`record_deviation`
-- **第三层：Agent 自治**：Agent 可直接读写 `.agent/` 文件系统，不强制走 Tool
+### 从面向对象到纯函数
 
-**Hook 职责调整**：
-- `before_prompt_build` 不再注入完整 skill 文本，只输出最小化提示（状态 + tools 列表）
-- `before_agent_finalize` 保留 `[STATUS]` 解析（deprecated），新增 tool 调用结果解析
+v4.3.0 移除了所有类和依赖注入：
 
-## v4.0.0 新增：项目上下文层（Project Context Layer）
+- ❌ `TaskObject`、`EventObject` 类 → ✅ `src/objects/task.js` 裸函数
+- ❌ `State` / `Memory` / `Flow` 适配器 → ✅ `src/utils/io.js` 原子文件操作
+- ❌ `ToolRegistry` / `ToolHandler` 类 → ✅ `src/tools/index.js` 纯注册 + `src/tools/handlers.js` 薄适配层
+- ❌ `HookRegistry` / `before_prompt_build` → ✅ **无 Hook，无注入**
 
-在四层架构之上，v4.0.0 引入**项目上下文层**的概念：
+## 三层职责
 
-> 位于 OpenClaw 会话层之下的持久化协作层，通过标准化的项目目录结构和文件协议，使多个独立的 Agent 能够在同一项目中共享上下文、协作完成任务。
+### Agent 层
 
-**双系统平行运行**：
-- **Agent 自行行动系统**（文件系统）：Agent 直接写入 `tasks/{runId}.json`、事件文件、TODO.md 等所有项目文件
-- **史官系统**（插件记录系统）：插件只读取项目文件，将关键状态归档到系统层 Memory/Log
-
-**项目上下文层核心元件**（由 Agent 在目标项目中初始化创建）：
-
-| 元件 | 位置 | 职责 |
-|------|------|------|
-| 四文件契约 | 项目根目录 | README.md（总览）、metadata.json（机器架构）、SKILL.md（操作手册）、TODO.md（进度看板）|
-| .agent/ | 项目根目录隐藏目录 | events/（事件流）、locks/（并发控制）、decisions/（决策存档）、tasks/（任务索引）|
-| 业务目录 | 项目根目录 | uploads/（只读输入）、manuscripts/（草稿）、docs/（定稿）、knowledge/（知识）、temp/（临时）|
-| .agentignore | 项目根目录 | 可见性控制 |
-
-**上下文来源**：Agent 的上下文来自**文件系统**（`tasks/{runId}.json`、事件文件、TODO.md），而非系统层的 SQLite。系统层数据目前仅用于 Memory 归档和日志记录；查询/心跳统计为占位符。
-
----
-
-## 权力边界
-
-| 层级 | 权力边界 | 左侧输入 | 右侧输出 |
-|------|---------|---------|---------|
-| **用户层** | 任务所有者，拥有最终审核权和完成判定权 | 代理层的自然语言汇报、Plan 状态、执行结果 | 自然语言指令、确认反馈、审核意见 |
-| **代理层** | 任务执行者，自行决策、制定 Plan、管理 Session | 插件层的 skill 注入、执行上下文 | Plan 状态、Session 状态、执行结果 |
-| **插件层** | 工具层，只负责记录和注入无可争议的流程/参数 | 系统底层的 Hook 事件 | skill 文档、状态记录、API 调用 |
-| **系统底层** | 基础设施，提供持久化、任务流、状态、记忆、日志 | 插件层的 API 调用 | Hook 事件、数据持久化 |
-
-### 各层职责详解
-
-**用户层（User）**
-- ✅ 下达任务需求
-- ✅ 审核代理制定的 Plan
-- ✅ 确认/修改/取消 Plan
-- ✅ 判断任务是否完成
-- ❌ 不直接操作系统底层
-- ❌ 不直接管理 Session
-
-**代理层（Agent）**
 - ✅ 接收用户任务，制定 Plan
-- ✅ 向用户汇报 Plan，等待审核
-- ✅ 审核通过后，在 Session 中推进执行
-- ✅ 管理多个 Session，复用上下文
-- ✅ 向插件层上报状态
-- ❌ 不直接读写系统底层（通过插件层）
-- ❌ 不替用户做最终决策
+- ✅ 判断何时调用 Tool（创建、更新、推进、归档）
+- ✅ 直接读写项目文件（如 SKILL.md、TODO.md）
+- ❌ 不依赖插件做业务决策
 
-**插件层（Plugin）**
-- ✅ 注册 Plugin 生命周期事件处理器
-- ✅ 在事件触发时读写插件专属状态与记忆
-- ✅ 接收代理层状态，持久化到文件系统
-- ✅ 注入无可争议的流程/参数 skill
+### Tool 层
+
+- ✅ 通过 `api.registerTool()` 暴露 8 个命名空间工具
+- ✅ 接收 Agent 显式调用，执行原子文件操作
+- ✅ 返回结构化结果 `{ success, data }` 或 `{ error }`
+- ❌ 不主动注入任何内容
 - ❌ 不做业务决策
-- ❌ 不替代理制定 Plan
-- ❌ 只记录和传递，不判断
+- ❌ 不维护运行时状态
 
-**系统底层（文件系统）**
-- ✅ 提供 Plugin 事件总线
-- ✅ 插件专属目录结构
-- ✅ JSON 文件 + SQLite 数据库 + 文本持久化
+### 文件系统层
+
+- ✅ `.agent/tasks/{runId}.json` — 任务状态持久化
+- ✅ `.agent/events/{YYYY-MM-DD}/{runId}.md` — 事件归档（延迟生成）
+- ✅ `.agent/tasks/archive/` + `.agent/events/archive/` — 归档子目录
 - ❌ 不做业务逻辑
-- ❌ 不替代理或插件决策
-
----
+- ❌ 不替 Agent 或插件决策
 
 ## 数据流向
 
-| 方向 | 左侧输入（下层→上层） | 右侧输出（上层→下层） |
-|------|----------------------|----------------------|
-| 用户层 ↔ 代理层 | ↑ 自然语言汇报 | ↓ 自然语言指令 |
-| 代理层 ↔ 插件层 | ↑ 状态上报 | ↓ Skill 注入 |
-| 插件层 ↔ 系统层 | ↑ 文件读写 | ↓ Plugin 事件触发 |
+```
+Agent 调用 task.create({ prompt })
+    └→ handlers.create() ──→ objects/task.create()
+        └→ io.writeJson('.agent/tasks/{runId}.json', taskJSON)
 
----
+Agent 调用 task.update({ runId, status, deviation })
+    └→ handlers.update() ──→ objects/task.update()
+        └→ io.readJson() → 合并更新 → io.writeJson()
+
+Agent 调用 event.report({ runId })
+    └→ handlers.report() ──→ objects/event.report()
+        ├─→ 读取 task.json
+        ├─→ 渲染 templates/event.md
+        ├─→ io.writeMarkdown('.agent/events/{date}/{runId}.md')
+        └─→ 自动回写 task.json eventFilePath（通过 task.update）
+```
 
 ## 文件系统映射
 
-| 存储类型 | 数据库路径 | 格式 | 插件层调用 | 用途 | 状态 |
-|----------|-----------|------|-----------|------|------|
-| **Task** | `.agent/tasks/runs.sqlite` | SQLite | Task | 使用已有系统数据库 | [占位符] |
-| **Flow** | `.agent/flows/registry.sqlite` | SQLite | Flow | 使用已有系统数据库 | [占位符] |
-| **State** | `.agent/state/agent-self-development/` | JSON | State | Plan/Session/Deviation/Attribution 状态 | 保留 |
-| **Memory** | `.agent/memory/{agentId}.sqlite` | SQLite | Memory | 归档、事件记录 | 必需 |
-| **Log** | `.agent/logs/{agentId}.log` | 文本 | Log | 每个代理独立日志文件 | 必需 |
-| **Hook** | `.agent/hooks/agent-self-development/` | MD/TS | Hook | Hook 声明文件 | 保留 |
+| 存储类型 | 路径 | 格式 | 写入者 | 读取者 |
+|----------|------|------|--------|--------|
+| 活跃任务 | `.agent/tasks/{runId}.json` | JSON | Tool handler | Agent + Tool |
+| 归档任务 | `.agent/tasks/archive/{runId}.json` | JSON | Tool handler | Agent + Tool |
+| 事件文件 | `.agent/events/{YYYY-MM-DD}/{runId}.md` | Markdown | Tool handler | Agent + Tool |
+| 归档事件 | `.agent/events/archive/{date}-{runId}.md` | Markdown | Tool handler | Agent + Tool |
+| 任务模板 | `src/assets/task.json` | JSON | — | Tool handler |
+| 事件模板 | `src/assets/event.md` | Markdown | — | Tool handler |
 
-### v4.0.0 项目级文件系统映射（Agent 读写，插件读取）
+> **事件生成策略（v4.3.0）**：事件文件不增量追加，而是在任务完成后由 `event.report` **一次性生成**。这避免了执行期间频繁写事件文件的开销，也简化了并发控制。
 
-这些文件位于**被插件管理的项目**中，不在插件源码内：
+## 模块职责
 
-| 文件/目录 | 路径 | 格式 | 用途 |
-|-----------|------|------|------|
-| 项目级 Task 索引 | `.agent/tasks/{runId}.json` | JSON | 任务文件索引：文件列表、Agent 信息 |
-| 项目级 Event | `.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md` | Markdown | 事件文件：完整任务记录 |
-| 项目级 Lock | `.agent/locks/{file-path}.json` | JSON | 文件锁：并发控制 |
-| 项目级 README | `README.md` | Markdown | 项目总览 |
-| 项目级 metadata | `metadata.json` | JSON | 机器可读架构 |
-| 项目级 SKILL | `SKILL.md` | Markdown | 项目级操作手册 |
-| 项目级 TODO | `TODO.md` | Markdown | 进度看板 |
+| 模块 | 文件 | 职责 |
+|------|------|------|
+| **对象层** | `src/objects/task.js` | 5 个 task 裸函数：create/update/advance/get/archive |
+| **对象层** | `src/objects/event.js` | 3 个 event 裸函数：report/query/archive |
+| **工具层** | `src/tools/index.js` | 注册 8 个 tools 到 OpenClaw |
+| **工具层** | `src/tools/schemas.js` | 8 个 tool 的 parameters schema |
+| **工具层** | `src/tools/handlers.js` | 薄适配层：调用 objects 函数，包装返回值 |
+| **工具层** | `src/tools/return-adapter.js` | 统一返回格式 `adaptReturn` / `adaptError` |
+| **基础设施** | `src/utils/io.js` | 原子文件操作：ensureDir, readJson, writeJson, writeMarkdown |
+| **基础设施** | `src/utils/resolve.js` | 路径解析器：taskPath, archiveTaskPath, eventPath |
+| **基础设施** | `src/utils/validate.js` | runId / status / 状态转换校验 |
+| **基础设施** | `src/utils/helpers.js` | 生成器：getNow, generateRunId, generatePlan |
+| **入口** | `src/index.js` | 插件入口：调用 registerTools(api, context) |
 
-> **兼容性设计**：适配器构造函数接收 `(api, options)`，当 `api` 为 null 时回退到 JSON 文件。若未来 OpenClaw 暴露对应核心 API，传入真实 API 对象即可无缝切换。
+---
+
+*文档版本：v4.3.0*
+*最后更新：2026-05-19*
+*维护者：Developer*

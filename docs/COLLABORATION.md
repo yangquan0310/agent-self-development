@@ -73,7 +73,7 @@ description: >
 ## Developer 规则
 
 1. **开始任何任务前先阅读 `TODO.md`** — 确认任务及其验收标准
-2. **遵循 `skills/project-conventions/SKILL.md`** 中的编码标准与 Hook 合规要求
+2. **遵循 `skills/project-conventions/SKILL.md`** 中的编码标准与合规要求
 3. **完成任务后**，在最终回复末尾添加以下标记之一：
    - `[DOC_UPDATE: README]` — 若变更影响项目概览、安装说明或架构
    - `[DOC_UPDATE: SKILL]` — 若变更新增/修改了工具或工作流
@@ -89,7 +89,7 @@ description: >
 
 1. **对每次提交执行审查清单**：
    - 功能：变更是否完成了任务要求？
-   - 合规：是否遵循 Hook 规则与编码标准？
+   - 合规：是否遵循编码标准与架构约定？
    - 文档：`[DOC_UPDATE]` / `[DOC_SKIP]` 标记是否存在且正确？
    - 测试：测试是否通过？是否为新增行为补充了测试？
 2. **在审查末尾输出裁决**：
@@ -257,7 +257,7 @@ description: >
 | **接口规范 (`docs/specs/`)** | **Architect** | **Architect** | **Reviewer** | **接口定义、参数类型、返回值、数据流** |
 | **架构决策 (`docs/adr/`)** | **Architect** | **Architect** | **Reviewer** | **技术决策、架构权衡、边界定义** |
 | **架构设计 (`docs/architecture/`)** | **Architect** | **Architect** | **Reviewer** | **模块图、目录结构、工具命名、工作流** |
-| 技术参考 (`docs/reference/`) | Developer | Developer | Reviewer | 数据模型、Hook 参考、状态键 |
+| 技术参考 (`docs/reference/`) | Developer | Developer | Reviewer | 数据模型、架构参考、状态键 |
 | 变更日志 (`docs/changelog/`) | PM | PM | — | 版本变更摘要 |
 | 测试报告 (`docs/reports/`) | Developer | Developer | Reviewer | 审查报告、测试覆盖 |
 | 跨角色事件 (`.agent/sessions/`) | 所有角色 | 所有角色 | — | 角色间正式通讯记录 |
