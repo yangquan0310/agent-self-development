@@ -1,156 +1,262 @@
 ---
 name: project-conventions
 description: >
-  Coding conventions, hook compliance rules, and data model standards
-  for the agent-self-development plugin project.
-  Use when: (1) Writing or reviewing JavaScript code for this project,
-  (2) Adding new hooks, modules, or skills,
-  (3) Refactoring existing hook registration logic,
-  (4) Updating SKILL.md frontmatter or data model documentation.
+  agent-self-development 插件项目的编码规范、目录结构标准与数据模型约定。
+  适用场景：(1) 为项目编写或审查 JavaScript 代码，
+  (2) 新增工具或对象方法，
+  (3) 更新 SKILL.md 前言或数据模型文档。
 ---
 
-# Project Conventions
+# 项目规范
 
-Apply these standards when writing code for agent-self-development.
+为 agent-self-development 编写代码时遵循以下标准。
 
-## Hook Compliance — Red Lines
+## 目录结构（v4.3.0+）
 
-**Never** return `prependSystemContext` or `action` from pure observation hooks.
+v4.3.0 精简为工具插件后，`src/` 下仅保留四个目录：
 
-| Hook Type | Hooks | Can Inject | Can Return Action |
-|-----------|-------|------------|-------------------|
-| Decision/Injection | `before_prompt_build` | Yes | No |
-| Decision/Injection | `before_agent_finalize` | No | Yes `{action, reason, retry?}` |
-| Decision/Injection | `heartbeat_prompt_contribution` | Yes (`prependContext`) | No |
-| Pure Observation | `llm_output` | **No** | **No** |
-| Pure Observation | `agent_end` | **No** | **No** |
-| Pure Observation | `before_tool_call` / `after_tool_call` | No | No |
-| Pure Observation | `subagent_spawning` / `subagent_spawned` / `subagent_ended` | **No** | No |
+```
+src/
+├── index.js              # 插件入口：definePluginEntry + registerTools
+├── objects/              # 核心对象层
+│   ├── TaskObject.js     # task.json 全生命周期
+│   ├── EventObject.js    # event.md 生成器
+│   └── index.js          # 导出
+├── assets/               # 静态模板与资源
+│   ├── task.json         # Task 数据结构模板
+│   ├── event.md          # Event Markdown 模板
+│   └── templates/        # 可选 Skill 模板
+├── tools/                # 工具注册层
+│   ├── index.js          # 注册入口
+│   ├── task-tools.js     # task.* 工具实现
+│   ├── event-tools.js    # event.* 工具实现
+│   ├── schemas.js        # 工具参数 schema
+│   └── return-adapter.js # 返回值统一适配
+└── utils/                # 工具函数
+    ├── path.js           # 路径解析
+    ├── file.js           # 文件 IO（原子读写）
+    └── validate.js       # 校验工具
+```
 
-**Violation fix**: If a skill currently injects at `llm_output` or `agent_end`, refactor it to `before_prompt_build` with a status condition.
+**红线**：`src/` 下不得出现 `metacognition/`、`working-memory/`、`personality/`、`common/adapters/` 等旧目录。
 
-## Skill Injection Mapping
+---
 
-Register skills in `src/{module}/module.js` according to this mapping:
+## 命名规范
 
-| Task Status | Skill to Inject at `before_prompt_build` |
-|-------------|------------------------------------------|
-| No task | `planning` (assessment phase) |
-| `draft` | `planning` (planning phase) |
-| `pending_approval` | `planning` (reporting/handling feedback) |
-| `revising` | `planning` + revision context |
-| `active` | `monitoring` + execution context |
-| `completed` | `development` (personality review) |
+| 元素 | 规则 | 示例 |
+|------|------|------|
+| 类名 | 单一名词，PascalCase | `TaskObject`, `EventObject` |
+| 方法名 | 动词前缀，camelCase | `create()`, `recordDeviation()`, `generate()` |
+| 文件名 | 小写，与类名对应 | `task-object.js`（旧）→ `TaskObject.js`（v4.3.0 保留 PascalCase） |
+| 工具名 | 命名空间 + 动词，snake_case | `task.create`, `event.record` |
+| 常量 | 全大写 SNAKE_CASE | `VALID_STATUSES`, `STATE_MACHINE` |
 
-**Keep frontmatter aligned**: The `injected_at` field in every SKILL.md must match the actual hook registration in code. After changing hook registration, update the skill's frontmatter and its "Related Skills" cross-reference table.
+---
 
-## Naming Conventions
+## 对象层规范
 
-| Element | Rule | Example |
-|---------|------|---------|
-| Class name | Single noun, PascalCase | `Metacognition`, `WorkingMemory` |
-| Method name | Verb prefix, camelCase | `createPlan()`, `onBeforePromptBuild()` |
-| File name | Lowercase, match class | `module.js`, `plan.js` |
-| Module entry | Always `module.js` | `metacognition/module.js` |
-| Skill name | snake_case in frontmatter | `planning`, `monitoring` |
-
-## Module Structure
-
-Every new business module must follow this exact structure:
+### TaskObject
 
 ```javascript
-export class ModuleName {
-  constructor({ api, config, state, skills, logger, log, ...deps }) {
-    // Dependency injection
+export class TaskObject {
+  constructor(deps) {
+    // deps 仅注入：baseDir, logger, taskSchema, utils
+    // 禁止注入：state adapter, caseIndex, cognitiveTrace, events
   }
 
-  register() {
-    // Register all hooks here
-  }
+  // 核心生命周期方法
+  async create(params)           // 创建 task
+  async get(runId)               // 查询 task
+  async update(params)           // 更新状态
+  async advance(params)          // 推进阶段
+  async archive(runId)           // 归档
 
-  // Unified cleanup interface (v3.5.0+)
-  stop() {
-    // Release resources when Gateway stops
-  }
+  // 偏差与归因（v4.3.0 新增）
+  async recordDeviation(runId, { type, description, impact })
+  async recordAttribution(runId, { rootCause, strategy, impact, deviationIds })
+
+  // 结果与关联（v4.3.0 新增）
+  async setOutcome(runId, outcome)
+  async linkEventFile(runId, eventFilePath)
+
+  // 校验
+  validate(task)
 }
 ```
 
-## Error Handling
+### EventObject
 
-- Wrap adapter methods in try-catch. Log failures but do not block the flow.
-- Protect hook handlers so internal errors do not crash OpenClaw.
-- Close database connections in `gateway_stop` or `stop()`.
+```javascript
+export class EventObject {
+  constructor(deps) {
+    // deps 仅注入：logger, eventTemplate, baseDir
+  }
 
-## Data Model
+  // v4.3.0：task 完成后一次性凝练生成
+  async generate(runId, task)    // 从 task.json 生成 event.md
+  async query(filters)           // 扫描 .agent/events/{date}/
+  async archive(runId)           // 移动 event.md
+}
+```
 
-### Task JSON (v3.5.0+)
+**原则**：
+- TaskObject 是 `task.json` 的唯一写入者
+- EventObject 是 `event.md` 的唯一写入者
+- 两个对象**不互相调用**，Tool Handler 层负责协调
 
-Use flat top-level fields. Never nest under `event`.
+---
+
+## 工具注册规范
+
+### 注册方式
+
+使用 OpenClaw 新规范：
+
+```javascript
+api.registerTool({
+  name: 'task.create',
+  description: '创建 draft task',
+  parameters: { type: 'object', properties: { ... } },
+  async execute(_id, params) {
+    const result = await taskObject.create(params);
+    return adaptReturn(result);
+  }
+});
+```
+
+### 返回值格式
+
+所有工具统一返回：
+
+```javascript
+{
+  content: [{ type: 'text', text: JSON.stringify(result) }]
+}
+```
+
+错误时：
+
+```javascript
+{
+  content: [{ type: 'text', text: JSON.stringify({ error: '...' }) }],
+  isError: true
+}
+```
+
+通过 `src/tools/return-adapter.js` 统一包裹，业务层不处理格式。
+
+---
+
+## 数据模型
+
+### Task JSON（v4.3.0）
 
 ```json
 {
   "runId": "uuid",
   "status": "draft | pending_approval | active | revising | completed",
+  "taskType": "coding | research | documentation",
   "createdAt": 1234567890000,
   "updatedAt": 1234567890000,
-  "plan": { "prompt", "context", "workspace", "execution" },
-  "deviations": [],
-  "attributions": [],
-  "outcome": {},
+  "plan": {
+    "prompt": "...",
+    "context": { "goal", "constraints", "successCriteria" },
+    "workspace": { "artifacts", "tools", "skills" },
+    "execution": {
+      "phases": [
+        { "id", "name", "goal", "outputs", "status", "tools", "skills" }
+      ],
+      "currentPhase": 0
+    }
+  },
+  "deviations": [
+    { "id", "type", "description", "impact", "timestamp", "attributed", "attributionId" }
+  ],
+  "attributions": [
+    { "id", "rootCause", "strategy", "impact", "timestamp" }
+  ],
+  "outcome": { "summary", "deliverables", "lessonsLearned" },
   "sessionIds": [],
-  "tools": []
+  "tools": [],
+  "revisionReason": "",
+  "eventFilePath": ""
 }
 ```
 
-### Status Markers
+### Event Markdown（v4.3.0）
 
-Agent outputs these markers at the end of responses. `before_agent_finalize` parses them:
+文件路径：`./.agent/events/{YYYY-MM-DD}/{runId}.md`
 
+七章节结构：
+
+```markdown
+# Event: {runId}
+
+## 1. 元信息
+
+## 2. 计划
+
+## 3. 执行
+
+## 4. 变更记录
+
+## 5. 偏差
+
+## 6. 归因
+
+## 7. 结果
 ```
-[STATUS: pending_approval]
-[STATUS: active]
-[STATUS: revising] [REASON: xxx]
-[STATUS: completed]
-```
 
-## Development Principles
+**生成规则**：task 完成后，EventObject 从 task.json 一次性凝练渲染，不再增量追加。
 
-- **Minimal changes**: Only modify what is necessary. Do not refactor unrelated code.
-- **Backward compatibility**: Adapters must fall back to file system when `api === null`.
-- **Defensive programming**: Wrap optional hooks in try-catch or flag checks — they may not exist.
-- **Logging**: Use `[Module] message` prefix. Levels: `logger.debug/info/warn/error`.
-- **Version comments**: Add `// v3.x.y: description` for significant changes.
+---
 
-## State Keys
+## 错误处理
 
-| Key | Domain | Type | Lifecycle | Storage |
-|-----|--------|------|-----------|---------|
-| `task:{runId}` | State | Task JSON | runId | `state/tasks/{runId}.json` |
-| `session:{sessionId}` | State | Session | Long-term | `state/sessions.json` |
-| `working_memory:active_sessions` | State | Session[] | Global | `state/sessions.json` |
-| `prompt:${runId}` | State | String | runId | Cached by `before_prompt_build` |
+- 文件 IO 使用 try-catch，失败时返回 `{ error: '...' }` 而非抛出
+- 工具层捕获所有异常，通过 `adaptError()` 包裹后返回
+- 关闭资源（如数据库连接）在 `gateway_stop` 或进程退出时处理
 
-## File Map
+---
 
-| Path | Responsibility | Change Frequency |
-|------|---------------|------------------|
-| `src/index.js` | Plugin entry, dependency injection | Low |
-| `src/metacognition/module.js` | Hook registration and dispatch | Medium |
-| `src/metacognition/plan.js` | Plan business logic | Low |
-| `src/metacognition/deviation.js` | Deviation business logic | Low |
-| `src/metacognition/attribution.js` | Attribution business logic | Low |
-| `src/working-memory/module.js` | Session lifecycle hooks | Medium |
-| `src/working-memory/session.js` | Session business logic | Low |
-| `src/personality/module.js` | Personality hook registration | Medium |
-| `src/common/heartbeat.js` | Background monitoring | Low |
-| `src/common/adapters/*.js` | Adapter layer | Low |
+## 开发原则
 
-## External References
+- **最小变更**：只修改必要的部分，不重构无关代码
+- **对象边界**：TaskObject / EventObject 是各自文件的唯一写入者
+- **防御式编程**：工具参数校验在 Tool Handler 层和 Object 层双重进行
+- **日志前缀**：使用 `[TaskObject]` `[EventObject]` `[Tools]` 等模块前缀
+- **版本注释**：重大变更添加 `// v4.3.0: description`
 
-For detailed technical documentation beyond this skill, see:
+---
 
-- `../../docs/reference/data-model.md` — complete JSON schemas and state transition rules for all data objects
-- `../../docs/reference/hook-reference.md` — full hook type matrix and injection mapping by task status
-- `../../docs/reference/state-keys.md` — complete `ctx.state` key space reference
-- `../../docs/reference/object-model.md` — adapter layer, manager layer, and module class design
+## 文件映射
 
+| 路径 | 职责 | 变更频率 |
+|------|------|----------|
+| `src/index.js` | 插件入口，初始化对象，注册工具 | 低 |
+| `src/objects/TaskObject.js` | task.json 生命周期 + 业务规则 | 中 |
+| `src/objects/EventObject.js` | event.md 生成 + 查询 | 中 |
+| `src/tools/index.js` | 工具注册入口 | 低 |
+| `src/tools/task-tools.js` | task.* 工具实现 | 中 |
+| `src/tools/event-tools.js` | event.* 工具实现 | 中 |
+| `src/tools/schemas.js` | 工具参数 schema | 中 |
+| `src/tools/return-adapter.js` | 返回值格式适配 | 低 |
+| `src/utils/path.js` | 路径解析（getBaseDir 等） | 低 |
+| `src/utils/file.js` | 文件原子读写 | 低 |
+| `src/utils/validate.js` | task schema 校验 | 低 |
+| `src/assets/task.json` | Task 数据结构模板 | 低 |
+| `src/assets/event.md` | Event Markdown 模板 | 低 |
+
+---
+
+## 外部参考
+
+更多技术细节请参阅：
+
+- `docs/roadmap/v4.3.0.md` — 工具插件架构蓝图
+- `docs/specs/task-object-interface.md` — TaskObject 完整接口定义
+- `docs/specs/event-object-interface.md` — EventObject 完整接口定义
+- `docs/specs/tool-registry-interface.md` — Tool Registry 接口定义
+- `docs/reference/data-model.md` — 完整 JSON schema 与状态流转规则
+- `docs/COLLABORATION.md` — 跨角色协作协议与标记规范
