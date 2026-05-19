@@ -7,7 +7,10 @@
   "type": "native",
   "extensions": ["./src/index.js"],
   "minVersion": "2026.5.0",
-  "skills": [],
+  "skills": [
+    "./skills/task-management",
+    "./skills/event-management"
+  ],
   "configSchema": {
     "type": "object",
     "properties": {
