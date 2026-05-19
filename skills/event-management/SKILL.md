@@ -25,19 +25,23 @@ description: >
 
 ### 事件生成后的人格调节（重要）
 
-`event.report` 成功后会返回 `reflectionPrompt`，提示 Agent 回顾本次事件并考虑人格更新。
+`event.report` 成功后会返回 `reflectionPrompt`，提示 Agent 执行六维度平衡性判断。
 
 **调节闭环**：
 
 ```
 event.report({ runId }) → 生成 event.md（含"回顾与调节"章节）
-  → Agent 读取 event.md 中的偏差与归因
-  → Agent 决定是否执行同化/顺应
-  → Agent 直接更新人格文件（SOUL.md / IDENTITY.md / skills/README.md / MEMORY.md）
+  → Agent 读取 event.md 中的计划/执行/偏差/归因/结果
+  → 六维度平衡性判断（自我认知、风格、信念、身份、程序性记忆、技能）
+  → 对比现有结构与本次经验 → 判断是否不平衡
+  → 如不平衡：决定同化（修改细化）或顺应（增加创建）
+  → Agent 直接更新对应人格文件
 ```
 
-**同化**：成功经验与现有认知一致 → 强化 MEMORY.md 中的 If-Then 规则
-**顺应**：遭遇能力盲区或冲突 → 更新 SOUL.md / IDENTITY.md
+**同化**：新经验与现有结构兼容 → **修改/细化**原有内容
+**顺应**：新经验与现有结构冲突 → **增加/创建**新内容
+
+详见 [references/workflow.md](references/workflow.md) 六维度平衡性判断表。
 
 ### 生成事件报告
 
