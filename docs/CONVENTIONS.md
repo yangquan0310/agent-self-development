@@ -3,7 +3,7 @@ name: project-conventions
 description: >
   agent-self-development 插件项目的编码规范、目录结构标准与数据模型约定。
   适用场景：(1) 为项目编写或审查 JavaScript 代码，
-  (2) 新增工具或对象方法，
+  (2) 新增工具或 handler，
   (3) 更新 SKILL.md 前言或数据模型文档。
 ---
 
@@ -13,32 +13,28 @@ description: >
 
 ## 目录结构（v4.3.0+）
 
-v4.3.0 精简为工具插件后，`src/` 下仅保留四个目录：
+v4.3.0 采用**扁平化工具插件架构**：Tool Handler 直接读写文件，不引入对象层封装。
 
 ```
 src/
-├── index.js              # 插件入口：definePluginEntry + registerTools
-├── objects/              # 核心对象层
-│   ├── TaskObject.js     # task.json 全生命周期
-│   ├── EventObject.js    # event.md 生成器
-│   └── index.js          # 导出
-├── assets/               # 静态模板与资源
+├── index.js              # 插件入口：加载模板，注册工具
+├── tools/
+│   ├── index.js          # 注册入口：遍历 schemas + handlers 注册
+│   ├── schemas.js        # 工具参数 JSON Schema
+│   ├── handlers.js       # 工具 handler 实现（直接操作文件）
+│   └── adapter.js        # 返回值统一适配
+├── templates/
 │   ├── task.json         # Task 数据结构模板
 │   ├── event.md          # Event Markdown 模板
 │   └── templates/        # 可选 Skill 模板
-├── tools/                # 工具注册层
-│   ├── index.js          # 注册入口
-│   ├── task-tools.js     # task.* 工具实现
-│   ├── event-tools.js    # event.* 工具实现
-│   ├── schemas.js        # 工具参数 schema
-│   └── return-adapter.js # 返回值统一适配
-└── utils/                # 工具函数
-    ├── path.js           # 路径解析
-    ├── file.js           # 文件 IO（原子读写）
-    └── validate.js       # 校验工具
+└── utils/
+    ├── io.js             # 文件 IO 原子操作（readJson / writeJson / ensureDir / moveFile）
+    └── resolve.js        # 路径解析（taskPath / eventPath / archivePath）
 ```
 
-**红线**：`src/` 下不得出现 `metacognition/`、`working-memory/`、`personality/`、`common/adapters/` 等旧目录。
+**红线**：
+- `src/` 下不得出现 `metacognition/`、`working-memory/`、`personality/`、`common/adapters/` 等旧目录
+- **不得引入 `objects/` 目录** — v4.3.0 放弃对象层封装，Handler 直接操作文件
 
 ---
 
@@ -46,85 +42,79 @@ src/
 
 | 元素 | 规则 | 示例 |
 |------|------|------|
-| 类名 | 单一名词，PascalCase | `TaskObject`, `EventObject` |
-| 方法名 | 动词前缀，camelCase | `create()`, `recordDeviation()`, `generate()` |
-| 文件名 | 小写，与类名对应 | `task-object.js`（旧）→ `TaskObject.js`（v4.3.0 保留 PascalCase） |
-| 工具名 | 命名空间 + 动词，snake_case | `task.create`, `event.record` |
+| 函数名 | 动词前缀，camelCase | `createTask()`, `updateTask()`, `generateReport()` |
+| 文件名 | 小写，语义化 | `handlers.js`, `schemas.js`, `adapter.js` |
+| 工具名 | 命名空间 + 动词，snake_case | `task.create`, `event.report` |
 | 常量 | 全大写 SNAKE_CASE | `VALID_STATUSES`, `STATE_MACHINE` |
 
 ---
 
-## 对象层规范
+## Handler 层规范
 
-### TaskObject
+### 设计原则
+
+- **直接 IO**：Handler 直接调用 `utils/io.js` 读写文件，不通过中间对象
+- **纯函数倾向**：Handler 接收 `(params, context)`，返回结果对象，副作用仅限于文件 IO
+- **校验双重化**：JSON Schema（Tool 层）+ 运行时校验（Handler 层）
+- **错误返回**：所有错误返回 `{ error: '...' }`，不抛出异常
+
+### Handler 签名
 
 ```javascript
-export class TaskObject {
-  constructor(deps) {
-    // deps 仅注入：baseDir, logger, taskSchema, utils
-    // 禁止注入：state adapter, caseIndex, cognitiveTrace, events
-  }
-
-  // 核心生命周期方法
-  async create(params)           // 创建 task
-  async get(runId)               // 查询 task
-  async update(params)           // 更新状态
-  async advance(params)          // 推进阶段
-  async archive(runId)           // 归档
-
-  // 偏差与归因（v4.3.0 新增）
-  // ID 规则：dev-${timestamp}-${random4} / attr-${timestamp}-${random4}
-  async recordDeviation(runId, { type, description, impact })
-  async recordAttribution(runId, { rootCause, strategy, impact, deviationIds })
-  // deviationIds?: string[] — 不提供则标记全部未归因偏差；提供则只标记指定 ID
-
-  // 结果与关联（v4.3.0 新增）
-  // setOutcome 采用浅合并：task.outcome = { ...task.outcome, ...params.outcome }
-  // deliverables 数组直接替换，不追加
-  async setOutcome(runId, outcome)
-  async linkEvent(runId, eventFilePath)
-
-  // 校验
-  validate(task)
+// handlers.js
+export async function createTask(params, context) {
+  // params: 经 JSON Schema 校验后的工具参数
+  // context: { templates, logger, baseDir }
+  // 返回: { task } 或 { error: '...' }
 }
 ```
 
-### EventObject
+### 6 个工具 Handler
 
 ```javascript
-export class EventObject {
-  constructor(deps) {
-    // deps 仅注入：logger, eventTemplate, baseDir
-  }
+// 任务管理
+export async function createTask(params, context)     // 写 .agent/tasks/{runId}.json
+export async function updateTask(params, context)     // 读 → 改 → 写 task.json
+export async function advanceTask(params, context)    // 读 → 推进 phase → 写
+export async function getTask(params, context)        // 读 task.json（活跃+归档双路径）
+export async function archiveTask(params, context)    // 移动 task.json → archive/
 
-  // v4.3.0：task 完成后一次性凝练生成
-  // generate 内部扫描双路径容错：.agent/tasks/{runId}.json → .agent/tasks/archive/{runId}.json
-  // 推荐调用顺序：event.record 先于 task.archive
-  async generate(runId)          // 读取 task.json → 生成 event.md
-  async query(filters)           // 扫描 .agent/events/{date}/
-  async archive(runId)           // 移动 event.md
+// 事件报告
+export async function reportEvent(params, context)    // 读 task.json → 渲染 → 写 event.md
+```
+
+### updateTask 参数（万能更新）
+
+```javascript
+{
+  runId: string,                    // 必填
+  status?: string,                  // 状态变更（状态机校验）
+  reason?: string,                  // 变更原因（日志用，不持久化）
+  deviation?: {                     // 记录偏差
+    type: string,
+    description: string,
+    impact?: string
+  },
+  attribution?: {                   // 记录归因
+    rootCause: string,
+    strategy: string,
+    impact?: string,
+    deviationIds?: string[]         // 精确关联；不提供则标记全部未归因
+  },
+  outcome?: {                       // 设置结果（浅合并）
+    summary?: string,
+    deliverables?: string[],
+    lessonsLearned?: string
+  },
+  eventFilePath?: string            // 关联 event.md
 }
 ```
 
-**字段-方法映射（对齐校验表）**：
-
-| task.json 字段 | 写入方法 | 说明 |
-|---------------|---------|------|
-| `runId` | `create()` | 初始化后不可变 |
-| `status` | `create()` / `update()` / `advance()` | `advance()` 在阶段完成时自动设为 `completed` |
-| `taskType` | `create()` | 初始化后不可变 |
-| `createdAt` | `create()` | 初始化后不可变 |
-| `updatedAt` | `create()` / `update()` / `advance()` / `recordDeviation()` / `recordAttribution()` / `setOutcome()` / `linkEvent()` | 任何写入操作自动刷新 |
-| `plan.*` | `create()` | 初始化后不可变（阶段状态除外，由 `advance()` 修改） |
-| `deviations[]` | `recordDeviation()` | 追加，id 按 `dev-${timestamp}-${random4}` 生成 |
-| `attributions[]` | `recordAttribution()` | 追加，id 按 `attr-${timestamp}-${random4}` 生成；同步标记偏差 `attributed` |
-| `outcome` | `setOutcome()` | 浅合并 `{ ...old, ...new }`，`deliverables` 替换不追加 |
-| `eventFilePath` | `linkEvent()` | 通常在 `EventObject.generate()` 成功后由 Tool Handler 调用 |
-
-**原则**：
-- TaskObject 是 `task.json` 的唯一写入者
-- EventObject 是 `event.md` 的唯一写入者
-- 两个对象**不互相调用**，Tool Handler 层负责协调
+**业务规则**：
+- `deviation` 追加到 `task.deviations[]`，id 按 `dev-${timestamp}-${random4}` 生成
+- `attribution` 追加到 `task.attributions[]`，id 按 `attr-${timestamp}-${random4}` 生成
+- `outcome` 浅合并：`task.outcome = { ...task.outcome, ...params.outcome }`，`deliverables` 替换不追加
+- 任何写入自动刷新 `task.updatedAt = Date.now()`
 
 ---
 
@@ -132,15 +122,13 @@ export class EventObject {
 
 ### 注册方式
 
-使用 OpenClaw 新规范：
-
 ```javascript
 api.registerTool({
   name: 'task.create',
   description: '创建 draft task',
   parameters: { type: 'object', properties: { ... } },
   async execute(_id, params) {
-    const result = await taskObject.create(params);
+    const result = await handlers.createTask(params, context);
     return adaptReturn(result);
   }
 });
@@ -165,7 +153,7 @@ api.registerTool({
 }
 ```
 
-通过 `src/tools/return-adapter.js` 统一包裹，业务层不处理格式。
+通过 `src/tools/adapter.js` 统一包裹，业务层不处理格式。
 
 ---
 
@@ -226,7 +214,7 @@ api.registerTool({
 ## 7. 结果
 ```
 
-**生成规则**：task 完成后，EventObject 从 task.json 一次性凝练渲染，不再增量追加。
+**生成规则**：task 完成后，`event.report` 从 task.json 一次性凝练渲染，不再增量追加。
 
 ---
 
@@ -241,9 +229,9 @@ api.registerTool({
 ## 开发原则
 
 - **最小变更**：只修改必要的部分，不重构无关代码
-- **对象边界**：TaskObject / EventObject 是各自文件的唯一写入者
-- **防御式编程**：工具参数校验在 Tool Handler 层和 Object 层双重进行
-- **日志前缀**：使用 `[TaskObject]` `[EventObject]` `[Tools]` 等模块前缀
+- **扁平化**：Handler 直接操作文件，不引入中间抽象
+- **防御式编程**：工具参数校验在 Tool Handler 层和 Handler 函数内部双重进行
+- **日志前缀**：使用 `[task.create]` `[event.report]` 等工具名前缀
 - **版本注释**：重大变更添加 `// v4.3.0: description`
 
 ---
@@ -252,29 +240,21 @@ api.registerTool({
 
 | 路径 | 职责 | 变更频率 |
 |------|------|----------|
-| `src/index.js` | 插件入口，初始化对象，注册工具 | 低 |
-| `src/objects/TaskObject.js` | task.json 生命周期 + 业务规则 | 中 |
-| `src/objects/EventObject.js` | event.md 生成 + 查询 | 中 |
+| `src/index.js` | 插件入口，加载模板，注册工具 | 低 |
 | `src/tools/index.js` | 工具注册入口 | 低 |
-| `src/tools/task-tools.js` | task.* 工具实现 | 中 |
-| `src/tools/event-tools.js` | event.* 工具实现 | 中 |
 | `src/tools/schemas.js` | 工具参数 schema | 中 |
-| `src/tools/return-adapter.js` | 返回值格式适配 | 低 |
-| `src/utils/path.js` | 路径解析（getBaseDir 等） | 低 |
-| `src/utils/file.js` | 文件原子读写 | 低 |
-| `src/utils/validate.js` | task schema 校验 | 低 |
-| `src/assets/task.json` | Task 数据结构模板 | 低 |
-| `src/assets/event.md` | Event Markdown 模板 | 低 |
+| `src/tools/handlers.js` | 工具 handler 实现（直接文件 IO） | 中 |
+| `src/tools/adapter.js` | 返回值格式适配 | 低 |
+| `src/utils/resolve.js` | 路径解析 | 低 |
+| `src/utils/io.js` | 文件原子读写 | 低 |
+| `src/templates/task.json` | Task 数据结构模板 | 低 |
+| `src/templates/event.md` | Event Markdown 模板 | 低 |
 
 ---
 
 ## 外部参考
 
-更多技术细节请参阅：
-
-- `docs/roadmap/v4.3.0.md` — 工具插件架构蓝图
-- `docs/specs/task-object-interface.md` — TaskObject 完整接口定义
-- `docs/specs/event-object-interface.md` — EventObject 完整接口定义
-- `docs/specs/tool-registry-interface.md` — Tool Registry 接口定义
-- `docs/reference/data-model.md` — 完整 JSON schema 与状态流转规则
-- `docs/COLLABORATION.md` — 跨角色协作协议与标记规范
+- `../../docs/roadmap/v4.3.0.md` — 工具插件架构蓝图
+- `../../docs/specs/` — 接口规范（扁平化 handler 层）
+- `../../docs/adr/adr-014.md` — 扁平化架构决策记录
+- `../../docs/COLLABORATION.md` — 跨角色协作协议与标记规范
