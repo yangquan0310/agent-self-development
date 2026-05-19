@@ -1,7 +1,7 @@
 /**
  * Agent Self-Development — v4.3.0
  *
- * 插件入口。暴露 initialize(api, config) 接口。
+ * OpenClaw 插件入口。暴露 register(api) 接口。
  */
 
 import { registerTools } from './tools/index.js';
@@ -26,7 +26,8 @@ async function loadTemplates() {
   return templates;
 }
 
-export async function initialize(api, config = {}) {
+export async function register(api) {
+  const config = api.config || {};
   const baseDir = config.baseDir || process.cwd();
   const logger = api.logger;
   const templates = await loadTemplates();
@@ -34,12 +35,12 @@ export async function initialize(api, config = {}) {
   const context = { baseDir, templates, logger };
   registerTools(api, context);
 
-  logger?.info(`[agent-self-development] 8 个工具已注册`);
+  logger?.info('[agent-self-development] 8 个工具已注册');
 }
 
 export default {
   id: 'agent-self-development',
   name: 'Agent Self-Development',
   version: '4.3.0',
-  initialize
+  register
 };

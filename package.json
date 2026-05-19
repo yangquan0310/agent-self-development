@@ -30,5 +30,7 @@
   "scripts": {
     "test": "node --test test/handlers.test.js test/handlers-edge.test.js test/utils.test.js test/registry.test.js"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.49"
+  }
 }
