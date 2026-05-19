@@ -6,7 +6,8 @@ description: >
   (1) Coordinate work with other agents on this project,
   (2) Apply collaboration markers in your outputs,
   (3) Resolve role conflicts or scope disagreements,
-  (4) Determine whether a change needs documentation updates.
+  (4) Determine whether a change needs documentation updates,
+  (5) Format cross-role communications using the 4-section template.
 ---
 
 # Multi-Agent Collaboration Protocol
@@ -89,6 +90,108 @@ Determine your current role from the task assignment, then follow the correspond
 | `[WARNING]` | Potential issue | Reviewer |
 | `[SUGGESTION]` | Optional improvement | Reviewer |
 | `[DOC_MISSING]` | Doc out of sync | Reviewer |
+
+---
+
+## Cross-Role Communication Protocol
+
+When one role needs to formally communicate status, blockers, or decisions to another role, use the **4-Section Template** below. This replaces informal chat-style updates and ensures all critical information is structured and actionable.
+
+### When to Use
+
+- Architect finishes a design deliverable and reports to PM
+- Developer completes a milestone and reports to PM / Reviewer
+- PM issues a scope change or decision to any role
+- Reviewer publishes findings that require follow-up
+- Any role discovers a blocker that requires escalation
+
+### Where to Post
+
+1. **Primary**: Create a file under `.agent/sessions/{YYYY-MM-DD}/` using the naming convention:
+   ```
+   {HH-MM-SS}-{source-role}-to-{target-role}-{topic}.md
+     ```
+   Example: `13-38-42-architect-to-pm-specs-ready.md`
+2. **Secondary**: Reference the session file in `TODO.md` or chat to notify the target role.
+
+### 4-Section Template
+
+Copy this template for every formal cross-role communication:
+
+```markdown
+# {Source Role} → {Target Role}：{Topic}
+
+> **事件类型**：{status-report | scope-change | blocker | decision | review}  
+> **来源**：{Role}  
+> **目标角色**：{Role}  
+> **日期**：{YYYY-MM-DD}  
+> **关联文档**：`path/to/doc.md`
+
+---
+
+## 1. 问题（Issues）
+
+当前已识别的问题列表。每条问题需说明严重度和当前状态。
+
+| ID | 问题描述 | 严重度 | 提出者 | 状态 |
+|----|---------|--------|--------|------|
+| I1 | {一句话描述} | 🔴 阻塞 / 🟡 中 / 🟢 低 | {Role} | ✅ 已解决 / 🚧 进行中 / ⏳ 待处理 |
+
+---
+
+## 2. 已解决（Resolved）
+
+本周期内已关闭的问题及其解决方案。
+
+| ID | 问题 | 解决方案 | 解决者 | 日期 |
+|----|------|---------|--------|------|
+| R1 | {引用问题 ID 或简述} | {具体做法} | {Role} | {YYYY-MM-DD} |
+
+---
+
+## 3. 待解决（Pending）
+
+需要目标角色关注或决策的开放事项。
+
+| ID | 问题 | 阻塞原因 | 负责人 | 截止日期 |
+|----|------|---------|--------|----------|
+| P1 | {简述} | {为什么还没做} | {Role} | {YYYY-MM-DD} |
+
+---
+
+## 4. 建议（Suggestions）
+
+非阻塞性的改进建议，供目标角色参考。
+
+| ID | 建议内容 | 提出者 | 优先级 | 状态 |
+|----|---------|--------|--------|------|
+| S1 | {具体建议} | {Role} | 🔴 高 / 🟡 中 / 🟢 低 | 待确认 / 已采纳 / 已否决 |
+
+---
+
+*事件创建：{Role}*  
+*日期：{YYYY-MM-DD}*  
+*`{[MARKER]}`*
+```
+
+### Severity Legend
+
+| 图标 | 含义 | 响应时限 |
+|------|------|----------|
+| 🔴 | 阻塞 — 当前工作无法继续 | 立即响应 |
+| 🟡 | 中 — 影响进度或质量，但有绕行方案 | 24 小时内 |
+| 🟢 | 低 — 建议或优化，不阻塞任何工作 | 下次同步时 |
+
+### Status Legend
+
+| 图标 | 含义 |
+|------|------|
+| ✅ | 已解决 / 已完成 / 已采纳 |
+| 🚧 | 进行中 |
+| ⏳ | 待处理 / 待确认 |
+| ❌ | 已否决 / 已关闭但不解决 |
+
+---
 
 ## Conflict Resolution
 
