@@ -1,79 +1,80 @@
 ---
 name: event-management
 description: >
-  Guide Agent to use event.* namespace tools for event file lifecycle management.
-  Use this skill when the Agent needs to: (1) generate an event summary report
-  after a task is completed, (2) query historical event records,
-  (3) archive an event file that is no longer frequently accessed.
-  Do not use when creating or updating tasks (use task-management skill instead).
+  指导 Agent 使用 event.* 命名空间工具管理事件文件生命周期。
+  当 Agent 需要执行以下操作时触发本技能：
+  (1) 任务完成后生成事件总结报告，
+  (2) 查询历史事件记录，
+  (3) 归档不再需要频繁访问的事件文件。
+  如果涉及任务的创建或更新，请使用 task-management 技能。
 ---
 
-# Event Management
+# 事件管理
 
-Manage event file lifecycle via `event.*` namespace tools.
+通过 `event.*` 命名空间工具管理事件文件生命周期。
 
-## 3 Tools
+## 3 个工具
 
-| Tool | Purpose | Trigger |
-|------|---------|---------|
-| `event.report` | Generate event file | Task completed, need summary from task.json |
-| `event.query` | Query events | Review historical deviations/attributions/summaries |
-| `event.archive` | Archive event | Event file no longer needed in active directory |
+| 工具 | 用途 | 触发时机 |
+|------|------|----------|
+| `event.report` | 生成事件文件 | 任务已完成，需要从 task.json 凝练生成事件总结 |
+| `event.query` | 查询事件 | 回顾历史偏差、归因或任务总结 |
+| `event.archive` | 归档事件 | 事件文件不再需要频繁访问 |
 
-## Core Workflows
+## 核心工作流
 
-### Generate Event Report
+### 生成事件报告
 
 ```
-1. Task status is "completed"
-2. Call event.report({ runId })
-   - Reads task.json (active → archive fallback)
-   - Renders event.md from template
-   - Writes to `.agent/events/{YYYY-MM-DD}/{runId}.md`
-   - Auto-updates task.json `eventFilePath`
-3. Returns { eventFilePath }
+1. 确认任务状态为 "completed"
+2. 调用 event.report({ runId })
+   - 读取对应 task.json（活跃目录 → 归档目录回退）
+   - 使用模板渲染 event.md
+   - 写入 `.agent/events/{YYYY-MM-DD}/{runId}.md`
+   - 自动回写 eventFilePath 到 task.json
+3. 返回 { eventFilePath }
 ```
 
-Requirements:
-- `task.status === "completed"` or rejected
-- One-time generation, not incremental
+要求：
+- `task.status === "completed"`，否则拒绝生成
+- 一次性生成，非增量追加
 
-### Query Events
+### 查询事件
 
 ```
 event.query({ runId?, date?, type? })
 ```
 
-- `runId`: exact match
-- `date`: YYYY-MM-DD format
-- `type`: `"deviation"` | `"attribution"` (optional filter)
+- `runId`：精确匹配任务 ID
+- `date`：YYYY-MM-DD 格式
+- `type`：`"deviation"` | `"attribution"`（可选筛选）
 
-### Archive Event
+### 归档事件
 
 ```
 event.archive({ runId })
 ```
 
-- Moves event.md to `.agent/events/archive/{date}-{runId}.md`
+- 移动 event.md 到 `.agent/events/archive/{日期}-{runId}.md`
 
-## Task-Event Collaboration
+## 任务与事件的协作关系
 
 ```
-task.create → [execution: task.advance / task.update] → task.completed
-  → event.report({ runId }) → [optional] event.archive({ runId })
+task.create → [执行：task.advance / task.update] → 任务完成
+  → event.report({ runId }) → [可选] event.archive({ runId })
   → task.archive({ runId })
 ```
 
-**Timing**: Call `event.report` before `task.archive` so task.json is still in active directory.
+**时机建议**：在 `task.archive` 之前调用 `event.report`，此时 task.json 仍在活跃目录中便于读取。
 
-## References
+## 参考资料
 
-- **Detailed workflows**: See [references/workflow.md](references/workflow.md) for event report internals, query patterns, and archive rules
-- **Event template**: See [references/template.md](references/template.md) for event.md structure and rendering rules
+- **详细工作流**：[references/workflow.md](references/workflow.md) — 事件报告内部流程、查询模式、归档规则
+- **事件模板**：[references/template.md](references/template.md) — event.md 结构说明和渲染规则
 
-## Key Rules
+## 关键规则
 
-- **One-time generation**: event.report renders complete event.md from current task.json state
-- **No incremental append**: All data lives in task.json during execution; event.md generated once at completion
-- **Auto-association**: event.report automatically writes eventFilePath back to task.json
-- **Read-only query**: event.query does not modify any files
+- **一次性生成**：event.report 从当前 task.json 状态完整渲染 event.md
+- **不增量追加**：执行期间所有数据写入 task.json，完成后一次性生成事件文件
+- **自动关联**：event.report 自动将 eventFilePath 回写到 task.json
+- **只读查询**：event.query 不修改任何文件

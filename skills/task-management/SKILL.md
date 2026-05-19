@@ -1,56 +1,56 @@
 ---
 name: task-management
 description: >
-  Guide Agent to use task.* namespace tools for full task lifecycle management.
-  Use this skill when the Agent needs to: (1) create a new task from user requirements,
-  (2) update task status or record deviations/attributions/outcomes,
-  (3) advance to the next phase of a multi-phase task,
-  (4) query task status or history,
-  (5) archive a completed task.
-  Do not use when only reading project files or when the task involves event reporting
-  (use event-management skill instead).
+  指导 Agent 使用 task.* 命名空间工具管理任务全生命周期。
+  当 Agent 需要执行以下操作时触发本技能：
+  (1) 根据用户需求在项目中执行任务，
+  (2) 更新任务状态或记录偏差/归因/结果，
+  (3) 推进多阶段任务的下一阶段，
+  (4) 查询任务进度或历史状态，
+  (5) 归档已完成的任务。
+  如果仅涉及事件报告（生成 event.md），请使用 event-management 技能。
 ---
 
-# Task Management
+# 任务管理
 
-Manage task full lifecycle via `task.*` namespace tools.
+通过 `task.*` 命名空间工具管理任务全生命周期。
 
-## 5 Tools
+## 5 个工具
 
-| Tool | Purpose | Trigger |
-|------|---------|---------|
-| `task.create` | Create draft task | New requirement received, need a plan |
-| `task.update` | Universal update entry | Status change, deviation, attribution, outcome, eventFilePath |
-| `task.advance` | Advance phase | Current phase completed |
-| `task.get` | Query task | Need to check progress or history |
-| `task.archive` | Archive task | Task completed, clean up active directory |
+| 工具 | 用途 | 触发时机 |
+|------|------|----------|
+| `task.create` | 创建 draft 任务 | 收到新需求，需要制定计划 |
+| `task.update` | 通用更新入口 | 状态变更、记录偏差、记录归因、记录结果、关联事件文件 |
+| `task.advance` | 推进阶段 | 当前阶段已完成 |
+| `task.get` | 查询任务 | 需要查看进度或历史状态 |
+| `task.archive` | 归档任务 | 任务已完成，清理活跃目录 |
 
-## Core Workflows
+## 核心工作流
 
-### Create Task
+### 创建任务
 
 ```
 task.create({
-  prompt: "user requirement",
+  prompt: "用户需求",
   taskType?: "task | coding | research | documentation",
   planInput?: { goal, constraints, successCriteria, phases }
 })
 ```
 
-- `runId` auto-generated if omitted
-- Returns task JSON; show plan to user for confirmation
+- `runId` 可省略，系统自动生成
+- 返回 task JSON，向用户展示计划等待确认
 
-### Advance Phase
+### 推进阶段
 
 ```
 task.advance({ runId, phaseId? })
 ```
 
-- Check `isComplete` in response:
-  - `true` → task done, proceed to outcome recording + event report + archive
-  - `false` → continue next phase
+- 检查返回的 `isComplete`：
+  - `true` → 全部完成，进入结果记录 + 事件生成 + 归档
+  - `false` → 继续下一阶段
 
-### Record Deviation (via task.update)
+### 记录偏差（通过 task.update）
 
 ```
 task.update({
@@ -59,9 +59,9 @@ task.update({
 })
 ```
 
-Types: `scope_creep`, `technical_debt`, `output_mismatch`, `doc_lag`, `context_loss`, `file_mismatch`, `other`
+偏差类型：`scope_creep`（范围蔓延）、`technical_debt`（技术债务）、`output_mismatch`（输出不符）、`doc_lag`（文档滞后）、`context_loss`（上下文丢失）、`file_mismatch`（文件不匹配）、`other`
 
-### Record Attribution (via task.update)
+### 记录归因（通过 task.update）
 
 ```
 task.update({
@@ -70,7 +70,7 @@ task.update({
 })
 ```
 
-### Record Outcome (via task.update)
+### 记录结果（通过 task.update）
 
 ```
 task.update({
@@ -79,7 +79,7 @@ task.update({
 })
 ```
 
-### Status Transitions
+### 状态转换
 
 ```
 draft → pending_approval → active → completed
@@ -87,16 +87,16 @@ draft → pending_approval → active → completed
                     ↓ revising → draft
 ```
 
-All status changes via `task.update({ status })`.
+所有状态变更通过 `task.update({ status })` 完成。
 
-## References
+## 参考资料
 
-- **Detailed workflows**: See [references/workflow.md](references/workflow.md) for step-by-step guides with full parameter examples
-- **Data schema**: See [references/schema.md](references/schema.md) for complete Task JSON field reference
+- **详细工作流**：[references/workflow.md](references/workflow.md) — 包含完整参数示例的分步指南
+- **数据结构**：[references/schema.md](references/schema.md) — 完整的 Task JSON 字段参考
 
-## Key Rules
+## 关键规则
 
-- **task.update is the only update entry** — all changes (status/deviation/attribution/outcome/eventFilePath) go through it
-- **Do not read/write task.json directly** — all operations via tool calls
-- **Archive is irreversible** — task.json moves to `.agent/tasks/archive/`
-- **task.get supports dual-path fallback** — checks active dir first, then archive dir
+- **task.update 是唯一更新入口** — 所有变更（状态/偏差/归因/结果/事件路径）都通过它完成
+- **不要直接读写 task.json** — 所有操作通过工具调用
+- **归档不可逆** — task.json 移动到 `.agent/tasks/archive/`
+- **task.get 支持双路径回退** — 先查活跃目录，再查归档目录

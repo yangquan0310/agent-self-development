@@ -1,95 +1,95 @@
-# Event Management Workflows
+# 事件管理工作流
 
-Detailed guides for event report generation, querying, and archiving.
+事件报告生成、查询和归档的详细指南。
 
-## Generate Event Report
+## 生成事件报告
 
 ```
-1. Ensure task.status === "completed"
-   - If not completed, event.report will reject
-2. Call event.report({ runId })
-3. Internal process:
-   a. Read task.json from `.agent/tasks/{runId}.json`
-   b. If not found in active dir, fallback to `.agent/tasks/archive/{runId}.json`
-   c. Validate task.status === "completed"
-   d. Load event.md template from `src/assets/event.md`
-   e. Render markdown with task data:
-      - Metadata: runId, status, taskType, createdAt, completedAt
-      - Plan: goal, constraints, successCriteria, phases
-      - Execution: phase completion status
-      - Deviation: all deviation records
-      - Attribution: all attribution records
-      - Outcome: summary, artifacts, metrics
-   f. Determine date from `task.createdAt` → `YYYY-MM-DD`
-   g. Write to `.agent/events/{YYYY-MM-DD}/{runId}.md`
-   h. Call task.update({ runId, eventFilePath }) to associate
-4. Returns { eventFilePath }
+1. 确认 task.status === "completed"
+   - 如未完成，event.report 将拒绝执行
+2. 调用 event.report({ runId })
+3. 内部流程：
+   a. 读取 task.json，路径：`.agent/tasks/{runId}.json`
+   b. 如活跃目录未找到，回退到 `.agent/tasks/archive/{runId}.json`
+   c. 校验 task.status === "completed"
+   d. 加载模板 `src/assets/event.md`
+   e. 使用 task 数据渲染 Markdown：
+      - 元信息：runId、status、taskType、createdAt、completedAt
+      - 计划：goal、constraints、successCriteria、phases
+      - 执行：各阶段完成状态
+      - 偏差：所有偏差记录
+      - 归因：所有归因记录
+      - 结果：summary、artifacts、metrics
+   f. 从 task.createdAt 解析日期 → `YYYY-MM-DD`
+   g. 写入 `.agent/events/{YYYY-MM-DD}/{runId}.md`
+   h. 调用 task.update({ runId, eventFilePath }) 自动关联
+4. 返回 { eventFilePath }
 ```
 
-## Query Events
+## 查询事件
 
 ```
 event.query({ runId?, date?, type? })
 ```
 
-### By runId
+### 按 runId 查询
 
 ```
 event.query({ runId: "20260519-abc123" })
-→ Returns events matching exact runId
+→ 返回匹配该 runId 的所有事件
 ```
 
-### By Date
+### 按日期查询
 
 ```
 event.query({ date: "2026-05-19" })
-→ Returns all events from that date
+→ 返回该日期下的所有事件
 ```
 
-### By Type
+### 按类型查询
 
 ```
 event.query({ type: "deviation" })
-→ Returns events filtered to deviation records
+→ 返回仅包含偏差记录的事件
 ```
 
-### Combined
+### 组合查询
 
 ```
 event.query({ runId: "20260519-abc123", type: "attribution" })
-→ Returns attribution records for specific task
+→ 返回指定任务的归因记录
 ```
 
-## Archive Event
+## 归档事件
 
 ```
-1. Event file exists and no longer frequently accessed
-2. Call event.archive({ runId })
-3. System:
-   a. Locate event.md in `.agent/events/{date}/{runId}.md`
-   b. Move to `.agent/events/archive/{date}-{runId}.md`
-4. Returns { success, archivePath }
+1. 确认事件文件存在且不再需要频繁访问
+2. 调用 event.archive({ runId })
+3. 系统执行：
+   a. 定位 `.agent/events/{日期}/{runId}.md`
+   b. 移动到 `.agent/events/archive/{日期}-{runId}.md`
+4. 返回 { success, archivePath }
 ```
 
-## Full Lifecycle Example
+## 完整生命周期示例
 
 ```
-[Task execution complete]
+[任务执行完成]
   → task.update({ runId, status: "completed" })
   → task.update({ runId, outcome: { summary: "...", artifacts: [...] } })
   → event.report({ runId })
-      → generates .agent/events/2026-05-19/20260519-abc123.md
-      → auto-updates task.json eventFilePath
-  → [days later, no longer needed]
+      → 生成 .agent/events/2026-05-19/20260519-abc123.md
+      → 自动更新 task.json 的 eventFilePath
+  → [数日后不再需要]
   → event.archive({ runId })
-      → moves to .agent/events/archive/2026-05-19-20260519-abc123.md
+      → 移动到 .agent/events/archive/2026-05-19-20260519-abc123.md
   → task.archive({ runId })
-      → moves to .agent/tasks/archive/20260519-abc123.json
+      → 移动到 .agent/tasks/archive/20260519-abc123.json
 ```
 
-## File Paths
+## 文件路径
 
-| Type | Active Path | Archive Path |
-|------|-------------|--------------|
-| Event | `.agent/events/{YYYY-MM-DD}/{runId}.md` | `.agent/events/archive/{date}-{runId}.md` |
-| Task | `.agent/tasks/{runId}.json` | `.agent/tasks/archive/{runId}.json` |
+| 类型 | 活跃路径 | 归档路径 |
+|------|---------|---------|
+| 事件 | `.agent/events/{YYYY-MM-DD}/{runId}.md` | `.agent/events/archive/{日期}-{runId}.md` |
+| 任务 | `.agent/tasks/{runId}.json` | `.agent/tasks/archive/{runId}.json` |

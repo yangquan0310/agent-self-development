@@ -1,131 +1,131 @@
-# Task Management Workflows
+# 任务管理工作流
 
-Detailed step-by-step guides for each task operation.
+各操作的详细分步指南。
 
-## Create Task
+## 创建任务
 
 ```
-1. Evaluate task complexity → decide if a Plan is needed
-2. Call task.create({
-     prompt: "user original input",
+1. 评估任务复杂度 → 决定是否需要制定 Plan
+2. 调用 task.create({
+     prompt: "用户原始需求",
      taskType?: "task" | "coding" | "research" | "documentation",
      planInput?: {
-       goal: "task goal",
-       constraints?: ["constraint1", "constraint2"],
-       successCriteria?: ["criterion1", "criterion2"],
+       goal: "任务目标",
+       constraints?: ["约束条件1", "约束条件2"],
+       successCriteria?: ["验收标准1", "验收标准2"],
        phases?: [
-         { id: "p1", name: "phase name", goal: "phase goal", outputs?: ["file1.md"] }
+         { id: "p1", name: "阶段名称", goal: "阶段目标", outputs?: ["文件1.md"] }
        ]
      }
    })
-3. Receive returned task JSON
-4. Present plan to user for confirmation
+3. 接收返回的 task JSON
+4. 向用户展示计划等待确认
 ```
 
-- `runId` auto-generated (`{YYYYMMDD}-{suffix}`) if omitted
-- If `planInput` provided, use directly; otherwise infer from `prompt`
-- `taskType` defaults to `"task"`
+- `runId` 自动生成（格式：`{YYYYMMDD}-{后缀}`），也可手动指定
+- 如提供 `planInput`，直接使用；否则从 `prompt` 自动推断
+- `taskType` 默认为 `"task"`
 
-## Update Status
+## 更新状态
 
 ```
-task.update({ runId, status: "new_status", reason?: "optional reason" })
+task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 ```
 
-| Current | New | How |
-|---------|-----|-----|
+| 当前状态 | 新状态 | 方式 |
+|---------|--------|------|
 | draft | pending_approval | `task.update({ status: "pending_approval" })` |
 | pending_approval | active | `task.update({ status: "active" })` |
-| pending_approval | revising | `task.update({ status: "revising" })` → modify plan → `task.update({ status: "draft" })` |
-| active | completed | `task.advance()` returns `isComplete: true`, or `task.update({ status: "completed" })` |
+| pending_approval | revising | `task.update({ status: "revising" })` → 修改 plan → `task.update({ status: "draft" })` |
+| active | completed | `task.advance()` 返回 `isComplete: true`，或 `task.update({ status: "completed" })` |
 | revising | draft | `task.update({ status: "draft" })` |
 
-## Record Deviation
+## 记录偏差
 
 ```
-1. Identify deviation (scope creep, technical debt, output mismatch, etc.)
-2. Call task.update({
+1. 识别偏差（范围蔓延、技术债务、输出不符等）
+2. 调用 task.update({
      runId,
      deviation: {
        type: "scope_creep | technical_debt | output_mismatch | doc_lag | context_loss | file_mismatch | other",
-       description: "deviation description",
-       impact?: "impact assessment (optional)"
+       description: "偏差描述",
+       impact?: "影响评估（可选）"
      }
    })
-3. Deviation appended to task.json `deviations[]`
+3. 偏差追加到 task.json 的 `deviations[]` 数组
 ```
 
-## Record Attribution
+## 记录归因
 
 ```
-1. Analyze root cause of deviation
-2. Call task.update({
+1. 分析偏差的根本原因
+2. 调用 task.update({
      runId,
      attribution: {
-       rootCause: "root cause",
-       strategy: "improvement strategy",
-       impact?: "scope of impact (optional)"
+       rootCause: "根本原因",
+       strategy: "改进策略",
+       impact?: "影响范围（可选）"
      }
    })
-3. Attribution appended to task.json `attributions[]`
+3. 归因追加到 task.json 的 `attributions[]` 数组
 ```
 
-## Record Outcome
+## 记录结果
 
 ```
-1. Task fully completed
-2. Call task.update({
+1. 任务全部完成
+2. 调用 task.update({
      runId,
      outcome: {
-       summary: "completion summary",
-       artifacts?: ["output/file1.md", "output/file2.js"],
+       summary: "完成摘要",
+       artifacts?: ["产出文件1.md", "产出文件2.js"],
        metrics?: { phasesCompleted: 3, deviationsCount: 1 }
      }
    })
 ```
 
-## Advance Phase
+## 推进阶段
 
 ```
-1. Complete current phase work
-2. Call task.advance({ runId, phaseId?: "specific_phase_id" })
-3. Check response:
-   - isComplete: true → all phases done, proceed to outcome + event.report + archive
-   - isComplete: false → continue to next phase
+1. 完成当前阶段工作
+2. 调用 task.advance({ runId, phaseId?: "指定阶段ID" })
+3. 检查返回结果：
+   - isComplete: true → 所有阶段完成，进入结果记录 + 事件生成 + 归档
+   - isComplete: false → 继续下一阶段
 ```
 
-## Query Task
+## 查询任务
 
 ```
-1. Call task.get({ runId })
-2. System checks:
-   - First: `.agent/tasks/{runId}.json`
-   - Fallback: `.agent/tasks/archive/{runId}.json`
-3. Returns full task.json or error if not found
+1. 调用 task.get({ runId })
+2. 系统依次检查：
+   - 先查 `.agent/tasks/{runId}.json`
+   - 回退到 `.agent/tasks/archive/{runId}.json`
+3. 返回完整 task.json 或错误
 ```
 
-## Archive Task
+## 归档任务
 
 ```
-1. Task status is "completed"
-2. Call task.archive({ runId })
-3. task.json moved to `.agent/tasks/archive/{runId}.json`
+1. 确认任务状态为 "completed"
+2. 调用 task.archive({ runId })
+3. task.json 移动到 `.agent/tasks/archive/{runId}.json`
 ```
 
-## Combined Workflow Example
+## 完整工作流示例
 
 ```
-User: "Build a REST API"
-  → task.create({ prompt: "Build a REST API", taskType: "coding" })
+用户："构建一个 REST API"
+  → task.create({ prompt: "构建一个 REST API", taskType: "coding" })
   → status: draft
   → task.update({ status: "pending_approval" })
-  → [user approves]
+  → [用户确认]
   → task.update({ status: "active" })
-  → [work phase 1]
+  → [执行阶段1]
   → task.advance({ runId })
-  → [work phase 2]
+  → [执行阶段2]
   → task.advance({ runId }) → isComplete: true
-  → task.update({ outcome: { summary: "API built", artifacts: ["src/api.js"] } })
-  → event.report({ runId })  [see event-management skill]
+  → task.update({ outcome: { summary: "API 构建完成", artifacts: ["src/api.js"] } })
+  → event.report({ runId })  [参见 event-management 技能]
   → task.archive({ runId })
 ```
