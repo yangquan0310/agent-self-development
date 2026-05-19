@@ -28,6 +28,8 @@
 | R2 | I4 — 命名不统一 | CONVENTIONS.md 统一方法名：`recordDeviation`、`recordAttribution`、`setOutcome`、`linkEvent` | Architect | 2026-05-19 |
 | R3 | PM A1 ~ A4 全部纳入规范 | `deviationIds` 精确关联、`outcome` 浅合并、ID `random4` 防冲突、`generate` 双路径扫描 | Architect | 2026-05-19 |
 | R4 | 字段-方法对齐校验表 | CONVENTIONS.md 新增映射表，Developer 编码时可直接对照 | Architect | 2026-05-19 |
+| R5 | P3 — task.json 模板清理 | 删除 `sessionIds`、`tools`、`revisionReason` 三个孤儿字段 | Architect | 2026-05-19 |
+| R6 | P4 — specs 同步 PM A1~A4 | task-object-interface.md: deviationIds + 浅合并 + ID random4；event-object-interface.md: generate(runId) 双路径扫描；tool-registry-interface.md: 同步 handler | Architect | 2026-05-19 |
 
 ---
 
@@ -37,8 +39,7 @@
 |----|------|---------|--------|----------|
 | P1 | TaskObject.js 代码重写 | 需 Developer 依据新 CONVENTIONS 删除旧依赖、实现 9 个方法 | Developer | M1: 2026-05-23 |
 | P2 | EventObject.js 代码重写 | 需 Developer 删除增量追加逻辑、实现 `generate(runId)` 一次性凝练 | Developer | M1: 2026-05-23 |
-| P3 | src/assets/task.json 模板清理 | 删除 `sessionIds`、`tools`、`revisionReason` | Developer | M1: 2026-05-23 |
-| P4 | specs 同步更新 | `docs/specs/task-object-interface.md` 和 `event-object-interface.md` 需同步 PM A1~A4 修正 | Architect | 2026-05-20 |
+
 
 ---
 
