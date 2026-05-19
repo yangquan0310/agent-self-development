@@ -26,7 +26,7 @@ author: Yang Quan
 
 **详细设计**：见 `docs/roadmap/v4.3.0.md`
 
-预计完成：**2026-05-30**
+预计完成：**2026-05-31**
 
 ---
 
@@ -136,12 +136,14 @@ author: Yang Quan
   - 验收标准：`version` 为 `4.3.0`；`scripts.test` 指向新测试文件；依赖清理（移除不必要的依赖）
   - 里程碑：M2
 
-- [ ] **P1-4：旧代码清理验证** — Developer
+- [ ] **P1-4：旧代码清理验证（M1 验收标准）** — Developer
+  - 来源问题：Reviewer I8 — M1 删除大量代码，误删风险高，需立即验证
   - 交付物：`grep` 全量验证旧模块/旧工具名零残留
   - 验收标准：
     - `grep -r "metacognition\|workingMemory\|personality\|heartbeat\|cognitiveTrace\|caseIndex" src/` 零匹配
     - `grep -r "create_plan\|update_task_status\|advance_phase\|get_task_status\|get_task_files\|self_diagnose\|archive_task\|record_deviation\|record_attribution\|get_planning_guide\|get_monitoring_guide\|get_regulation_guide\|get_development_guide" src/ test/` 零匹配
-  - 里程碑：M3
+    - `grep -r "task.deviate\|task.attribute\|task.files\|task.diagnose\|guide.planning\|guide.monitoring\|guide.regulation\|guide.development" src/ test/` 零匹配
+  - 里程碑：**M1**（原为 M3，Architect 建议 + PM 接受提前）
 
 ---
 
