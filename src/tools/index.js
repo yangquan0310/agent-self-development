@@ -27,11 +27,12 @@ export function registerTools(api, context) {
       throw new Error(`Handler 未实现: ${name}`);
     }
 
-    api.registerTool({
+    const factory = (_ctx) => ({
       name: spec.name,
       description: spec.description,
       parameters: spec.parameters,
       execute: async (_id, params) => handler(params, context)
     });
+    api.registerTool(factory, { name: spec.name });
   }
 }

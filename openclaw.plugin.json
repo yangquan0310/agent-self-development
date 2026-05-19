@@ -7,6 +7,18 @@
   "type": "native",
   "extensions": ["./src/index.js"],
   "minVersion": "2026.5.0",
+  "contracts": {
+    "tools": [
+      "task.create",
+      "task.update",
+      "task.advance",
+      "task.get",
+      "task.archive",
+      "event.report",
+      "event.query",
+      "event.archive"
+    ]
+  },
   "skills": [
     "./skills/task-management",
     "./skills/event-management"
