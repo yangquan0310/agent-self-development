@@ -3,7 +3,7 @@
   "title": "Agent Self-Development",
   "created_date": "2026-05-08",
   "status": "active",
-  "version": "v4.1.0",
+  "version": "v4.3.0",
   "description": "OpenClaw plugin for agent self-development based on Piaget's cognitive development theory",
   "type": "openclaw-plugin",
   "directories": {
