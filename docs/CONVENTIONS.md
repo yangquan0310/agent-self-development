@@ -73,12 +73,16 @@ export class TaskObject {
   async archive(runId)           // 归档
 
   // 偏差与归因（v4.3.0 新增）
+  // ID 规则：dev-${timestamp}-${random4} / attr-${timestamp}-${random4}
   async recordDeviation(runId, { type, description, impact })
   async recordAttribution(runId, { rootCause, strategy, impact, deviationIds })
+  // deviationIds?: string[] — 不提供则标记全部未归因偏差；提供则只标记指定 ID
 
   // 结果与关联（v4.3.0 新增）
+  // setOutcome 采用浅合并：task.outcome = { ...task.outcome, ...params.outcome }
+  // deliverables 数组直接替换，不追加
   async setOutcome(runId, outcome)
-  async linkEventFile(runId, eventFilePath)
+  async linkEvent(runId, eventFilePath)
 
   // 校验
   validate(task)
@@ -94,11 +98,28 @@ export class EventObject {
   }
 
   // v4.3.0：task 完成后一次性凝练生成
-  async generate(runId, task)    // 从 task.json 生成 event.md
+  // generate 内部扫描双路径容错：.agent/tasks/{runId}.json → .agent/tasks/archive/{runId}.json
+  // 推荐调用顺序：event.record 先于 task.archive
+  async generate(runId)          // 读取 task.json → 生成 event.md
   async query(filters)           // 扫描 .agent/events/{date}/
   async archive(runId)           // 移动 event.md
 }
 ```
+
+**字段-方法映射（对齐校验表）**：
+
+| task.json 字段 | 写入方法 | 说明 |
+|---------------|---------|------|
+| `runId` | `create()` | 初始化后不可变 |
+| `status` | `create()` / `update()` / `advance()` | `advance()` 在阶段完成时自动设为 `completed` |
+| `taskType` | `create()` | 初始化后不可变 |
+| `createdAt` | `create()` | 初始化后不可变 |
+| `updatedAt` | `create()` / `update()` / `advance()` / `recordDeviation()` / `recordAttribution()` / `setOutcome()` / `linkEvent()` | 任何写入操作自动刷新 |
+| `plan.*` | `create()` | 初始化后不可变（阶段状态除外，由 `advance()` 修改） |
+| `deviations[]` | `recordDeviation()` | 追加，id 按 `dev-${timestamp}-${random4}` 生成 |
+| `attributions[]` | `recordAttribution()` | 追加，id 按 `attr-${timestamp}-${random4}` 生成；同步标记偏差 `attributed` |
+| `outcome` | `setOutcome()` | 浅合并 `{ ...old, ...new }`，`deliverables` 替换不追加 |
+| `eventFilePath` | `linkEvent()` | 通常在 `EventObject.generate()` 成功后由 Tool Handler 调用 |
 
 **原则**：
 - TaskObject 是 `task.json` 的唯一写入者
@@ -177,9 +198,6 @@ api.registerTool({
     { "id", "rootCause", "strategy", "impact", "timestamp" }
   ],
   "outcome": { "summary", "deliverables", "lessonsLearned" },
-  "sessionIds": [],
-  "tools": [],
-  "revisionReason": "",
   "eventFilePath": ""
 }
 ```
