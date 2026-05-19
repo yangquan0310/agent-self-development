@@ -248,7 +248,7 @@ description: >
 | `metadata.json` | PM | Developer | Reviewer | 版本号、目录映射、标签 |
 | `TODO.md` | PM | 所有角色 | — | 任务状态、里程碑、验收标准 |
 | **蓝图 (`docs/roadmap/`)** | **PM** | **PM** | **—** | **版本目标、里程碑时间、风险** ❌ 不含目录结构/工具命名/废弃清单 |
-| `CONVENTIONS.md` | PM | PM | Reviewer | 编码规范、命名规则、目录结构标准 |
+| `CONVENTIONS.md` | **Architect** | **Architect** | Reviewer | 编码规范、命名规则、目录结构标准 |
 | `COLLABORATION.md` | PM | PM | Reviewer | 角色边界、协作标记、通讯协议 |
 | `INDEX.md` | PM | PM | Reviewer | 文档导航、责任矩阵 |
 | 设计哲学 (`docs/reference/`) | PM | PM | Reviewer | 架构哲学、设计原则 |
