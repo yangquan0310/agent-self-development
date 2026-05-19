@@ -239,6 +239,47 @@ export async function report(params, context) {
 
 ---
 
+### 3.7 event.query
+
+```json
+{
+  "name": "event.query",
+  "description": "查询 event.md 文件列表。支持按 runId、日期、事件类型筛选。",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "runId": { "type": "string", "description": "精确匹配 runId（可选）" },
+      "date": { "type": "string", "description": "匹配 YYYY-MM-DD 格式日期（可选）" },
+      "type": { "type": "string", "enum": ["deviation", "attribution"], "description": "筛选事件类型（可选）" }
+    }
+  }
+}
+```
+
+**Handler**：`objects/event.query(params, context)` → `{ events, total }`
+
+---
+
+### 3.8 event.archive
+
+```json
+{
+  "name": "event.archive",
+  "description": "归档指定 runId 的 event.md 文件。",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "runId": { "type": "string" }
+    },
+    "required": ["runId"]
+  }
+}
+```
+
+**Handler**：`objects/event.archive(params, context)` → `{ archived, archivedAt, archivedPath }`
+
+---
+
 ## 4. 返回值适配
 
 所有工具 execute 函数通过 `src/tools/adapter.js` 包装返回值。
@@ -291,6 +332,8 @@ export async function initialize(api, config) {
 | `task.get` | runId 存在（不存在返回 null，不报错） |
 | `task.archive` | runId 存在、status === completed |
 | `event.report` | runId 存在、status === completed |
+| `event.query` | 无（返回空列表也是有效结果） |
+| `event.archive` | runId 存在、event.md 文件存在 |
 
 ---
 
