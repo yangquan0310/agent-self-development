@@ -302,23 +302,23 @@ async (args) => {
 **Handler 逻辑**：
 ```javascript
 async (args) => {
-  // 1. 读取 task.json
+  // 1. 校验 task 存在且状态为 completed
   const taskResult = await taskObject.get(args.runId);
   if (!taskResult.task) {
     return adaptError(new Error(`task 不存在: ${args.runId}`));
   }
-  const task = taskResult.task;
-
-  // 2. 校验状态
-  if (task.status !== 'completed') {
-    return adaptError(new Error(`task 未处于 completed 状态，当前状态: ${task.status}`));
+  if (taskResult.task.status !== 'completed') {
+    return adaptError(new Error(`task 未处于 completed 状态，当前状态: ${taskResult.task.status}`));
   }
 
-  // 3. 生成 event.md
-  const result = await eventObject.generate(args.runId, task);
+  // 2. 生成 event.md（generate 内部双路径扫描 task.json）
+  const result = await eventObject.generate(args.runId);
+  if (result.error) {
+    return adaptError(new Error(result.error));
+  }
 
-  // 4. 关联 eventFilePath 到 task.json
-  await taskObject.linkEventFile(args.runId, result.eventFilePath);
+  // 3. 关联 eventFilePath 到 task.json
+  await taskObject.linkEvent(args.runId, result.eventFilePath);
 
   return adaptReturn(result);
 }
@@ -474,8 +474,8 @@ export async function initialize(api, config) {
         if (taskResult.task.status !== 'completed') {
           return adaptError(new Error(`task 未处于 completed 状态`));
         }
-        const result = await eventObject.generate(args.runId, taskResult.task);
-        await taskObject.linkEventFile(args.runId, result.eventFilePath);
+        const result = await eventObject.generate(args.runId);
+        await taskObject.linkEvent(args.runId, result.eventFilePath);
         return adaptReturn(result);
       }
     },

@@ -159,6 +159,7 @@ interface UpdateParams {
     rootCause: string;
     strategy: string;
     impact?: string;
+    deviationIds?: string[];       // 精确关联指定偏差；不提供则标记全部未归因偏差
   };
 
   // 结果设置（可选，v4.3.0 新增）
@@ -190,9 +191,12 @@ interface UpdateError {
 **业务规则**：
 - 至少提供一个可选字段（status / deviation / attribution / outcome / eventFilePath），否则返回错误
 - `status` 变更需通过状态机校验（见 4.3.1）
-- `deviation` 传入时：追加到 `task.deviations[]`，自动设置 `updatedAt`
-- `attribution` 传入时：追加到 `task.attributions[]`，标记所有未归因偏差为已归因，自动设置 `updatedAt`
-- `outcome` 传入时：合并到 `task.outcome`，自动设置 `updatedAt`
+- `deviation` 传入时：追加到 `task.deviations[]`，id 按 `dev-${timestamp}-${random4}` 生成，自动设置 `updatedAt`
+- `attribution` 传入时：追加到 `task.attributions[]`，id 按 `attr-${timestamp}-${random4}` 生成
+  - 提供 `deviationIds`：只标记指定 ID 且未归因的偏差
+  - 未提供 `deviationIds`：标记所有 `attributed === false` 的偏差
+  - 自动设置 `updatedAt`
+- `outcome` 传入时：浅合并到 `task.outcome`（`{ ...task.outcome, ...params.outcome }`），`deliverables` 数组直接替换不追加，自动设置 `updatedAt`
 - `eventFilePath` 传入时：写入 `task.eventFilePath`，自动设置 `updatedAt`
 
 #### 4.3.1 状态机
@@ -332,6 +336,7 @@ interface AttributionData {
   rootCause: string;             // 根本原因
   strategy: string;              // 改进策略
   impact?: string;               // 影响范围
+  deviationIds?: string[];       // 精确关联指定偏差 ID；不提供则默认标记全部未归因偏差
 }
 ```
 
@@ -352,13 +357,15 @@ interface RecordAttributionResult {
 ```
 
 **业务规则**：
-- 遍历 `task.deviations`，将所有 `attributed === false` 的条目标记为 `attributed = true`，并设置 `attributionId`
+- 若传入 `deviationIds`：遍历 `task.deviations`，将 `id` 在列表中且 `attributed === false` 的条目标记为 `attributed = true`，并设置 `attributionId`
+- 若未传入 `deviationIds`：遍历 `task.deviations`，将所有 `attributed === false` 的条目标记为 `attributed = true`，并设置 `attributionId`
+- 返回实际被标记的偏差数量
 
 ---
 
 ### 5.3 setOutcome
 
-设置任务最终结果。
+设置任务最终结果。采用**浅合并**策略。
 
 **输入**：
 
@@ -386,7 +393,7 @@ interface SetOutcomeResult {
 
 ---
 
-### 5.4 linkEventFile
+### 5.4 linkEvent
 
 关联 event.md 文件路径。
 
@@ -395,7 +402,7 @@ interface SetOutcomeResult {
 **输出**：
 
 ```typescript
-interface LinkEventFileResult {
+interface LinkEventResult {
   eventFilePath: string;
   task: Task;
 }
@@ -475,9 +482,6 @@ interface Task {
     lessonsLearned?: string;
     setAt?: number;
   };
-  sessionIds: string[];          // v4.3.0 保留但不再维护全局索引
-  tools: string[];               // 记录使用过的工具名（可选）
-  revisionReason: string;
   eventFilePath: string;         // 关联的 event.md 路径
 }
 

@@ -75,7 +75,6 @@ class EventObject {
 ```typescript
 interface GenerateParams {
   runId: string;                 // 必填，任务唯一标识
-  task: Task;                    // 必填，完整的 task 对象（从 task.json 读取）
 }
 ```
 
@@ -95,13 +94,16 @@ interface GenerateError {
 ```
 
 **业务规则**：
-1. 校验 `task.status === 'completed'`，否则拒绝生成
-2. 从 `deps.eventTemplate` 或 `assets/event.md` 加载模板
-3. 使用 `_renderTemplate()` 将 `task` 数据注入模板占位符
-4. 目标路径：`{projectRoot}/.agent/events/{date}/{runId}.md`
+1. 扫描双路径读取 `task.json`（PM A4 容错）：
+   - 先读 `{projectRoot}/.agent/tasks/{runId}.json`
+   - 若不存在，再读 `{projectRoot}/.agent/tasks/archive/{runId}.json`
+   - 仍不存在则返回错误
+2. 校验 `task.status === 'completed'`，否则拒绝生成
+3. 从 `deps.eventTemplate` 或 `assets/event.md` 加载模板
+4. 使用 `_renderTemplate()` 将 `task` 数据注入模板占位符
+5. 目标路径：`{projectRoot}/.agent/events/{date}/{runId}.md`
    - `date` 由 `task.createdAt` 解析为 `YYYY-MM-DD`
    - 若 `events/{date}/` 目录不存在，自动创建
-5. 生成后自动调用 `task.linkEventFile(runId, eventFilePath)`，将路径写回 `task.json`
 
 **模板占位符（v4.3.0 标准模板）**：
 
