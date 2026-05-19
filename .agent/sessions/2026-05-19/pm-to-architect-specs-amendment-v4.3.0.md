@@ -1,91 +1,136 @@
-# PM → Architect：Specs 审查反馈与 M1 启动指令
+# PM → Architect：Specs 补充修正请求
 
-> **事件类型**：决策 + 指令  
+> **事件类型**：需求澄清 + 接口修正请求  
 > **来源**：PM  
 > **目标角色**：Architect  
 > **日期**：2026-05-19  
-> **关联文档**：`docs/specs/task-object-interface.md`、`docs/specs/event-object-interface.md`、`docs/specs/tool-registry-interface.md`  
-> **关联会话**：`.agent/sessions/2026-05-19/13-38-42-architect-to-pm-specs-ready.md`
+> **关联文档**：`docs/specs/task-object-interface.md`、`docs/specs/event-object-interface.md`  
+> **关联事件**：`.agent/sessions/2026-05-19/13-38-42-architect-to-pm-specs-ready.md`
 
 ---
 
-## 1. 问题
+## 1. 元信息
 
-| ID | 问题描述 | 严重度 | 提出者 | 状态 |
-|----|---------|--------|--------|------|
-| I1 | `task.update` 同时支持 `status` + `deviation` + `attribution` + `outcome` + `eventFilePath` 的组合更新，但 specs 未明确原子性保证（失败时是否回滚） | 🟡 中 | PM | ⏳ 待确认 |
-| I2 | `EventObject.generate()` 写入 event.md 后调用 `task.linkEventFile()`，两步操作非原子，存在 event.md 已生成但 task.json 未更新的风险 | 🟡 中 | PM | ⏳ 待确认 |
-| I3 | `task.query` 工具在 specs 中定义为查询 task，但 handler 逻辑中若 task 不存在返回错误；建议区分 "查询不到" 和 "查询出错" | 🟢 低 | PM | ⏳ 待确认 |
+- **runId**: v4.3.0-specs-amendment
+- **agentId**: pm
+- **role**: product-manager
+- **createdAt**: 2026-05-19T13:50:00
 
 ---
 
-## 2. 已解决
+## 2. 问题
 
-| ID | 问题 | 解决方案 | 解决者 | 日期 |
-|----|------|---------|--------|------|
-| R1 | Architect 汇报 specs 重写完成 | PM 审查三份 specs，确认接口定义与 roadmap 一致，无方向性冲突 | PM | 2026-05-19 |
-| R2 | 7 工具清单确认 | specs 中 task.* 5 + event.* 2 与 roadmap 完全一致，无遗漏或多余 | PM | 2026-05-19 |
-| R3 | event.md 路径规范确认 | `./.agent/events/{YYYY-MM-DD}/{runId}.md` 格式接受，与 ADR-011 一致 | PM | 2026-05-19 |
-| R4 | 状态机定义确认 | draft → pending_approval → active → completed + revising 回环，覆盖全部场景 | PM | 2026-05-19 |
+PM 在审阅 `task-object-interface.md` 和 `event-object-interface.md` 时，发现 **4 处接口细节未定义或定义不完整**，Developer 无法依此编码。需 Architect 补充修正后重新输出 `[ARCH_READY]`。
+
+| ID | 问题 | 位置 | 严重度 | 状态 |
+|----|------|------|--------|------|
+| A1 | `task.update` 的 `attribution` 参数缺少 `deviationIds`，无法精确关联指定偏差 | `task-object-interface.md` 4.5 节 | 🔴 阻塞 | ⏳ 待修正 |
+| A2 | `task.update` 的 `outcome` 合并策略未定义，Developer 不知道数组字段是替换还是追加 | `task-object-interface.md` 4.5 节 | 🔴 阻塞 | ⏳ 待修正 |
+| A3 | `deviation` / `attribution` 的 `id` 生成规则未定义 | `task-object-interface.md` 全文 | 🟡 中 | ⏳ 待修正 |
+| A4 | `event.record` 与 `task.archive` 调用顺序未约定，且 `EventObject.generate` 未说明是否扫描 `archive/` 目录容错 | `event-object-interface.md` + `roadmap/v4.3.0.md` | 🟡 中 | ⏳ 待修正 |
 
 ---
 
 ## 3. 待解决
 
-| ID | 问题 | 阻塞原因 | 负责人 | 截止日期 |
-|----|------|---------|--------|----------|
-| P1 | I1 — `task.update` 原子性语义 | 需 Architect 确认：是否由 TaskObject 内部保证写入原子性，还是由 Tool Handler 层保证？ | Architect | 2026-05-20 |
-| P2 | I2 — event.md 与 task.json 双写一致性 | 需 Architect 确认：event.record 的两步操作失败时，是否删除已生成的 event.md？ | Architect | 2026-05-20 |
-| P3 | M1 正式启动 | 等待 Architect 确认 P1/P2 后，Developer 即可启动目录清理 | Developer | 2026-05-23 |
+### A1：attribution 精确关联偏差
+
+**现状**：`UpdateParams.attribution` 无 `deviationIds` 字段，默认"标记所有未归因偏差为已归因"。
+
+**场景**：Agent 一次分析可能只归因 1~2 条偏差，而非全部。
+
+**PM 需求**：Architect 补充 `deviationIds?: string[]` 可选字段，并更新业务规则：
+
+```typescript
+attribution?: {
+  rootCause: string;
+  strategy: string;
+  impact?: string;
+  deviationIds?: string[];   // ← 新增
+};
+```
+
+- **不提供 `deviationIds`** → 默认标记所有未归因偏差
+- **提供 `deviationIds`** → 只标记指定 ID 的偏差为已归因
+
+---
+
+### A2：outcome 合并策略
+
+**现状**： specs 写"合并到 `task.outcome`"，但未定义合并规则。
+
+**PM 需求**：Architect 明确 outcome 的合并策略为**浅合并**（shallow merge）：
+
+```javascript
+task.outcome = { ...task.outcome, ...params.outcome };
+```
+
+| 旧值 | 新传入 | 结果 |
+|------|--------|------|
+| `{ summary: 'A' }` | `{ summary: 'B' }` | `{ summary: 'B' }` |
+| `{ summary: 'A' }` | `{ deliverables: ['X'] }` | `{ summary: 'A', deliverables: ['X'] }` |
+| `{ deliverables: ['A'] }` | `{ deliverables: ['B'] }` | `{ deliverables: ['B'] }` |
+
+**数组字段 `deliverables` 直接替换，不追加。**
+
+---
+
+### A3：deviation / attribution ID 生成规则
+
+**现状**：全文未定义 `deviation.id` 和 `attribution.id` 的生成规则。
+
+**PM 需求**：Architect 在 specs 中补充 ID 生成规则：
+
+```javascript
+// deviation id
+`dev-${timestamp}-${random4}`   // 例: dev-1716096000000-a3f7
+
+// attribution id
+`attr-${timestamp}-${random4}`  // 例: attr-1716096000000-b8e2
+```
+
+- `timestamp` = `Date.now()`
+- `random4` = 4 位十六进制随机字符串（`Math.random().toString(16).slice(2, 6)`），防止同一毫秒冲突
+
+---
+
+### A4：event.record 与 task.archive 调用顺序
+
+**现状**：roadmap 工作流写"先 archive 再 event.record"，但如果 task.json 被 archive 移动，event.generate 无法读取。
+
+**PM 需求**：Architect 在 `event-object-interface.md` 中补充以下约定：
+
+1. **推荐调用顺序**：`event.record` **先于** `task.archive`
+2. **容错扫描**：`EventObject.generate(runId)` 应同时扫描以下两个路径：
+   - `.agent/tasks/{runId}.json`
+   - `.agent/tasks/archive/{runId}.json`
+   - 无论调用顺序如何，都能找到 task.json
 
 ---
 
 ## 4. 建议
 
-| ID | 建议内容 | 提出者 | 优先级 | 状态 |
-|----|---------|--------|--------|------|
-| S1 | **批准 M1 启动** — 方向性阻塞已清除，Developer 可立即开始目录清理和代码迁移，无需等待 P1/P2 细化（可在实现中同步解决） | PM | 🔴 高 | ✅ 已采纳 |
-| S2 | **采纳 S1（Developer 启动前读 specs）** — 要求 Developer 在 M1 启动会议中复述 7 个工具的职责边界，确保理解一致 | PM | 🔴 高 | ✅ 已采纳 |
-| S3 | **采纳 S2（保留 safeReadJson/safeWriteJson）** — 同意迁移而非重写，降低回归风险 | PM | 🟡 中 | ✅ 已采纳 |
-| S4 | **采纳 S3（COLLABORATION 增模板）** — 已在本反馈中验证使用，模板有效；后续角色间正式通讯均强制采用 | PM | 🟡 中 | ✅ 已采纳 |
-| S5 | **采纳 S4（session 归档规范）** — `.agent/sessions/{date}/` 作为角色间正式通讯唯一归档点，聊天记录中的决策需在 24h 内转写为 session 文件 | PM | 🟡 中 | ✅ 已采纳 |
-| S6 | `task.update` 的 `deviation` / `attribution` 字段在 JSON Schema 中增加 `maxItems` 或体积限制提示，防止单 task.json 过大 | PM | 🟢 低 | ⏳ 待 Architect 评估 |
+| ID | 建议 | 优先级 | 状态 |
+|----|------|--------|------|
+| S1 | 在 `task-object-interface.md` 顶部增加「变更日志」小节，记录 v4.3.0 相比 v4.2.0 的接口变化 | 🟢 低 | 待 Architect 决定 |
+| S2 | `UpdateResult.updatedFields` 在同时更新多个字段时，返回完整字段列表（如 `['status', 'deviations', 'attributions']`） | 🟢 低 | 待 Architect 决定 |
 
 ---
 
-## 5. PM 指令
+## 5. 结果
 
-### 5.1 M1 正式启动
+**状态**：⏳ 等待 Architect 修正
 
-Developer 即日起启动 M1，优先级如下：
+**阻塞影响**：A1/A2 为阻塞项，Developer 无法编写 `task.update` 的 Tool Handler 逻辑。
 
-1. **P0-1 目录清理**（deadline: 05-21）
-   - 删除 `src/metacognition/`、`src/working-memory/`、`src/personality/`
-   - 删除 `src/common/adapters/`、heartbeat.js、cognitive-trace.js、case-index.js、skills.js、template-engine.js、stream.js、hook.js
-   - 迁移 `project-context.js` → `src/utils/path.js`
-   - 迁移 `utils.js` → `src/utils/file.js` + `validate.js` + `helpers.js`
-
-2. **P0-2 objects 精简**（deadline: 05-23）
-   - 依据 specs 重写 `TaskObject.js` 和 `EventObject.js`
-   - 实现 `recordDeviation`、`recordAttribution`、`setOutcome`、`linkEventFile`
-   - 实现 `EventObject.generate()`
-
-3. **P1-4 零残留验证**（M1 验收当日执行）
-   - 3 组 grep 命令，必须全部零匹配
-
-### 5.2 对 P1/P2 的临时处理
-
-- P1（原子性）：M1 实现时，TaskObject.update() 内部采用 "先读后写覆盖" 模式（单文件 JSON 写入天然原子），无需复杂事务。若写入失败，保留旧文件不覆盖即可。
-- P2（双写一致性）：event.record 的两步操作中，若 `linkEventFile()` 失败，**不删除**已生成的 event.md（文件存在但 task.json 未关联，属于可接受的不一致，后续可手动修复）。Tool Handler 返回错误提示 Agent。
-
-### 5.3 新增任务
-
-- **P0-6**：M1 完成后，Architect 审查 Developer 的 `TaskObject.js` / `EventObject.js` 实现，确认与 specs 一致。
-- **P0-7**：M2 开始前，PM 更新 `openclaw.plugin.json` 和 `metadata.json`（原 P1-1 / P1-2 提前到 M2 启动前）。
+**Architect 行动**：
+1. 修改 `docs/specs/task-object-interface.md` — 补充 A1/A2/A3
+2. 修改 `docs/specs/event-object-interface.md` — 补充 A4
+3. 重新输出 `[ARCH_READY]`
+4. 通过 `.agent/sessions/` 回复 PM
 
 ---
 
 *事件创建：PM*  
 *日期：2026-05-19*  
-*`[PM_REVIEW]`*  
-*`[ARCH_APPROVED]`*
+*`[PM_REVIEW]`*
