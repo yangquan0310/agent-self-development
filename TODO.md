@@ -256,6 +256,9 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 ## 最近更新
 
+- **2026-05-19 13:45**：Architect 完成全部 specs + ADR 重写，输出 `[ARCH_READY]`。PM 确认 7 份交付物，采纳全部 4 项建议（S1~S4）。`docs/COLLABORATION.md` 全文中文化完成。Developer 启动 M1 前提已全部满足。
+- **2026-05-19 12:15**：PM 接受 Architect 2 项建议——M1 延至 05-23，P1-4 零残留验证提升为 M1 验收标准。
+- **2026-05-19 11:58**：Reviewer 提交审查报告，识别 10 项不一致（3 项阻塞 + 7 项影响）。PM 输出裁决文档，B1/B2/B3 已拍板。
 - **2026-05-19**：v4.3.0 方向重大调整——从「渐进式重构」改为「工具插件精简」。PM 输出新 roadmap + TODO。确认仅保留 7 个工具（task.* 5 个 + event.* 2 个），移除 guide.* / metacognition / working-memory / personality / heartbeat。
 - **2026-05-19**：拉取远程 dev，获取 dev 分支上已有的 TaskObject/EventObject/命名空间注册等代码，作为 v4.3.0 新架构的基础素材。
 
