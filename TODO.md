@@ -34,7 +34,7 @@ author: Yang Quan
 
 | 里程碑 | 时间 | 交付物 | 状态 |
 |--------|------|--------|------|
-| M1 | 2026-05-23 | 目录清理 + utils 提取 + objects 精简 + 新增方法实现 | 🚧 待启动 |
+| M1 | 2026-05-23 | 目录清理 + utils 提取 + handlers 实现 + **旧代码零残留验证** | 🔨 开发中 |
 | M2 | 2026-05-26 | tools 重写 + schemas 精简 + 插件入口适配 + metadata 同步 | 🚧 待启动 |
 | M3 | 2026-05-29 | 测试套件重写（≥50 用例）+ README/SKILL.md 更新 | 🚧 待启动 |
 | M4 | 2026-05-31 | 验收 + 发布 v4.3.0 | 🚧 待启动 |
@@ -81,21 +81,16 @@ author: Yang Quan
     - `EventObject.generate()` 单测 = 至少 4 个用例通过（正常生成、缺字段、无 task、路径正确）
     - event.md 文件路径格式：`./.agent/events/{YYYY-MM-DD}/{runId}.md`
 
-- [ ] **P0-3：tools 重写与注册适配** — Developer
-  - 来源问题：当前 tools 仍包含 guide.* 工具和多余工具；event.record 未适配「task 完成后凝练」策略
+- [ ] **P0-3：tools 注册与入口适配** — Developer
+  - 来源问题：当前 tools 仍包含 guide.* 工具和多余工具；需适配扁平化 Handler
   - 交付物：
-    - `src/tools/task-tools.js`：task.create / task.update / task.advance / task.query / task.archive
-    - `src/tools/event-tools.js`：
-      - `event.record`：**task 完成后调用**，读取 task.json → 调用 `EventObject.generate(runId, task)` → 生成 `./.agent/events/{date}/{runId}.md`
-      - `event.query`：扫描 `./.agent/events/{date}/` 目录
-    - `src/tools/schemas.js`：7 个工具的 parameters schema
     - `src/tools/index.js`：注册入口，适配 OpenClaw 新规范 `api.registerTool({ name, parameters, execute })`
-    - `src/tools/return-adapter.js`：保留并验证
+    - 注册 6 个命名空间工具：`task.create` / `task.update` / `task.advance` / `task.get` / `task.archive` / `event.report`
+    - 旧工具名（含 guide.*、task.deviate、task.attribute、task.files、task.diagnose）零残留
   - 验收标准：
-    - 仅暴露 7 个工具；旧工具名（含 guide.*、task.deviate、task.attribute）零残留
-    - `event.record` 调用后，event.md 完整包含 task.json 的 plan / deviations / attributions / outcome 信息
-    - event.md 路径格式正确：`./.agent/events/{YYYY-MM-DD}/{runId}.md`
+    - 6 个工具注册成功；旧注册方式零残留
     - 返回格式统一为 `{ content: [{ type: "text", text: JSON.stringify(result) }] }`
+    - `openclaw.plugin.json` 同步更新（版本 4.3.0，contracts.tools 仅列出 6 个工具）
   - 里程碑：M2
 
 - [ ] **P0-4：插件入口重写** — Developer
@@ -104,13 +99,12 @@ author: Yang Quan
   - 验收标准：入口文件 < 80 行；仅初始化 TaskObject/EventObject + 注册 tools；无 metacognition/working-memory/personality/heartbeat 引用
   - 里程碑：M2
 
-- [ ] **P0-5：assets 模板契约确认** — PM + Developer
+- [ ] **P0-5：templates 模板确认** — PM + Developer
   - 来源问题：需要确认 task.json 和 event.md 模板是否满足 Agent 自主管理需求
   - 交付物：
-    - `src/assets/task.json`：精简字段，保留核心状态机结构
-    - `src/assets/event.md`：七章节模板（元信息、计划、执行、变更记录、偏差、归因、结果），供 EventObject.generate() 一次性渲染
-    - `src/assets/templates/`（可选）：planning.md / monitoring.md / regulation.md / development.md
-  - 验收标准：模板可被 TaskObject/EventObject 直接消费；Agent 通过 task.query 获取的 task 结构自解释
+    - `src/templates/task.json`：精简字段（删除 sessionIds/tools/revisionReason），保留核心状态机结构
+    - `src/templates/event.md`：七章节模板，供 `event.report` 一次性渲染
+  - 验收标准：模板可被 handlers 直接消费；Agent 通过 `task.get` 获取的 task 结构自解释
   - 里程碑：M1
 
 ---
@@ -225,9 +219,9 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 | 角色 | 当前状态 |
 |------|----------|
 | **PM** | v4.3.0 新方向已确认，已输出 roadmap + TODO 更新 |
-| **Developer** | 待启动 M1 目录清理和代码迁移 |
+| **Developer** | 🔨 M1 开发中 — 扁平化 Handler 实现 |
 | **Reviewer** | 待命，待 M3 完成后介入审查 |
-| **Architect** | ✅ 已确认 6 项决策无技术不可行项；design.md/ADR-009 已归档；三份 specs 已重写为 `[ARCH_READY]`；输出 v4.3.0 架构评审 + 4 份 ADR |
+| **Architect** | ✅ **`[ARCH_APPROVED]`** — ADR-014 扁平化架构已批准，specs v3.0.0 + CONVENTIONS 已交付 |
 
 ---
 
@@ -256,7 +250,8 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 ## 最近更新
 
-- **2026-05-19 13:45**：Architect 完成全部 specs + ADR 重写，输出 `[ARCH_READY]`。PM 确认 7 份交付物，采纳全部 4 项建议（S1~S4）。`docs/COLLABORATION.md` 全文中文化完成。Developer 启动 M1 前提已全部满足。
+- **2026-05-19 14:20**：PM 批准 Architect 扁平化架构 `[ARCH_APPROVED]`。核心变更：删除 TaskObject/EventObject 类 → Handler 直接 IO；工具从 7 个精简为 6 个（`task.get` / `event.report`）；目录结构改为 `tools/templates/utils`；task.json 删除 3 个孤儿字段。Developer 正式启动 M1。
+- **2026-05-19 13:45**：Architect 完成全部 specs + ADR 重写，输出 `[ARCH_READY]`。PM 确认 7 份交付物，采纳全部 4 项建议（S1~S4）。`docs/COLLABORATION.md` 全文中文化完成。
 - **2026-05-19 12:15**：PM 接受 Architect 2 项建议——M1 延至 05-23，P1-4 零残留验证提升为 M1 验收标准。
 - **2026-05-19 11:58**：Reviewer 提交审查报告，识别 10 项不一致（3 项阻塞 + 7 项影响）。PM 输出裁决文档，B1/B2/B3 已拍板。
 - **2026-05-19**：v4.3.0 方向重大调整——从「渐进式重构」改为「工具插件精简」。PM 输出新 roadmap + TODO。确认仅保留 7 个工具（task.* 5 个 + event.* 2 个），移除 guide.* / metacognition / working-memory / personality / heartbeat。
