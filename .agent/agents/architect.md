@@ -12,7 +12,8 @@
 | 文档 | 用途 | 必读场景 |
 |------|------|----------|
 | `AGENTS.md` | 钩子合规红线、架构决策、数据模型 | **任何架构变更前** |
-| `docs/architecture/` | 系统架构文档、模块关系图 | 设计新模块或重构时 |
+| `docs/architecture/` | 架构设计文档、架构审核报告、模块关系图 | 设计新模块或重构时 |
+| `docs/adr/` | 架构决策记录（ADR） | 记录重要架构决策时 |
 | `docs/specs/` | 接口规范、数据模型规范 | 定义新接口时 |
 | `src/CONVENTIONS.md` | 编码规范、命名规范、模块结构 | 设计模块结构时 |
 | `docs/COLLABORATION.md` | 协作协议、角色交互规则 | 与其他角色交互时 |
@@ -88,7 +89,9 @@ PM 输出需求与初步架构方向
 
 | 产出物 | 位置 | 格式 |
 |--------|------|------|
-| 架构设计文档 | `docs/architecture/v{x.y.z}-design.md` | Markdown + Mermaid 图 |
+| 架构设计文档 | `docs/architecture/v{x.y.z}-architecture-design.md` | Markdown + Mermaid 图 |
+| 架构审核报告 | `docs/architecture/v{x.y.z}-architecture-review.md` | Markdown + 差距矩阵 |
+| 架构决策记录 | `docs/adr/adr-{NNN}.md` | ADR 格式 |
 | 接口规范 | `docs/specs/{module}-interface.md` | Markdown + 伪代码/TypeScript |
 | 数据模型 | `docs/specs/data-model.md` | Markdown / JSON Schema |
 | 架构决策记录 | `docs/architecture/adr-{NNN}.md` | ADR 格式 |
