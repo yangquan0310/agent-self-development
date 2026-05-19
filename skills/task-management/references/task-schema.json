@@ -1,0 +1,57 @@
+{
+  "runId": "uuid",
+  "status": "draft | pending_approval | active | revising | completed",
+  "taskType": "coding | research | documentation | undefined",
+  "createdAt": 1234567890000,
+  "updatedAt": 1234567890000,
+  "plan": {
+    "prompt": "用户原始输入前500字",
+    "createdAt": 1234567890000,
+    "status": "draft | active | completed",
+    "context": { "goal": "", "constraints": [], "successCriteria": [] },
+    "workspace": { "artifacts": [], "tools": [], "skills": [] },
+    "execution": {
+      "phases": [
+        {
+          "id": "p1",
+          "name": "阶段 1",
+          "goal": "",
+          "outputs": [],
+          "status": "pending | in_progress | completed"
+        }
+      ],
+      "currentPhase": 0
+    }
+  },
+  "deviations": [
+    {
+      "id": "dev-1234567890",
+      "type": "scope_creep",
+      "description": "",
+      "impact": "",
+      "timestamp": 1234567890000,
+      "attributed": false,
+      "attributionId": "attr-xxx"
+    }
+  ],
+  "attributions": [
+    {
+      "id": "attr-1234567890",
+      "rootCause": "",
+      "impact": "",
+      "strategy": "",
+      "timestamp": 1234567890000
+    }
+  ],
+  "outcome": {
+    "archivedAt": 1234567890000,
+    "completedSessions": [],
+    "killedSessions": [],
+    "pausedSessions": [],
+    "toolCount": 0
+  },
+  "sessionIds": [],
+  "tools": [],
+  "eventFilePath": ".agent/events/YYYY-MM-DD/HH-MM-SS.md",
+  "revisionReason": ""
+}

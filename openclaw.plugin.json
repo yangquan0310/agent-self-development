@@ -1,12 +1,12 @@
 {
   "id": "agent-self-development",
   "name": "Agent Self-Development",
-  "version": "4.1.0",
+  "version": "4.3.0",
   "description": "OpenClaw plugin for agent self-development based on Piaget's cognitive development theory",
   "main": "src/index.js",
   "type": "native",
   "extensions": ["./src/index.js"],
-  "minVersion": "2026.4.0",
+  "minVersion": "2026.5.0",
   "skills": [],
   "configSchema": {
     "type": "object",
@@ -16,6 +16,15 @@
         "enum": ["legacy", "tool-driven"],
         "default": "tool-driven",
         "description": "Hook 注入模式：tool-driven 为最小化注入，legacy 为完整 skill 注入（向后兼容）"
+      },
+      "tools": {
+        "type": "object",
+        "description": "命名空间工具分组配置",
+        "properties": {
+          "task": { "type": "object", "description": "task.* 工具配置" },
+          "event": { "type": "object", "description": "event.* 工具配置" },
+          "guide": { "type": "object", "description": "guide.* 工具配置" }
+        }
       },
       "metacognition": {
         "type": "object",

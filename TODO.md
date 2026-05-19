@@ -1,24 +1,36 @@
+---
+name: TODO
+version: 2.2.0
+author: Yang Quan
+---
 # TODO.md — Agent Self-Development 进度看板
 
-> 项目：`agent-self-development` | 当前版本：`v4.2.0`（开发中）
-> 更新日期：2026-05-13（v4.2.0 规划启动）
+> 项目：`agent-self-development` | 当前版本：`v4.3.0`（规划中）
+> 更新日期：2026-05-19（v4.3.0 规划启动）
 > 维护者：PM（程序员 / 开发经理）
 
 ---
 
 ## 版本目标
 
-**v4.2.0：Cognitive Intelligence** 🚧 开发中（预计 2026-06-01 完成）
+### v4.2.0：Cognitive Intelligence ✅ 已完成（2026-06-01）
 
-让 Tool-Driven 架构从「可用」走向「智能」——不增加新 tools，而是让现有 tools 更聪明、更可观测、更可回溯。同时修复 v4.1.0 架构评估中发现的硬编码路径、双重状态更新、模块耦合等结构性风险。
+让 Tool-Driven 架构从「可用」走向「智能」——不增加新 tools，而是让现有 tools 更聪明、更可观测、更可回溯。
+
+**里程碑状态**：M1 ~ M5 全部完成，360/360 测试通过。
+
+---
+
+### v4.3.0：Object-Driven Architecture 🚧 规划中（预计 2026-06-15 完成）
+
+将插件从「平面 Tool 集合」升级为「对象驱动的命名空间架构」——引入 **TaskObject** 与 **EventObject** 两个核心对象，接管 task.json 与 event.md 的全生命周期管理；同时将 13 个平面 tools 重组为命名空间工具（`task.create`、`event.record` 等），全面适配 OpenClaw 新工具注册方式 `api.registerTool({ name, description, parameters, execute })`。
 
 **设计哲学**：
-- **不增加新 tools**：13 个 tools 已经够用，增加 tools 会增加 Agent 的认知负担
-- **增强现有 tools 的返回内容**：让 `get_task_status`、`self_diagnose`、`get_planning_guide` 返回更智能的信息
-- **透明化认知过程**：记录 Agent 的 tool 调用序列，让「思考过程」可追溯
-- **累积历史智慧**：归档任务建立索引，新任务可以站在旧任务的肩膀上
+- **对象即边界**：TaskObject 是 task.json 的唯一写入者，EventObject 是 event.md 的唯一写入者，彻底消除「多模块同构数据」的竞态风险（RISK-4 的最终根治）
+- **命名空间即语义**：`task.*` 管理任务状态机，`event.*` 管理事件流，`guide.*` 提供认知指导，Agent 调用意图更清晰
+- **模板即契约**：`assets/task.json` 与 `assets/event.md` 作为 canonical 模板，是对象与文件系统之间的契约层
 
-预计完成：**2026-06-01**
+预计完成：**2026-06-15**
 
 ---
 
@@ -174,10 +186,10 @@
 
 | 角色 | 当前状态 |
 |------|----------|
-| **PM** | v4.2.0 规划中，负责任务类型模板设计 |
-| **Developer** | v4.2.0 开发中，负责 P0/P1 全部 + P2 技术实现 |
+| **PM** | v4.3.0 规划中，已输出需求清单 + 架构建议 + TODO 更新 |
+| **Developer** | 待命，待 P0-1/P0-2 接口冻结后启动实现 |
 | **Reviewer** | 待命，待 M2 完成后介入架构复查 |
-| **Architect** | v4.1.0 架构评估已完成，已输出 9 项风险 + 8 项 ADR 建议 |
+| **Architect** | v4.3.0 ADR-009 已输出 ✅ |
 
 ---
 
@@ -192,11 +204,205 @@
 
 ---
 
+## v4.3.0 版本规划
+
+### v4.3.0 版本目标
+
+**v4.3.0：Object-Driven Architecture** 🚧 规划中（预计 2026-06-15 完成）
+
+将插件从「平面 Tool 集合」升级为「对象驱动的命名空间架构」——引入 **TaskObject** 与 **EventObject** 两个核心对象，接管 task.json 与 event.md 的全生命周期管理；同时将 13 个平面 tools 重组为命名空间工具（`task.create`, `event.record` 等），全面适配 OpenClaw 新工具注册方式 `api.registerTool({ name, description, parameters, execute })`。
+
+**设计哲学**：
+- **对象即边界**：TaskObject 是 task.json 的唯一写入者，EventObject 是 event.md 的唯一写入者，彻底消除「多模块同构数据」的竞态风险（RISK-4 的最终根治）
+- **命名空间即语义**：`task.*` 管理任务状态机，`event.*` 管理事件流，`guide.*` 提供认知指导，Agent 调用意图更清晰
+- **模板即契约**：`assets/task.json` 与 `assets/event.md` 作为 canonical 模板，是对象与文件系统之间的契约层
+
+预计完成：**2026-06-15**
+
+---
+
+### v4.3.0 里程碑
+
+| 里程碑 | 时间 | 交付物 | 状态 |
+|--------|------|--------|------|
+| M1 | 2026-05-25 | TaskObject + EventObject 核心实现 + 单元测试 | 🚧 规划中 |
+| M2 | 2026-06-01 | 命名空间 Tool 注册迁移 + schemas.js 重构 | 🚧 规划中 |
+| M3 | 2026-06-08 | assets/ 模板 + 对象-模板契约层 + 旧名清理 | 🚧 规划中 |
+| M4 | 2026-06-12 | 全量测试迁移 + 文档更新 | 🚧 规划中 |
+| M5 | 2026-06-15 | 验收 + 发布 v4.3.0 | 🚧 规划中 |
+
+---
+
+### v4.3.0 任务树
+
+#### P0：阻塞项（必须完成，否则版本无法发布）
+
+- [ ] **P0-1：TaskObject 核心对象** — Developer
+  - 来源问题：v4.1.0 ~ v4.2.0 中 task.json 的 CRUD 逻辑散落在 `metacognition-tools.js`、`working-memory-tools.js`、多个 adapters 中，没有单一对象负责 task 生命周期
+  - 交付物：`src/objects/task-object.js` + `test/task-object.test.js`
+  - 验收标准：
+    - 封装 `create()`, `get()`, `update()`, `advance()`, `archive()`, `diagnose()` 六个方法
+    - 每个方法操作后自动更新 `updatedAt`，写入原子化（文件锁或临时文件替换）
+    - 与 `State` adapter 协作但不越界：TaskObject 负责业务规则，State 负责原始 IO
+    - `task.json` 校验：写入前通过 `assets/task.json` schema 校验，失败返回 `{ error, validationErrors }`
+    - 单测覆盖 6 个方法 × 正常/异常路径 = 至少 12 个用例，全部通过
+  - 里程碑：M1
+
+- [ ] **P0-2：EventObject 核心对象** — Developer
+  - 来源问题：event.md 的「偏差」「归因」记录逻辑分布在 `metacognition/deviation.js`、`metacognition/attribution.js`、Tool Handler 中，没有统一的事件文件生命周期管理者
+  - 交付物：`src/objects/event-object.js` + `test/event-object.test.js`
+  - 验收标准：
+    - 封装 `createEvent()`, `recordDeviation()`, `recordAttribution()`, `query()`, `archive()` 五个方法
+    - event.md 严格遵循 `assets/event.md` 七章节模板：元信息 → 计划 → 执行 → 变更记录 → 偏差 → 归因 → 结果
+    - `recordDeviation()` / `recordAttribution()` 支持追加写入，不破坏已有章节结构
+    - 查询支持按 `runId`、`date`、`type` 过滤，返回结构化 JSON（非原始 Markdown）
+    - 单测覆盖 5 个方法 × 正常/异常路径 = 至少 10 个用例，全部通过
+  - 里程碑：M1
+
+- [ ] **P0-3：命名空间 Tool 注册迁移** — Developer
+  - 来源问题：OpenClaw 新插件规范要求工具注册使用 `api.registerTool({ name, description, parameters, execute })`，且支持命名空间命名；当前 v4.2.0 使用旧版 `api.registerTool(name, { name, description, inputSchema, handler })` 平面注册
+  - 交付物：重构后的 `src/tools/index.js` + `src/tools/schemas.js` + `src/tools/namespaced/`（或保留原文件但更新接口）
+  - 验收标准：
+    - 所有 tools 按命名空间注册，仅暴露 13 个新命名空间工具：
+      - `task.create`
+      - `task.update`
+      - `task.advance`
+      - `task.query`
+      - `task.files`
+      - `task.diagnose`
+      - `task.archive`
+      - `event.record`（合并原 `record_deviation` + `record_attribution`，通过参数区分类型）
+      - `event.query`（新增）
+      - `guide.planning`
+      - `guide.monitoring`
+      - `guide.regulation`
+      - `guide.development`
+    - 旧工具名全部废弃，不再保留任何映射或 shim：Agent 直接调用命名空间工具名
+    - 使用新注册方式：`parameters` 替代 `inputSchema`，`execute(_id, params)` 替代 `handler(params)`，返回 `{ content: [{ type: "text", text: JSON.stringify(result) }] }`
+    - `openclaw.plugin.json` 中 `configSchema` 和 `metadata.json` 中工具清单同步更新，仅列出命名空间工具
+    - 全量测试通过（命名空间调用路径覆盖）
+  - 里程碑：M2
+  - 依赖：P0-1、P0-2 完成后才能冻结接口
+
+- [ ] **P0-4：assets/ 核心模板** — PM + Developer
+  - 来源问题：task.json 和 event.md 的字段/章节没有 canonical 定义，各模块各自约定，导致格式漂移（如 v4.1.0 新增 `tools` 字段时多文件未同步）
+  - 交付物：`assets/task.json`（Task 数据结构模板）+ `assets/event.md`（Event Markdown 章节模板）
+  - 验收标准：
+    - `assets/task.json` 包含完整字段定义、类型标注、必填/选填标记、默认值、字段说明注释；可被 `jq` 直接解析作为校验基准
+    - `assets/event.md` 包含七章节 Markdown 模板，每章节带占位符（如 `{{runId}}`、`{{createdAt}}`），可被 EventObject 渲染引擎消费
+    - 两个模板作为「契约」：TaskObject 写入前校验、EventObject 渲染时引用
+    - README.md 中新增「数据结构模板」章节，指向 assets/
+  - 里程碑：M3
+
+---
+
+#### P1：重要项（影响体验或架构一致性，但不阻塞发布）
+
+- [ ] **P1-1：Tool Handler 委托重构** — Developer
+  - 交付物：修改后的 `src/tools/metacognition-tools.js` + `src/tools/working-memory-tools.js`
+  - 验收标准：所有 Tool Handler 不再直接操作 adapters，而是通过 `TaskObject` / `EventObject` 委托；handler 代码量减少 30% 以上；行为零回归（v4.2.0 测试基线全部通过）
+  - 里程碑：M2
+  - 依赖：P0-1、P0-2
+
+- [ ] **P1-2：测试基线冻结 + 旧名零残留** — Developer
+  - 来源问题：命名空间改名是破坏性变更——需确保 v4.2.0 旧工具名在代码中完全移除
+  - 交付物：`grep -r "create_plan\|update_task_status\|advance_phase\|get_task_status\|get_task_files\|self_diagnose\|archive_task\|record_deviation\|record_attribution\|get_planning_guide\|get_monitoring_guide\|get_regulation_guide\|get_development_guide" src/ test/` 零匹配
+  - 验收标准：旧工具名字面量在 src/、test/、docs/ 中零残留；`openclaw.plugin.json` 中 `tools` 字段直接标注新命名空间分组；测试全部使用 `task.*` / `event.*` / `guide.*` 调用；Agent 配置白名单同步更新
+  - 里程碑：M3
+
+- [ ] **P1-3：openclaw.plugin.json + metadata.json 同步更新** — PM
+  - 交付物：更新后的 `openclaw.plugin.json` + `metadata.json`
+  - 验收标准：
+    - `openclaw.plugin.json` 版本号升至 `4.3.0`，`minVersion` 检查是否需要提升
+    - `metadata.json` 版本号、工具清单、tags 同步更新
+    - 新增 `tools` 字段说明命名空间分组（task / event / guide）
+  - 里程碑：M2
+
+- [x] **P1-4：对象-适配器边界澄清（ADR-009）** — Architect + Developer
+  - 交付物：`docs/adr/ADR-009-object-adapter-boundary.md` + `docs/architecture/v4.3.0-design.md` + `docs/specs/*.md`
+  - 验收标准：明确「TaskObject = 业务规则 + 生命周期编排」，「State = 原始 JSON 读写」，「Flow = 跨任务工作流编排（或降级为只读镜像）」；与 RISK-6（Flow 职责模糊）形成闭环决策
+  - 里程碑：M3 ✅ 架构设计已完成（2026-05-19）
+
+---
+
+#### P2：优化项（可延后，不影响核心功能）
+
+- [ ] **P2-1：README + SKILL.md 文档更新** — PM + Developer
+  - 交付物：更新后的 `README.md`（新增 Object-Driven 架构说明）+ `SKILL.md`（工具名映射表）
+  - 验收标准：Agent 可通过 README 理解命名空间工具调用方式；SKILL.md 中工具清单与实现一致
+  - 里程碑：M4
+
+- [ ] **P2-2：Test Suite 命名空间路径迁移** — Developer
+  - 交付物：更新后的 `test/tools.test.js` + `test/tools-integration.test.js`
+  - 验收标准：所有测试使用新命名空间工具名调用；新增 TaskObject / EventObject 独立测试文件；总测试数 ≥ 180，全部通过
+  - 里程碑：M4
+
+- [ ] **P2-3：对象模型 + 数据模型文档更新** — PM
+  - 交付物：更新后的 `docs/reference/object-model.md` + `docs/reference/data-model.md`
+  - 验收标准：文档包含 TaskObject / EventObject 类图、方法表、与 adapters 的交互序列图；数据模型章节新增 `assets/task.json` 和 `assets/event.md` 字段详解
+  - 里程碑：M4
+
+- [ ] **P2-4：案例索引适配命名空间查询** — Developer
+  - 交付物：修改后的 `src/common/case-index.js`
+  - 验收标准：`case-index` 的字段定义与 TaskObject 输出的标准 task 结构对齐；`task.query` 返回结果中 `similarCases` 字段保持兼容
+  - 里程碑：M4（可选）
+
+---
+
+### v4.3.0 废弃清单
+
+以下 13 个旧工具名在 v4.3.0 中**全部废弃**，不再保留任何映射、shim 或向后兼容层。Agent 必须直接使用新命名空间工具名调用。
+
+| 序号 | 旧工具名 | 新命名空间工具名 | 所属命名空间 |
+|------|----------|------------------|--------------|
+| 1 | `create_plan` | `task.create` | task |
+| 2 | `update_task_status` | `task.update` | task |
+| 3 | `advance_phase` | `task.advance` | task |
+| 4 | `get_task_status` | `task.query` | task |
+| 5 | `get_task_files` | `task.files` | task |
+| 6 | `self_diagnose` | `task.diagnose` | task |
+| 7 | `archive_task` | `task.archive` | task |
+| 8 | `record_deviation` | `event.record` | event |
+| 9 | `record_attribution` | `event.record` | event |
+| 10 | `get_planning_guide` | `guide.planning` | guide |
+| 11 | `get_monitoring_guide` | `guide.monitoring` | guide |
+| 12 | `get_regulation_guide` | `guide.regulation` | guide |
+| 13 | `get_development_guide` | `guide.development` | guide |
+
+> ⚠️ **重要**：v4.3.0 发布后，任何使用旧工具名的 Agent 配置、脚本、白名单将直接报错，不存在过渡期。所有 Agent 必须在 v4.3.0 发布前完成白名单更新。
+
+---
+
+### v4.3.0 问题-解决对照表
+
+| 问题 | 来源 | 解决方案 | 对应任务 |
+|------|------|----------|----------|
+| 1. task.json 生命周期管理无单一Owner | v4.1.0 架构评估 RISK-4 / v4.2.0 遗留 | 引入 TaskObject，统一 CRUD + 校验 + 诊断 | P0-1, P1-1 |
+| 2. event.md 章节格式无契约 | v4.1.0 ~ v4.2.0 格式漂移观察 | 引入 EventObject + assets/event.md 模板，统一七章节结构 | P0-2, P0-4 |
+| 3. Tool 注册方式过时 | OpenClaw 新插件规范 | 迁移到 `api.registerTool({ name, description, parameters, execute })` + 命名空间 | P0-3 |
+| 4. 工具名扁平，语义不清晰 | v4.1.0 设计债 | 重组为 `task.*` / `event.*` / `guide.*` 命名空间 | P0-3 |
+| 5. 命名空间迁移破坏现有 Agent 配置 | v4.3.0 引入 | README + SKILL.md 更新命名空间调用指南；Agent 白名单同步更新 | P1-2 |
+| 6. Flow / State / Task adapters 职责模糊 | v4.1.0 架构评估 RISK-6 | ADR-009 明确边界：TaskObject 管业务，State 管 IO，Flow 管编排 | P1-4 |
+
+---
+
+### v4.3.0 阻塞与风险
+
+| 风险 | 等级 | 缓解措施 |
+|------|------|----------|
+| P0-3 命名空间迁移影响全量测试 | 🔴 高 | P0-1/P0-2 接口冻结后再启动 M2；测试全部改为新命名空间调用；旧测试基线废弃 |
+| TaskObject 与现有 State adapter 竞态 | 🟡 中 | TaskObject 写入使用原子文件替换；State adapter 降级为纯 IO 层，不维护业务状态 |
+| event.md 模板渲染性能 | 🟡 中 | EventObject 采用「章节切片」追加策略，不重新渲染全文件；单次追加 < 50ms |
+| Agent 白名单更新滞后 | 🔴 高 | 无向后兼容层；文档提前 1 周发布迁移指南；Agent 配置必须在 v4.3.0 发布前同步更新 |
+
+---
+
 ## 历史版本
 
 | 版本 | 日期 | 核心变化 | 状态 |
 |------|------|----------|------|
-| v4.2.0 | 2026-06-01（预计） | Cognitive Intelligence + 架构风险评估修复 | 🚧 开发中 |
+| **v4.3.0** | 2026-06-15（预计） | Object-Driven Architecture：TaskObject + EventObject + 命名空间 Tools | 🚧 规划中 |
+| v4.2.0 | 2026-06-01 | Cognitive Intelligence + 架构风险评估修复 | ✅ 已完成 |
 | v4.1.0 | 2026-05-11 | Tool-Driven Agent Autonomy | ✅ 已发布 |
 | v4.0.1 | 已合并至 v4.1.0 | Hook 可靠性 + 命名统一 | ✅ 已整合 |
 | v4.0.0 | 2026-05-01 | 项目上下文层 + 双系统架构 | ✅ 已发布 |
@@ -205,6 +411,10 @@
 
 ## 最近更新
 
+- **2026-05-19**：v4.3.0 TODO.md 更新——PM 删除所有向后兼容/过渡期/shim 描述，新增「废弃清单」章节明确 13 个旧工具名废弃；P0-3 验收标准改为仅暴露命名空间工具；P1-2 删除向后兼容备注；风险表更新为「无向后兼容层」；里程碑 M1~M5 无过渡期
+- **2026-05-19**：v4.3.0 架构设计完成——Architect 输出 `docs/architecture/v4.3.0-design.md` + `docs/adr/ADR-009-object-adapter-boundary.md` + `docs/specs/task-object-interface.md` + `docs/specs/event-object-interface.md` + `docs/specs/tool-registry-interface.md`；涵盖模块划分、接口契约、数据流、命名空间工具映射、5 项关键架构决策；状态标记为 [ARCH_READY]
+- **2026-05-19**：v4.3.0 规划启动——PM 完成需求分析、架构设计、TODO.md 更新；确认 P0-1 ~ P0-4 阻塞项 + P1-1 ~ P1-4 重要项 + P2-1 ~ P2-4 优化项
+- **2026-05-19**：v4.2.0 全部完成——M1 ~ M5 验收通过，360/360 测试通过，版本状态更新为 ✅ 已完成
 - **2026-05-13**：M3 全部完成——P1-1 git tag 规范化 + P1-2 任务类型模板 + P1-3 路径抽象 + P1-4 Heartbeat 接入 HookRegistry，126/126 测试通过
 - **2026-05-13**：P1-2 完成——新增 3 种任务类型模板（coding/research/documentation），`create_plan` 支持 `taskType`，`get_planning_guide` 动态选择模板，126/126 测试通过
 - **2026-05-13**：P1-4 完成——Heartbeat 接入 HookRegistry（RISK-3），`this.hookRegistry.register()` 与其他模块一致，126/126 测试通过

@@ -1,114 +1,17 @@
 /**
- * Tool Schemas — v4.1.0 Tool-Driven Agent Autonomy
+ * Tool Schemas — v4.3.0 Object-Driven Layer
  *
- * 13 个 tools 的 JSON Schema 定义。
- * 设计原则：
- * - 查询型 Tool 只读，不修改项目文件
- * - 操作型 Tool 被动响应，只在 Agent 调用时执行文件写入
- * - 所有输入/输出/错误处理明确可见
+ * 命名空间工具的 JSON Schema 定义（parameters 格式）。
+ * 废弃 inputSchema，全面使用 parameters。
  */
 
+// ── task.* 命名空间 ──
+
 export const TOOL_SCHEMAS = {
-  // ── 第一层：查询型 Tool（只读）──
-
-  get_task_status: {
-    name: 'get_task_status',
-    description: '查询指定 runId 的完整 Task JSON 状态',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        runId: { type: 'string', description: '任务运行 ID' }
-      },
-      required: ['runId']
-    }
-  },
-
-  get_task_files: {
-    name: 'get_task_files',
-    description: '获取任务关联的文件列表（从 .agent/tasks/{runId}.json 读取）',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        runId: { type: 'string', description: '任务运行 ID' }
-      },
-      required: ['runId']
-    }
-  },
-
-  get_planning_guide: {
-    name: 'get_planning_guide',
-    description: '获取 planning 阶段指导文本，根据 phase 和可选 taskType 返回对应的 skill 内容',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        phase: {
-          type: 'string',
-          enum: ['assessment', 'draft', 'pending_approval', 'active', 'revising'],
-          description: 'planning 阶段名称'
-        },
-        taskType: {
-          type: 'string',
-          enum: ['coding', 'research', 'documentation'],
-          description: '任务类型（可选），指定后加载对应专用模板'
-        }
-      },
-      required: ['phase']
-    }
-  },
-
-  get_monitoring_guide: {
-    name: 'get_monitoring_guide',
-    description: '获取 monitoring 指导文本，包含当前阶段和历史偏差',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        runId: { type: 'string', description: '任务运行 ID' }
-      },
-      required: ['runId']
-    }
-  },
-
-  get_regulation_guide: {
-    name: 'get_regulation_guide',
-    description: '获取 regulation 指导文本，包含偏差摘要（仅在存在未处理偏差时可用）',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        runId: { type: 'string', description: '任务运行 ID' }
-      },
-      required: ['runId']
-    }
-  },
-
-  get_development_guide: {
-    name: 'get_development_guide',
-    description: '获取 development 指导文本，包含 Event 摘要（task=completed 时可用）',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        runId: { type: 'string', description: '任务运行 ID' }
-      },
-      required: ['runId']
-    }
-  },
-
-  self_diagnose: {
-    name: 'self_diagnose',
-    description: '返回当前插件和任务的诊断信息',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        runId: { type: 'string', description: '可选，任务运行 ID' }
-      }
-    }
-  },
-
-  // ── 第二层：操作型 Tool（读写，被动响应）──
-
-  create_plan: {
-    name: 'create_plan',
-    description: '创建 draft task，替代 [NEED_PLAN] 标记',
-    inputSchema: {
+  'task.create': {
+    name: 'task.create',
+    description: '创建 draft task',
+    parameters: {
       type: 'object',
       properties: {
         runId: { type: 'string', description: '任务运行 ID' },
@@ -116,10 +19,11 @@ export const TOOL_SCHEMAS = {
         taskType: {
           type: 'string',
           enum: ['coding', 'research', 'documentation'],
-          description: '任务类型（可选），影响默认阶段和 planning 模板选择'
+          description: '任务类型（可选）'
         },
         planInput: {
           type: 'object',
+          description: '可选，Agent 提供的完整计划输入',
           properties: {
             goal: { type: 'string' },
             constraints: { type: 'array', items: { type: 'string' } },
@@ -144,10 +48,10 @@ export const TOOL_SCHEMAS = {
     }
   },
 
-  update_task_status: {
-    name: 'update_task_status',
-    description: '显式更新 task 状态，替代 [STATUS: xxx] 标记',
-    inputSchema: {
+  'task.update': {
+    name: 'task.update',
+    description: '更新 task 状态',
+    parameters: {
       type: 'object',
       properties: {
         runId: { type: 'string', description: '任务运行 ID' },
@@ -162,10 +66,10 @@ export const TOOL_SCHEMAS = {
     }
   },
 
-  advance_phase: {
-    name: 'advance_phase',
+  'task.advance': {
+    name: 'task.advance',
     description: '推进 task 到下一阶段',
-    inputSchema: {
+    parameters: {
       type: 'object',
       properties: {
         runId: { type: 'string', description: '任务运行 ID' },
@@ -175,40 +79,197 @@ export const TOOL_SCHEMAS = {
     }
   },
 
-  record_deviation: {
-    name: 'record_deviation',
-    description: '记录偏差到事件文件',
-    inputSchema: {
+  'task.query': {
+    name: 'task.query',
+    description: '查询指定 runId 的完整 Task JSON 状态',
+    parameters: {
+      type: 'object',
+      properties: {
+        runId: { type: 'string', description: '任务运行 ID' }
+      },
+      required: ['runId']
+    }
+  },
+
+  'task.files': {
+    name: 'task.files',
+    description: '获取任务关联的文件列表',
+    parameters: {
+      type: 'object',
+      properties: {
+        runId: { type: 'string', description: '任务运行 ID' }
+      },
+      required: ['runId']
+    }
+  },
+
+  'task.diagnose': {
+    name: 'task.diagnose',
+    description: '返回当前插件和任务的诊断信息',
+    parameters: {
+      type: 'object',
+      properties: {
+        runId: { type: 'string', description: '可选，任务运行 ID' }
+      }
+    }
+  },
+
+  'task.archive': {
+    name: 'task.archive',
+    description: '归档已完成的任务',
+    parameters: {
+      type: 'object',
+      properties: {
+        runId: { type: 'string', description: '任务运行 ID' }
+      },
+      required: ['runId']
+    }
+  },
+
+  'task.archive': {
+    name: 'task.archive',
+    description: '归档已完成的任务',
+    parameters: {
+      type: 'object',
+      properties: {
+        runId: { type: 'string', description: '任务运行 ID' }
+      },
+      required: ['runId']
+    }
+  },
+
+  'task.deviate': {
+    name: 'task.deviate',
+    description: '记录偏差到 task.json',
+    parameters: {
       type: 'object',
       properties: {
         runId: { type: 'string', description: '任务运行 ID' },
         type: { type: 'string', description: '偏差类型（如 scope_creep, technical_debt）' },
         description: { type: 'string', description: '偏差描述' },
-        impact: { type: 'string', description: '影响评估' }
+        impact: { type: 'string', description: '影响评估（可选）' }
       },
       required: ['runId', 'type', 'description']
     }
   },
 
-  record_attribution: {
-    name: 'record_attribution',
-    description: '记录归因到事件文件',
-    inputSchema: {
+  'task.attribute': {
+    name: 'task.attribute',
+    description: '记录归因到 task.json',
+    parameters: {
       type: 'object',
       properties: {
         runId: { type: 'string', description: '任务运行 ID' },
         rootCause: { type: 'string', description: '根本原因' },
-        impact: { type: 'string', description: '影响范围' },
-        strategy: { type: 'string', description: '改进策略' }
+        strategy: { type: 'string', description: '改进策略' },
+        impact: { type: 'string', description: '影响范围（可选）' }
       },
       required: ['runId', 'rootCause', 'strategy']
     }
   },
 
-  archive_task: {
-    name: 'archive_task',
-    description: '归档已完成的任务',
-    inputSchema: {
+  // ── event.* 命名空间 ──
+
+  'event.record': {
+    name: 'event.record',
+    description: '记录偏差或归因到事件文件',
+    parameters: {
+      type: 'object',
+      properties: {
+        runId: { type: 'string', description: '任务运行 ID' },
+        recordType: {
+          type: 'string',
+          enum: ['deviation', 'attribution'],
+          description: '记录类型'
+        },
+        data: {
+          type: 'object',
+          description: '记录内容',
+          properties: {
+            type: { type: 'string', description: '偏差类型（recordType=deviation 时）' },
+            description: { type: 'string', description: '偏差描述（recordType=deviation 时）' },
+            impact: { type: 'string', description: '影响评估（可选）' },
+            rootCause: { type: 'string', description: '根本原因（recordType=attribution 时）' },
+            strategy: { type: 'string', description: '改进策略（recordType=attribution 时）' }
+          }
+        },
+        task: {
+          type: 'object',
+          description: '可选，完整的 task 对象（用于定位事件文件）'
+        }
+      },
+      required: ['runId', 'recordType', 'data']
+    }
+  },
+
+  'event.query': {
+    name: 'event.query',
+    description: '查询事件记录',
+    parameters: {
+      type: 'object',
+      properties: {
+        runId: { type: 'string', description: '可选，精确匹配任务 ID' },
+        date: { type: 'string', description: '可选，YYYY-MM-DD' },
+        type: {
+          type: 'string',
+          enum: ['deviation', 'attribution'],
+          description: '可选，记录类型'
+        }
+      }
+    }
+  },
+
+  // ── guide.* 命名空间 ──
+
+  'guide.planning': {
+    name: 'guide.planning',
+    description: '获取 planning 阶段指导文本',
+    parameters: {
+      type: 'object',
+      properties: {
+        phase: {
+          type: 'string',
+          enum: ['assessment', 'draft', 'pending_approval', 'active', 'revising'],
+          description: 'planning 阶段名称'
+        },
+        taskType: {
+          type: 'string',
+          enum: ['coding', 'research', 'documentation'],
+          description: '任务类型（可选）'
+        }
+      },
+      required: ['phase']
+    }
+  },
+
+  'guide.monitoring': {
+    name: 'guide.monitoring',
+    description: '获取 monitoring 指导文本',
+    parameters: {
+      type: 'object',
+      properties: {
+        runId: { type: 'string', description: '任务运行 ID' }
+      },
+      required: ['runId']
+    }
+  },
+
+  'guide.regulation': {
+    name: 'guide.regulation',
+    description: '获取 regulation 指导文本',
+    parameters: {
+      type: 'object',
+      properties: {
+        runId: { type: 'string', description: '任务运行 ID' }
+      },
+      required: ['runId']
+    }
+  },
+
+  'guide.development': {
+    name: 'guide.development',
+    description: '获取 development 指导文本',
+    parameters: {
       type: 'object',
       properties: {
         runId: { type: 'string', description: '任务运行 ID' }
@@ -219,25 +280,30 @@ export const TOOL_SCHEMAS = {
 };
 
 /**
- * 工具分类
+ * 命名空间工具分组
  */
-export const QUERY_TOOLS = [
-  'get_task_status',
-  'get_task_files',
-  'get_planning_guide',
-  'get_monitoring_guide',
-  'get_regulation_guide',
-  'get_development_guide',
-  'self_diagnose'
+export const TASK_TOOLS = [
+  'task.create',
+  'task.update',
+  'task.advance',
+  'task.query',
+  'task.files',
+  'task.diagnose',
+  'task.archive',
+  'task.deviate',
+  'task.attribute'
 ];
 
-export const ACTION_TOOLS = [
-  'create_plan',
-  'update_task_status',
-  'advance_phase',
-  'record_deviation',
-  'record_attribution',
-  'archive_task'
+export const EVENT_TOOLS = [
+  'event.record',
+  'event.query'
 ];
 
-export const ALL_TOOLS = [...QUERY_TOOLS, ...ACTION_TOOLS];
+export const GUIDE_TOOLS = [
+  'guide.planning',
+  'guide.monitoring',
+  'guide.regulation',
+  'guide.development'
+];
+
+export const ALL_TOOLS = [...TASK_TOOLS, ...EVENT_TOOLS, ...GUIDE_TOOLS];
