@@ -71,8 +71,6 @@ interface PhaseInput {
   goal?: string;
   outputs?: string[];
   status?: 'pending' | 'in_progress' | 'completed';
-  tools?: string[];
-  skills?: string[];
 }
 ```
 

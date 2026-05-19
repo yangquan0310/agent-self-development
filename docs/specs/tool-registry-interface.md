@@ -13,7 +13,7 @@
 
 v4.3.0 采用扁平化架构：业务逻辑在 `objects/` 纯函数中，Handler 层负责参数解包和返回值适配。
 
-本规范定义 6 个工具的注册方式和 handler 契约。
+本规范定义 8 个工具的注册方式和 handler 契约。
 
 ---
 
@@ -43,7 +43,7 @@ interface ToolSpec {
 ```
 
 **注册逻辑**：
-1. 从 `schemas.js` 导入 6 个工具的定义（name, description, parameters）
+1. 从 `schemas.js` 导入 8 个工具的定义（name, description, parameters）
 2. 从 `handlers.js` 导入对应的 handler 函数
 3. 对每个工具调用 `api.registerTool({ name, description, parameters, execute })`
 4. `execute` 内部调用 `adaptReturn()` 或 `adaptError()` 包装返回值
