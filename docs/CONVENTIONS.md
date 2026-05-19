@@ -13,28 +13,31 @@ description: >
 
 ## 目录结构（v4.3.0+）
 
-v4.3.0 采用**扁平化工具插件架构**：Tool Handler 直接读写文件，不引入对象层封装。
+v4.3.0 采用**扁平化工具插件架构**：业务逻辑在 `objects/` 纯函数模块中，无类封装、无依赖注入。
 
 ```
 src/
 ├── index.js              # 插件入口：加载模板，注册工具
-├── tools/
-│   ├── index.js          # 注册入口：遍历 schemas + handlers 注册
-│   ├── schemas.js        # 工具参数 JSON Schema
-│   ├── handlers.js       # 工具 handler 实现（直接操作文件）
-│   └── adapter.js        # 返回值统一适配
-├── templates/
+├── objects/
+│   ├── task.js           # 任务业务函数（create / update / advance / get / archive）
+│   └── event.js          # 事件业务函数（report / query / archive）
+├── assets/
 │   ├── task.json         # Task 数据结构模板
 │   ├── event.md          # Event Markdown 模板
 │   └── templates/        # 可选 Skill 模板
+├── tools/
+│   ├── index.js          # 注册入口
+│   ├── schemas.js        # 工具参数 JSON Schema
+│   ├── handlers.js       # 工具 handler（调用 objects/ 函数 + 返回值适配）
+│   └── adapter.js        # 返回值统一适配
 └── utils/
-    ├── io.js             # 文件 IO 原子操作（readJson / writeJson / ensureDir / moveFile）
-    └── resolve.js        # 路径解析（taskPath / eventPath / archivePath）
+    ├── io.js             # 文件 IO 原子操作
+    └── resolve.js        # 路径解析
 ```
 
 **红线**：
 - `src/` 下不得出现 `metacognition/`、`working-memory/`、`personality/`、`common/adapters/` 等旧目录
-- **不得引入 `objects/` 目录** — v4.3.0 放弃对象层封装，Handler 直接操作文件
+- `objects/` 中**禁止定义类** — 仅允许导出纯函数
 
 ---
 
@@ -49,38 +52,45 @@ src/
 
 ---
 
-## Handler 层规范
+## 分层规范
 
-### 设计原则
+### objects/ 层（业务逻辑）
 
-- **直接 IO**：Handler 直接调用 `utils/io.js` 读写文件，不通过中间对象
-- **纯函数倾向**：Handler 接收 `(params, context)`，返回结果对象，副作用仅限于文件 IO
-- **校验双重化**：JSON Schema（Tool 层）+ 运行时校验（Handler 层）
+- **纯函数**：`objects/task.js` 和 `objects/event.js` 仅导出纯函数，不定义类
+- **直接 IO**：业务函数直接调用 `utils/io.js` 读写文件
+- **无依赖注入**：函数通过 `context` 参数接收 `templates` / `logger` / `baseDir`
 - **错误返回**：所有错误返回 `{ error: '...' }`，不抛出异常
 
-### Handler 签名
-
 ```javascript
-// handlers.js
-export async function createTask(params, context) {
-  // params: 经 JSON Schema 校验后的工具参数
-  // context: { templates, logger, baseDir }
-  // 返回: { task } 或 { error: '...' }
-}
+// objects/task.js
+export async function create(params, context) { ... }
+export async function update(params, context) { ... }
+export async function advance(params, context) { ... }
+export async function get(params, context) { ... }
+export async function archive(params, context) { ... }
 ```
 
-### 6 个工具 Handler
+```javascript
+// objects/event.js
+export async function report(params, context) { ... }
+export async function query(params, context) { ... }
+export async function archive(params, context) { ... }
+```
+
+### tools/ 层（Handler + 注册）
+
+- **薄适配**：Handler 调用 `objects/` 函数，仅做参数解包和返回值适配
+- **校验双重化**：JSON Schema（Tool 层）+ 运行时校验（objects/ 层）
 
 ```javascript
-// 任务管理
-export async function createTask(params, context)     // 写 .agent/tasks/{runId}.json
-export async function updateTask(params, context)     // 读 → 改 → 写 task.json
-export async function advanceTask(params, context)    // 读 → 推进 phase → 写
-export async function getTask(params, context)        // 读 task.json（活跃+归档双路径）
-export async function archiveTask(params, context)    // 移动 task.json → archive/
+// tools/handlers.js
+import * as task from '../objects/task.js';
+import * as event from '../objects/event.js';
 
-// 事件报告
-export async function reportEvent(params, context)    // 读 task.json → 渲染 → 写 event.md
+export async function create(params, context) {
+  const result = await task.create(params, context);
+  return adaptReturn(result);
+}
 ```
 
 ### updateTask 参数（万能更新）
@@ -241,14 +251,16 @@ api.registerTool({
 | 路径 | 职责 | 变更频率 |
 |------|------|----------|
 | `src/index.js` | 插件入口，加载模板，注册工具 | 低 |
+| `src/objects/task.js` | 任务业务逻辑（纯函数） | 中 |
+| `src/objects/event.js` | 事件业务逻辑（纯函数） | 中 |
 | `src/tools/index.js` | 工具注册入口 | 低 |
 | `src/tools/schemas.js` | 工具参数 schema | 中 |
-| `src/tools/handlers.js` | 工具 handler 实现（直接文件 IO） | 中 |
+| `src/tools/handlers.js` | 工具 handler（调用 objects/ + 适配返回值） | 中 |
 | `src/tools/adapter.js` | 返回值格式适配 | 低 |
 | `src/utils/resolve.js` | 路径解析 | 低 |
 | `src/utils/io.js` | 文件原子读写 | 低 |
-| `src/templates/task.json` | Task 数据结构模板 | 低 |
-| `src/templates/event.md` | Event Markdown 模板 | 低 |
+| `src/assets/task.json` | Task 数据结构模板 | 低 |
+| `src/assets/event.md` | Event Markdown 模板 | 低 |
 
 ---
 

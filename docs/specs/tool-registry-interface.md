@@ -1,7 +1,7 @@
 # Tool Registry 接口规范
 
 > **版本**：v4.3.0  
-> **范围**：`src/tools/`（注册层 + handler 层 + adapter 层）  
+> **范围**：`src/tools/`（注册层 + handler 层 + adapter 层）+ `src/objects/`（业务函数层）  
 > **状态**：[ARCH_READY]  
 > **作者**：Architect  
 > **更新日期**：2026-05-19  
@@ -11,7 +11,7 @@
 
 ## 1. 概述
 
-v4.3.0 采用扁平化架构：Tool Handler 直接读写文件，不引入对象层。
+v4.3.0 采用扁平化架构：业务逻辑在 `objects/` 纯函数中，Handler 层负责参数解包和返回值适配。
 
 本规范定义 6 个工具的注册方式和 handler 契约。
 
@@ -70,7 +70,7 @@ interface ToolSpec {
 }
 ```
 
-**Handler**：`handlers.createTask(params, context)` → `{ task }`
+**Handler**：`objects/task.create(params, context)` → `{ task }`
 
 ---
 
@@ -120,7 +120,7 @@ interface ToolSpec {
 }
 ```
 
-**Handler**：`handlers.updateTask(params, context)` → `{ task, updatedFields }`
+**Handler**：`objects/task.update(params, context)` → `{ task, updatedFields }`
 
 **特殊说明**：`task.update` 是 task.json 的**唯一更新入口**。内部按顺序处理：
 1. `status` → 状态机校验
@@ -148,7 +148,7 @@ interface ToolSpec {
 }
 ```
 
-**Handler**：`handlers.advanceTask(params, context)` → `{ task, previousPhase, nextPhase, isComplete }`
+**Handler**：`objects/task.advance(params, context)` → `{ task, previousPhase, nextPhase, isComplete }`
 
 ---
 
@@ -168,7 +168,7 @@ interface ToolSpec {
 }
 ```
 
-**Handler**：`handlers.getTask(params, context)` → `{ task }`
+**Handler**：`objects/task.get(params, context)` → `{ task }`
 
 **注意**：若 task 不存在返回 `{ task: null }`，不返回错误。
 
@@ -190,7 +190,7 @@ interface ToolSpec {
 }
 ```
 
-**Handler**：`handlers.archiveTask(params, context)` → `{ archived, archivedAt, archivedPath }`
+**Handler**：`objects/task.archive(params, context)` → `{ archived, archivedAt, archivedPath }`
 
 ---
 
@@ -210,7 +210,7 @@ interface ToolSpec {
 }
 ```
 
-**Handler**：`handlers.reportEvent(params, context)` → `{ eventFilePath, content }`
+**Handler**：`objects/event.report(params, context)` → `{ eventFilePath, content }`
 
 **Handler 内部逻辑**：
 1. 双路径扫描读取 task.json（活跃 → 归档）
@@ -218,15 +218,18 @@ interface ToolSpec {
 3. 渲染模板，写入 `.agent/events/{date}/{runId}.md`
 4. 返回 `eventFilePath`
 
-**Tool Handler 层协调**（在 `tools/index.js` 中）：
+**Tool Handler 层协调**（在 `tools/handlers.js` 中）：
 ```javascript
-async execute(_id, args) {
-  const result = await handlers.reportEvent(args, context);
+import * as task from '../objects/task.js';
+import * as event from '../objects/event.js';
+
+export async function report(params, context) {
+  const result = await event.report(params, context);
   if (result.error) return adaptError(new Error(result.error));
   
   // 关联 eventFilePath 到 task.json
-  await handlers.updateTask(
-    { runId: args.runId, eventFilePath: result.eventFilePath },
+  await task.update(
+    { runId: params.runId, eventFilePath: result.eventFilePath },
     context
   );
   
@@ -267,8 +270,8 @@ export async function initialize(api, config) {
   const baseDir = config.projectRoot || process.cwd();
   
   const templates = {
-    task: JSON.parse(readFileSync(`${baseDir}/src/templates/task.json`, 'utf-8')),
-    event: readFileSync(`${baseDir}/src/templates/event.md`, 'utf-8')
+    task: JSON.parse(readFileSync(`${baseDir}/src/assets/task.json`, 'utf-8')),
+    event: readFileSync(`${baseDir}/src/assets/event.md`, 'utf-8')
   };
   
   const context = { templates, baseDir, logger: api.logger };

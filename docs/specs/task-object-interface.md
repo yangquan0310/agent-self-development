@@ -1,7 +1,7 @@
 # Task Handler 接口规范
 
 > **版本**：v4.3.0  
-> **范围**：`src/tools/handlers.js` 中任务管理相关函数  
+> **范围**：`src/objects/task.js` 中任务管理相关函数  
 > **状态**：[ARCH_READY]  
 > **作者**：Architect  
 > **更新日期**：2026-05-19  
@@ -14,7 +14,7 @@
 
 v4.3.0 采用扁平化架构：**Tool Handler 直接读写 `task.json`**，不引入 TaskObject 中间层。
 
-本规范定义 5 个任务管理 Handler 的接口契约。
+本规范定义 5 个任务管理业务函数的接口契约。
 
 ---
 
@@ -33,20 +33,20 @@ Handler 内部通过 `utils/resolve.js` 解析路径，通过 `utils/io.js` 读�
 
 ---
 
-## 3. Handler 定义
+## 3. 函数定义
 
 ```javascript
-// 任务管理
-export async function createTask(params, context)
-export async function updateTask(params, context)
-export async function advanceTask(params, context)
-export async function getTask(params, context)
-export async function archiveTask(params, context)
+// objects/task.js
+export async function create(params, context)
+export async function update(params, context)
+export async function advance(params, context)
+export async function get(params, context)
+export async function archive(params, context)
 ```
 
 ---
 
-## 4. createTask
+## 4. create
 
 创建 draft task，写入 `.agent/tasks/{runId}.json`。
 
@@ -98,7 +98,7 @@ interface CreateTaskError {
 
 ---
 
-## 5. updateTask
+## 5. update
 
 通用更新接口。支持状态更新、偏差记录、归因记录、结果设置、event.md 路径关联的任意组合。
 
@@ -185,7 +185,7 @@ draft ──────────→ pending_approval ───────�
 
 ---
 
-## 6. advanceTask
+## 6. advance
 
 推进 task 阶段。
 
@@ -221,7 +221,7 @@ interface AdvanceTaskError {
 
 ---
 
-## 7. getTask
+## 7. get
 
 查询 task 完整状态。
 
@@ -241,7 +241,7 @@ interface GetTaskResult {
 
 ---
 
-## 8. archiveTask
+## 8. archive
 
 归档 completed task。
 

@@ -1,7 +1,7 @@
 # Event Handler 接口规范
 
 > **版本**：v4.3.0  
-> **范围**：`src/tools/handlers.js` 中事件报告相关函数  
+> **范围**：`src/objects/event.js` 中事件报告相关函数  
 > **状态**：[ARCH_READY]  
 > **作者**：Architect  
 > **更新日期**：2026-05-19  
@@ -14,7 +14,7 @@
 
 v4.3.0 采用扁平化架构：**Tool Handler 直接读写 `event.md`**，不引入 EventObject 中间层。
 
-本规范定义 1 个事件报告 Handler 的接口契约（`query` 和 `archive` 为辅助功能）。
+本规范定义 1 个事件报告业务函数的接口契约（`query` 和 `archive` 为辅助功能）。
 
 ---
 
@@ -31,12 +31,13 @@ const context = {
 
 ---
 
-## 3. Handler 定义
+## 3. 函数定义
 
 ```javascript
-export async function reportEvent(params, context)   // 生成 event.md
-export async function queryEvent(params, context)    // 查询 events
-export async function archiveEvent(params, context)  // 归档 event.md
+// objects/event.js
+export async function report(params, context)   // 生成 event.md
+export async function query(params, context)    // 查询 events
+export async function archive(params, context)  // 归档 event.md
 ```
 
 ---
