@@ -24,7 +24,7 @@
 
 | ID | 问题 | 解决方案 | 解决者 | 日期 |
 |----|------|---------|--------|------|
-| R1 | I1 — 对象层过度抽象 | 输出 ADR-014：彻底删除 TaskObject/EventObject 类，Handler 直接读写文件 | Architect | 2026-05-19 |
+| R1 | I1 — 对象层过度抽象 | 输出 ADR-014：删除 TaskObject/EventObject 类，业务逻辑移至 `objects/` 纯函数模块 | Architect | 2026-05-19 |
 | R2 | I2 — 接口臃肿 | 扁平化为 5+1=6 个 Handler：`createTask/updateTask/advanceTask/getTask/archiveTask/reportEvent` | Architect | 2026-05-19 |
 | R3 | I3 — CONVENTIONS 越界 | 重写 CONVENTIONS.md：移除 PM 蓝图中不应出现的目录结构/方法名限制，改为 Architect 定义的扁平化规范 | Architect | 2026-05-19 |
 | R4 | I4 — 字段不匹配 | 删除 `sessionIds`/`tools`/`revisionReason`；剩余 10 个字段全部映射到 6 个 Handler | Architect | 2026-05-19 |
@@ -63,23 +63,26 @@
 Agent → Tool Handler → utils/io.js → task.json / event.md
 ```
 
-没有 TaskObject，没有 EventObject，没有依赖注入。
+没有 TaskObject 类，没有 EventObject 类，没有依赖注入。业务逻辑在 `objects/` 纯函数中。
 
-### 5.2 目录结构
+### 5.2 目录结构（4 文件夹）
 
 ```
 src/
 ├── index.js              # 入口
+├── objects/
+│   ├── task.js           # 任务业务函数（create / update / advance / get / archive）
+│   └── event.js          # 事件业务函数（report / query / archive）
+├── assets/
+│   ├── task.json         # 任务数据结构模板
+│   └── event.md          # 事件报告 Markdown 模板
 ├── tools/
-│   ├── index.js          # 注册
-│   ├── schemas.js        # 6 个 schema
-│   ├── handlers.js       # 6 个 handler（直接文件 IO）
-│   └── adapter.js        # 返回值适配
-├── templates/
-│   ├── task.json
-│   └── event.md
+│   ├── index.js          # 注册入口
+│   ├── schemas.js        # 6 个工具的 JSON Schema
+│   ├── handlers.js       # 工具 handler（调用 objects/ + 适配返回值）
+│   └── adapter.js        # 返回值统一适配
 └── utils/
-    ├── io.js             # readJson / writeJson / ensureDir / moveFile
+    ├── io.js             # 文件 IO 原子操作
     └── resolve.js        # 路径解析
 ```
 
