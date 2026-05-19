@@ -94,6 +94,33 @@
 {outcome.metrics}
 ```
 
+## 5. 回顾与调节（触发章节）
+
+这是 event.md 的**关键触发章节**，专为事件生成后的人格调节设计。
+
+### 内容来源
+
+| 子章节 | 数据来源 |
+|--------|---------|
+| 5.1 偏差回顾 | `task.deviations[]` |
+| 5.2 归因回顾 | `task.attributions[]` |
+| 5.3 调节建议 | 模板固定文本（认知科学理论指引） |
+
+### 触发机制
+
+1. **工具层触发**：`event.report` 返回的 `reflectionPrompt` 明确提示 Agent 进行回顾
+2. **文件层触发**：event.md 第 5 章为 Agent 提供结构化的回顾框架
+3. **Agent 自主执行**：Agent 读取 event.md 后，自行决定是否及如何更新人格文件
+
+### 人格更新目标文件
+
+| 文件 | 更新内容 | 调节类型 |
+|------|---------|---------|
+| `SOUL.md` | 核心自我认知、能力边界、存在意义 | 顺应 |
+| `IDENTITY.md` | 角色集、社会定位、责任范围 | 顺应 |
+| `skills/README.md` | 技能体系、工具熟练度 | 同化/顺应 |
+| `MEMORY.md` | If-Then 规则、操作习惯 | 同化 |
+
 ## 重要说明
 
 - 模板源文件：`src/assets/event.md`
@@ -101,3 +128,4 @@
 - 生成后与 task.json 无实时关联
 - 如需更新 event.md，修改 task.json 后重新执行 `event.report`
 - event.report 会覆盖已存在的 event.md
+- **"回顾与调节"章节是 v4.3.0 新增**，用于替代已移除的自动 personality 模块，改为 Agent 自主调节

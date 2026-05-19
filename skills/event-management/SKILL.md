@@ -23,6 +23,22 @@ description: >
 
 ## 核心工作流
 
+### 事件生成后的人格调节（重要）
+
+`event.report` 成功后会返回 `reflectionPrompt`，提示 Agent 回顾本次事件并考虑人格更新。
+
+**调节闭环**：
+
+```
+event.report({ runId }) → 生成 event.md（含"回顾与调节"章节）
+  → Agent 读取 event.md 中的偏差与归因
+  → Agent 决定是否执行同化/顺应
+  → Agent 直接更新人格文件（SOUL.md / IDENTITY.md / skills/README.md / MEMORY.md）
+```
+
+**同化**：成功经验与现有认知一致 → 强化 MEMORY.md 中的 If-Then 规则
+**顺应**：遭遇能力盲区或冲突 → 更新 SOUL.md / IDENTITY.md
+
 ### 生成事件报告
 
 ```

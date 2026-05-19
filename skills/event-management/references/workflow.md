@@ -71,6 +71,28 @@ event.query({ runId: "20260519-abc123", type: "attribution" })
 4. 返回 { success, archivePath }
 ```
 
+## 事件生成后的人格调节工作流
+
+这是事件管理的核心闭环之一。事件文件生成后，Agent 应主动回顾并决定是否需要更新人格。
+
+```
+event.report({ runId }) 成功返回
+  → 读取返回的 reflectionPrompt
+  → 读取生成的 event.md（特别是"5. 回顾与调节"章节）
+  → 分析偏差与归因：
+      - 本次有哪些偏差？根因是什么？
+      - 归因分析揭示了什么模式？
+  → 判断调节类型：
+      - 同化：成功经验与现有认知一致 → 强化 MEMORY.md 的 If-Then 规则
+      - 顺应：遭遇能力盲区或价值观冲突 → 更新 SOUL.md / IDENTITY.md
+  → 检查技能变化：
+      - 新获得的技能 → 更新 skills/README.md
+      - 发现的技能短板 → 记录改进计划
+  → 执行更新（Agent 直接读写人格文件）
+```
+
+**注意**：人格更新完全由 Agent 自主决定。插件只提供事件数据和调节提示，不做任何自动修改。
+
 ## 完整生命周期示例
 
 ```
@@ -78,8 +100,10 @@ event.query({ runId: "20260519-abc123", type: "attribution" })
   → task.update({ runId, status: "completed" })
   → task.update({ runId, outcome: { summary: "...", artifacts: [...] } })
   → event.report({ runId })
-      → 生成 .agent/events/2026-05-19/20260519-abc123.md
+      → 生成 .agent/events/2026-05-19/20260519-abc123.md（含"回顾与调节"章节）
+      → 返回 reflectionPrompt，提示 Agent 考虑人格更新
       → 自动更新 task.json 的 eventFilePath
+  → [Agent 自主回顾事件，决定更新 SOUL.md / MEMORY.md]
   → [数日后不再需要]
   → event.archive({ runId })
       → 移动到 .agent/events/archive/2026-05-19-20260519-abc123.md

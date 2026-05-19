@@ -57,7 +57,10 @@ export async function report(params, context) {
     return adaptError(updateResult.error);
   }
 
-  return adaptReturn(result);
+  return adaptReturn({
+    ...result,
+    reflectionPrompt: '事件报告已生成。建议回顾本次任务的偏差与归因，查询 event.query({ runId }) 获取完整事件记录，并考虑是否需要更新人格文件（SOUL.md / IDENTITY.md / skills/README.md / MEMORY.md）。'
+  });
 }
 
 export async function query(params, context) {
