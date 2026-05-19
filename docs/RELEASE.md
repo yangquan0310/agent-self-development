@@ -58,14 +58,11 @@
 
 ## 发布步骤
 
-1. **冻结功能** — 确认当前里程碑所有 P0 任务完成
-2. **全量测试** — `npm test`，确保测试通过
-3. **更新版本号** — `package.json` + `src/index.js` plugin version
-4. **更新 TODO.md** — 标记版本发布完成，更新历史版本表
-5. **更新 CHANGELOG** — 将 `unreleased.md` 内容迁移到 `v{X.Y.Z}.md`
-6. **打 tag** — `git tag v{X.Y.Z} {commit}`
-7. **推送 tag** — `git push origin v{X.Y.Z}`
-8. **生成报告** — `docs/reports/test-YYYY-MM-DD-HH-mm-ss.md`
+1. **删除错误 tag** — `4.3.0`（不带 v）
+2. **更新版本号** — `package.json` + `openclaw.plugin.json` 保持一致 ✅
+3. **重新打 tag** — `git tag -f v4.3.0`
+4. **推送 tag** — `git push origin v4.3.0 --force`
+5. **触发 workflow** — GitHub Actions 自动验证 + 打包 + Release
 
 ## 历史 Tag 链
 
