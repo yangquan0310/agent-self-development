@@ -2,8 +2,14 @@
 
 > **版本**：v4.3.0  
 > **范围**：`src/objects/task-object.js`  
-> **状态**：[ARCH_READY]  
+> **状态**：⚠️ 待更新（Pending Update）  
 > **作者**：Architect
+
+> **⚠️ 注意**：本文档基于旧方案（`v4.3.0-design.md`，已废弃），部分接口与新方向不一致：
+> - 缺少 `recordDeviation()` / `recordAttribution()` / `setOutcome()` / `linkEventFile()` 方法定义
+> - `diagnose()` / `getFiles()` 方法在新方向中可能移除或简化
+> - `deps.state` 应改为 `deps.projectRoot`（项目级路径，非系统级 adapter）
+> - 准确接口定义以 `docs/roadmap/v4.3.0.md` 和 `docs/architecture/adr-010.md` 为准
 
 ---
 

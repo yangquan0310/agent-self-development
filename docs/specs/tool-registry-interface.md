@@ -2,8 +2,14 @@
 
 > **版本**：v4.3.0  
 > **范围**：`src/tools/index.js`, `src/tools/schemas.js`  
-> **状态**：[ARCH_READY]  
+> **状态**：⚠️ 待更新（Pending Update）  
 > **作者**：Architect
+
+> **⚠️ 注意**：本文档基于旧方案（`v4.3.0-design.md`，已废弃），部分接口与新方向不一致：
+> - 工具总数 13 个（task.* 7 + event.* 2 + guide.* 4）→ **应改为 7 个（task.* 5 + event.* 2）**
+> - `guide.*` 命名空间工具 → **全部废弃**
+> - `task.files` / `task.diagnose` → **废弃**
+> - 准确工具清单以 `docs/roadmap/v4.3.0.md` 为准
 
 ---
 

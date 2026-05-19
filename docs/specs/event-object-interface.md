@@ -2,8 +2,13 @@
 
 > **版本**：v4.3.0  
 > **范围**：`src/objects/event-object.js`  
-> **状态**：[ARCH_READY]  
+> **状态**：⚠️ 待更新（Pending Update）  
 > **作者**：Architect
+
+> **⚠️ 注意**：本文档基于旧方案（`v4.3.0-design.md`，已废弃），部分接口与新方向不一致：
+> - `createEvent()` + `record()` 增量追加 → **应改为 `generate(runId, task)` 一次性凝练**
+> - EventObject 实时追加 → **改为 task 完成后延迟渲染**
+> - 准确接口定义以 `docs/roadmap/v4.3.0.md` 和 `docs/architecture/adr-013.md` 为准
 
 ---
 

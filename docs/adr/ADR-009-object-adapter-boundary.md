@@ -2,10 +2,15 @@
 
 > **ADR 编号**：009  
 > **标题**：对象层与适配器层的职责边界  
-> **状态**：已接受（Accepted）  
+> **状态**：⚠️ 部分过时（Partially Deprecated）  
 > **日期**：2026-05-19  
 > **作者**：Architect  
 > **影响范围**：src/objects/, src/common/adapters/, src/metacognition/, src/working-memory/
+
+> **⚠️ 状态说明**：
+> - **仍有效**：「State 降级为纯 IO」概念（但实现从 adapters/ 改为 utils/file.js）
+> - **已作废**：「Plan 类委托模式」「Event 类委托模式」「保留 adapter 层」等章节
+> - **替代文档**：`docs/architecture/adr-010.md`（项目级文件系统优先）
 
 ---
 

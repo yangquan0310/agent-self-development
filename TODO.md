@@ -225,7 +225,7 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 | **PM** | v4.3.0 新方向已确认，已输出 roadmap + TODO 更新 |
 | **Developer** | 待启动 M1 目录清理和代码迁移 |
 | **Reviewer** | 待命，待 M3 完成后介入审查 |
-| **Architect** | 新架构方向已确认（极简工具插件），无需额外 ADR |
+| **Architect** | ✅ 已确认 6 项决策无技术不可行项；design.md/ADR-009/specs 已标注 [DEPRECATED]/[待更新]；输出 `[ARCH_READY]` |
 
 ---
 
