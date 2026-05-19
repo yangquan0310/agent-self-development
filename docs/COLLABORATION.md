@@ -2,7 +2,7 @@
 name: collaboration-protocol
 description: >
   agent-self-development 多智能体协作协议。
-  当你扮演 PM、Developer 或 Reviewer 角色，需要执行以下操作时参考本文档：
+  当你扮演 PM、Architect、Developer 或 Reviewer 角色，需要执行以下操作时参考本文档：
   (1) 与其他智能体协调工作，
   (2) 在输出中应用协作标记，
   (3) 解决角色冲突或范围分歧，
@@ -20,7 +20,8 @@ description: >
 
 | 角色 | 权限 | 决策范围 |
 |------|------|----------|
-| **PM** | 架构、需求、发布 | 任务优先级、模块划分、版本规划 |
+| **PM** | 需求、发布、进度 | 任务优先级、模块划分、版本规划、验收标准 |
+| **Architect** | 架构设计、接口定义 | 目录结构、模块拆分、接口契约、技术决策 |
 | **Developer** | 实现、工具、测试 | 代码方案、技术选型、实现细节 |
 | **Reviewer** | 审批、合规、风险 | 合并审批、合规红线（最终决定权） |
 
@@ -34,6 +35,40 @@ description: >
 4. **解决冲突**：当 Developer 与 Reviewer 在可行性与质量上产生分歧时进行仲裁
 5. **输出 `[PM_REVIEW]`**：完成需求分析并等待反馈时
 6. **输出 `[SCOPE_CHANGE]`**：开发启动后需求发生变更时
+
+## PM 红线（不应触碰）
+
+| 类别 | PM 不应写 | 应归属谁 | 示例 |
+|------|----------|---------|------|
+| 目录结构 | `src/` 下具体文件/目录路径 | Architect | ❌ ~~`src/objects/TaskObject.js`~~ → Architect 写 |
+| 文件迁移 | 具体删除/迁移/重命名清单 | Architect / Developer | ❌ ~~删除 `src/common/cognitive-trace.js`~~ → Architect 写 |
+| 工具命名 | 工具的具体名称、参数、返回值 | Architect | ❌ ~~暴露 7 个工具：`task.create` 参数为 `runId`、`prompt`~~ → Architect 写 |
+| 工作流 | Agent 具体工具调用序列 | Architect | ❌ ~~Agent 先调用 `task.create`，再调用 `task.advance`~~ → Architect 写 |
+| 废弃清单 | 具体废弃项列表 | Developer（实现时确认） | ❌ ~~废弃 `task.files`、`task.diagnose`~~ → Developer 实现时通过 `[DOC_UPDATE]` 记录 |
+| 代码实现 | 任何代码逻辑、算法细节 | Developer | ❌ ~~`TaskObject.create()` 内部实现~~ → Developer 写 |
+
+**PM 该写（示例）**：
+> ✅ v4.3.0 应暴露任务管理工具和事件报告工具，使 Agent 能够自主完成 task 全生命周期管理和事件总结报告生成。
+
+**PM 不应写（示例）**：
+> ❌ ~~暴露 7 个工具：`task.create`、`task.update`……`task.create` 的关键参数为 `runId`、`prompt`……~~
+
+## Architect 规则
+
+1. **架构设计文档是 Architect 专属产出**：`docs/architecture/`、`docs/specs/`、`docs/adr/`
+2. **接口冻结后输出 `[ARCH_READY]`**：Developer 可依此启动实现
+3. **不修改 PM 的蓝图**：蓝图需求不明确时，通过 `.agent/sessions/` 向 PM 提问
+4. **不编写实现代码**：只定义接口和契约，具体实现由 Developer 完成
+
+## Architect 红线（不应触碰）
+
+| 类别 | Architect 不应写 | 应归属谁 | 示例 |
+|------|----------------|---------|------|
+| 需求决策 | 「为什么要做这个功能」 | PM | ❌ ~~「因为用户反馈工具太多太杂」~~ → PM 写 |
+| 验收标准 | 任务完成的具体验收条件 | PM | ❌ ~~「测试 ≥ 50 个用例通过」~~ → PM 写 |
+| 里程碑时间 | 版本发布的截止日期 | PM | ❌ ~~「M1 截止 2026-05-23」~~ → PM 写 |
+| 实现代码 | 任何函数体实现、测试代码 | Developer | ❌ ~~`TaskObject.create()` 的具体代码~~ → Developer 写 |
+| 路线图 | 版本目标、roadmap 文档 | PM | ❌ ~~`docs/roadmap/v4.3.0.md` 中的版本目标章节~~ → PM 写 |
 
 ## Developer 规则
 
@@ -207,14 +242,41 @@ description: >
 
 ## 文档所有权
 
-| 文档 | 创建者 | 维护者 | 审查者 |
-|------|--------|--------|--------|
-| `README.md` | PM | PM + Developer | Reviewer |
-| `metadata.json` | PM | Developer | Reviewer |
-| `skills/project-context/SKILL.md` | PM | Developer | Reviewer |
-| `TODO.md` | PM | 所有角色 | — |
-| 路线图 (`docs/roadmap/`) | PM | PM | — |
-| `skills/project-conventions/SKILL.md` | PM + Developer | Developer | Reviewer |
+| 文档 | 创建者 | 维护者 | 审查者 | 内容边界（该写什么） |
+|------|--------|--------|--------|---------------------|
+| `README.md` | PM | PM + Developer | Reviewer | 项目定位、安装流程、版本历史 |
+| `metadata.json` | PM | Developer | Reviewer | 版本号、目录映射、标签 |
+| `TODO.md` | PM | 所有角色 | — | 任务状态、里程碑、验收标准 |
+| **蓝图 (`docs/roadmap/`)** | **PM** | **PM** | **—** | **版本目标、里程碑时间、风险** ❌ 不含目录结构/工具命名/废弃清单 |
+| `CONVENTIONS.md` | PM | PM | Reviewer | 编码规范、命名规则、目录结构标准 |
+| `COLLABORATION.md` | PM | PM | Reviewer | 角色边界、协作标记、通讯协议 |
+| `INDEX.md` | PM | PM | Reviewer | 文档导航、责任矩阵 |
+| 设计哲学 (`docs/reference/`) | PM | PM | Reviewer | 架构哲学、设计原则 |
+| 理论基础 (`docs/reference/`) | PM | PM | Reviewer | 理论映射、概念解释 |
+| 角色定义 (`.agent/agents/`) | PM | PM | Reviewer | 角色职责、工作流 |
+| **接口规范 (`docs/specs/`)** | **Architect** | **Architect** | **Reviewer** | **接口定义、参数类型、返回值、数据流** |
+| **架构决策 (`docs/adr/`)** | **Architect** | **Architect** | **Reviewer** | **技术决策、架构权衡、边界定义** |
+| **架构设计 (`docs/architecture/`)** | **Architect** | **Architect** | **Reviewer** | **模块图、目录结构、工具命名、工作流** |
+| 技术参考 (`docs/reference/`) | Developer | Developer | Reviewer | 数据模型、Hook 参考、状态键 |
+| 变更日志 (`docs/changelog/`) | PM | PM | — | 版本变更摘要 |
+| 测试报告 (`docs/reports/`) | Developer | Developer | Reviewer | 审查报告、测试覆盖 |
+| 跨角色事件 (`.agent/sessions/`) | 所有角色 | 所有角色 | — | 角色间正式通讯记录 |
+
+## 越界审查清单（供 Reviewer 使用）
+
+审查以下文档时，检查是否发生职责越界：
+
+| 审查文档 | 检查项 | 越界信号 |
+|----------|--------|---------|
+| `docs/roadmap/*.md` | PM 是否写了具体文件路径？ | ❌ 发现 `src/xxx/xxx.js` → 越界 |
+| `docs/roadmap/*.md` | PM 是否写了工具具体参数？ | ❌ 发现 `参数为 runId、prompt` → 越界 |
+| `docs/roadmap/*.md` | PM 是否写了删除/迁移清单？ | ❌ 发现「删除 xxx.js」→ 越界 |
+| `docs/roadmap/*.md` | PM 是否写了废弃清单？ | ❌ 发现「废弃 xxx」→ 越界（Developer 实现时确认） |
+| `docs/architecture/*.md` | Architect 是否写了需求理由？ | ❌ 发现「因为用户反馈…」→ 越界 |
+| `docs/architecture/*.md` | Architect 是否写了验收标准？ | ❌ 发现「测试 ≥ N 个用例」→ 越界 |
+| `docs/architecture/*.md` | Architect 是否写了里程碑时间？ | ❌ 发现「截止 2026-xx-xx」→ 越界 |
+| `docs/specs/*.md` | 是否包含代码实现细节？ | ❌ 发现函数体实现 → 越界 |
+| `src/**/*.js` | Developer 是否修改了蓝图？ | ❌ Developer 修改 roadmap → 越界 |
 
 ## 外部参考
 
