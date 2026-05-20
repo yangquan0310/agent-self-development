@@ -16,7 +16,7 @@
 2. 打开 metadata.json 和 openclaw.plugin.json
    └── 了解插件元数据、configSchema、已注册 tools
 
-3. 打开 {项目路径}/.agent/agents/
+3. 打开 {项目路径}/.agentsagents/
    └── 查看自己的角色文件（PM / Developer / Reviewer）
    └── 明确自己的职责边界
 
@@ -34,19 +34,19 @@
 ```
 程序员（主代理）
   ↓ 创建子代理1：产品经理（PM）
-  ↓ 加载 .agent/agents/product-manager.md
+  ↓ 加载 .agentsagents/product-manager.md
 产品经理：分析需求 → 制定版本计划 → 更新 TODO（P0/P1/P2 分级）
   ↓ 返回主代理
 主代理 → 创建子代理2：架构师
-  ↓ 加载 .agent/agents/architect.md
+  ↓ 加载 .agentsagents/architect.md
 架构师：审核插件架构 → 评估工具设计 → 更新 TODO
   ↓ 返回主代理
 主代理 → 创建子代理3：程序员（Developer）
-  ↓ 加载 .agent/agents/developer.md
+  ↓ 加载 .agentsagents/developer.md
 程序员：按 TODO 完成 src/ 代码编写 → 编写测试 → 更新 TODO
   ↓ 返回主代理
 主代理 → 创建子代理4：审核（Reviewer）
-  ↓ 加载 .agent/agents/reviewer.md
+  ↓ 加载 .agentsagents/reviewer.md
 审核：代码审查 + 架构合规检查 → 输出审核意见
   ↓ 返回主代理
 主代理：汇总结果，更新 openclaw.plugin.json / package.json → 向老板汇报
@@ -77,8 +77,8 @@
 |----------|----------|------|
 | 插件源代码 | `src/` | .js 模块文件，含 `tools/`、`utils/`、`index.js` |
 | 测试代码 | `test/` | .test.js 测试套件 |
-| 项目级技能 | `.agent/skills/` | 协作协议、技术规范、上下文管理 |
-| 角色定义 | `.agent/agents/` | PM / Developer / Reviewer 角色 .md 文件 |
+| 项目级技能 | `.agentsskills/` | 协作协议、技术规范、上下文管理 |
+| 角色定义 | `.agentsagents/` | PM / Developer / Reviewer 角色 .md 文件 |
 | 架构文档 | `docs/reference/` | architecture.md、data-model.md 等 |
 | 版本路线图 | `docs/roadmap/` | v4.x ~ v5.0 规划 |
 | 变更日志 | `docs/changelog/` | 完整版本历史 |
@@ -231,4 +231,4 @@ git checkout dev
 | **程序员** | 代码实现、测试验证、文档同步 | `src/`、`test/` | 不决定产品方向 |
 | **审查员** | 代码审查、合规检查、裁决 | `src/`（只读） | 不修改代码 |
 
-> 详细角色规范见 `.agent/agents/` 目录下各角色文件。
+> 详细角色规范见 `.agentsagents/` 目录下各角色文件。

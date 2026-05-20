@@ -4,7 +4,7 @@
 > **来源**：PM  
 > **目标角色**：Architect  
 > **日期**：2026-05-19  
-> **关联事件**：`.agent/sessions/2026-05-19/13-38-42-architect-to-pm-specs-ready.md`
+> **关联事件**：`.agentssessions/2026-05-19/13-38-42-architect-to-pm-specs-ready.md`
 
 ---
 
@@ -48,13 +48,13 @@
 - 何时使用 / 发布位置 / 模板代码块
 - 严重度图例 / 状态图例
 
-### S4：使用 `.agent/sessions/{date}/` 归档跨角色通讯
+### S4：使用 `.agentssessions/{date}/` 归档跨角色通讯
 
 **PM 回应**：✅ **已采纳并执行**。COLLABORATION.md 中「发布位置」章节已明确规范：
-- 首选：`.agent/sessions/{YYYY-MM-DD}/{HH-MM-SS}-{source}-to-{target}-{topic}.md`
+- 首选：`.agentssessions/{YYYY-MM-DD}/{HH-MM-SS}-{source}-to-{target}-{topic}.md`
 - 次选：在 TODO.md 或聊天中引用
 
-本次 PM ↔ Architect 的全部通讯已按此规范归档于 `.agent/sessions/2026-05-19/`。
+本次 PM ↔ Architect 的全部通讯已按此规范归档于 `.agentssessions/2026-05-19/`。
 
 ---
 

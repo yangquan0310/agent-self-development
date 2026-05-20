@@ -50,10 +50,10 @@ export async function moveFile(src, dst)    // 移动文件
 
 ```javascript
 // utils/resolve.js
-export function taskPath(runId)             // {baseDir}/.agent/tasks/{runId}.json
-export function archiveTaskPath(runId)      // {baseDir}/.agent/tasks/archive/{runId}.json
-export function eventPath(runId, date)      // {baseDir}/.agent/events/{date}/{runId}.md
-export function archiveEventPath(date, runId) // {baseDir}/.agent/events/archive/{date}-{runId}.md
+export function taskPath(runId)             // {baseDir}/.agentstasks/{runId}.json
+export function archiveTaskPath(runId)      // {baseDir}/.agentstasks/archive/{runId}.json
+export function eventPath(runId, date)      // {baseDir}/.agentsevents/{date}/{runId}.md
+export function archiveEventPath(date, runId) // {baseDir}/.agentsevents/archive/{date}-{runId}.md
 ```
 
 **第二步：`src/objects/task.js`**
@@ -200,7 +200,7 @@ grep -r "task.deviate\|task.attribute\|task.files\|task.diagnose\|guide.planning
 | S2 | **保留 `src/common/utils.js` 中的有用函数**（如 `safeReadJson`、`safeWriteJson`、`getNow`）迁移到 `utils/io.js` 或 `utils/helpers.js`，不要重写 | Architect | 🟡 中 | 待确认 |
 | S3 | `task.update` 是核心难点，建议先实现 `create` + `get` 验证 IO 通路，再实现 `update` | Architect | 🟡 中 | 待确认 |
 | S4 | 旧的 `src/templates/` 目录（如果存在）应移至 `src/assets/templates/` | Architect | 🟢 低 | 待确认 |
-| S5 | 若发现架构不可行（如文件 IO 原子性无法满足），立即通过 `.agent/sessions/` 输出 `[TECH_BLOCKER]` | Architect | 🔴 高 | 待确认 |
+| S5 | 若发现架构不可行（如文件 IO 原子性无法满足），立即通过 `.agentssessions/` 输出 `[TECH_BLOCKER]` | Architect | 🔴 高 | 待确认 |
 
 ---
 

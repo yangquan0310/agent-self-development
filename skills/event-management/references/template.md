@@ -1,6 +1,6 @@
 # 事件文件模板参考
 
-`.agent/events/{YYYY-MM-DD}/{runId}.md` 的结构说明，由 `event.report` 生成。
+`.agentsevents/{YYYY-MM-DD}/{runId}.md` 的结构说明，由 `event.report` 生成。
 
 ## 数据来源
 

@@ -99,8 +99,8 @@ task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 ```
 1. 调用 task.get({ runId })
 2. 系统依次检查：
-   - 先查 `.agent/tasks/{runId}.json`
-   - 回退到 `.agent/tasks/archive/{runId}.json`
+   - 先查 `.agentstasks/{runId}.json`
+   - 回退到 `.agentstasks/archive/{runId}.json`
 3. 返回完整 task.json 或错误
 ```
 
@@ -109,7 +109,7 @@ task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 ```
 1. 确认任务状态为 "completed"
 2. 调用 task.archive({ runId })
-3. task.json 移动到 `.agent/tasks/archive/{runId}.json`
+3. task.json 移动到 `.agentstasks/archive/{runId}.json`
 ```
 
 ## 完整工作流示例

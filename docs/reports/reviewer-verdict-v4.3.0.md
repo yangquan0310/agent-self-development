@@ -55,12 +55,12 @@
 
 ### 4.1 ADR-009：扁平化 Object-Driven 架构
 - **要求**: `src/objects/` 为核心业务层，直接读写文件
-- **实际**: `src/objects/task.js` + `src/objects/event.js` 为扁平函数（非 Class），直接读写 `.agent/tasks/` 和 `.agent/events/`
+- **实际**: `src/objects/task.js` + `src/objects/event.js` 为扁平函数（非 Class），直接读写 `.agentstasks/` 和 `.agentsevents/`
 - **状态**: ✅ 功能等价。架构文档中的 `TaskObject` / `EventObject` Class 形式未被采用，但业务逻辑和 IO 分离职责已履行。
 
 ### 4.2 ADR-010：Project-level 文件系统
 - **要求**: 所有路径基于 `baseDir`，`resolveTaskPath(projectRoot, runId)`
-- **实际**: `src/utils/resolve.js` 所有函数接收 `baseDir`，生成 `{baseDir}/.agent/...` 绝对路径
+- **实际**: `src/utils/resolve.js` 所有函数接收 `baseDir`，生成 `{baseDir}/.agents...` 绝对路径
 - **状态**: ✅ 完全合规
 
 ### 4.3 ADR-011：Tool Handler 协调模式
@@ -70,7 +70,7 @@
 
 ### 4.4 ADR-012：Event 文件命名
 - **要求**: `{runId}.md`
-- **实际**: `eventPath(baseDir, runId, date)` → `{baseDir}/.agent/events/{date}/{runId}.md`
+- **实际**: `eventPath(baseDir, runId, date)` → `{baseDir}/.agentsevents/{date}/{runId}.md`
 - **状态**: ✅ 合规
 
 ### 4.5 ADR-013：Delayed Condensation（延迟冷凝）

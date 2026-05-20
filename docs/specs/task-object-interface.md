@@ -48,7 +48,7 @@ export async function archive(params, context)
 
 ## 4. create
 
-创建 draft task，写入 `.agent/tasks/{runId}.json`。
+创建 draft task，写入 `.agentstasks/{runId}.json`。
 
 **输入**：
 
@@ -92,7 +92,7 @@ interface CreateTaskError {
 - `prompt` 必填且非空
 - 若 `runId` 已存在，返回错误 `task 已存在: {runId}`
 - 若未提供 `plan.phases`，从 `templates.task` 生成默认阶段
-- 写入路径：`{baseDir}/.agent/tasks/{runId}.json`
+- 写入路径：`{baseDir}/.agentstasks/{runId}.json`
 
 ---
 
@@ -215,7 +215,7 @@ interface AdvanceTaskError {
 - 若 `phaseId` 提供：标记目标阶段及之前所有阶段为 `completed`
 - 若 `phaseId` 未提供：标记当前阶段为 `completed`，`currentPhase++`
 - 若 `nextPhase >= phases.length`：设置 `task.status = 'completed'`
-- 写入原路径：`{baseDir}/.agent/tasks/{runId}.json`
+- 写入原路径：`{baseDir}/.agentstasks/{runId}.json`
 
 ---
 
@@ -234,8 +234,8 @@ interface GetTaskResult {
 ```
 
 **读取路径**：
-1. `{baseDir}/.agent/tasks/{runId}.json`
-2. `{baseDir}/.agent/tasks/archive/{runId}.json`（若活跃目录不存在）
+1. `{baseDir}/.agentstasks/{runId}.json`
+2. `{baseDir}/.agentstasks/archive/{runId}.json`（若活跃目录不存在）
 
 ---
 
@@ -261,8 +261,8 @@ interface ArchiveTaskError {
 
 **业务规则**：
 - 仅允许归档 `status === 'completed'` 的 task
-- 源路径：`{baseDir}/.agent/tasks/{runId}.json`
-- 目标路径：`{baseDir}/.agent/tasks/archive/{runId}.json`
+- 源路径：`{baseDir}/.agentstasks/{runId}.json`
+- 目标路径：`{baseDir}/.agentstasks/archive/{runId}.json`
 - 若 archive/ 目录不存在，自动创建
 
 ---
@@ -352,8 +352,8 @@ interface Attribution {
 
 | 操作 | 活跃路径 | 归档路径 |
 |------|---------|---------|
-| create / get / update / advance | `{baseDir}/.agent/tasks/{runId}.json` | — |
-| archive | 从活跃路径移动 | `{baseDir}/.agent/tasks/archive/{runId}.json` |
+| create / get / update / advance | `{baseDir}/.agentstasks/{runId}.json` | — |
+| archive | 从活跃路径移动 | `{baseDir}/.agentstasks/archive/{runId}.json` |
 
 ---
 

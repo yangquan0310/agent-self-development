@@ -1,8 +1,8 @@
 # Unreleased
 
 ## Added
-- `src/objects/task.js` — 5 个裸函数（create/update/advance/get/archive），直接读写 `.agent/tasks/{runId}.json`
-- `src/objects/event.js` — 3 个裸函数（report/query/archive），直接读写 `.agent/events/` 和 `.agent/archive/events/`
+- `src/objects/task.js` — 5 个裸函数（create/update/advance/get/archive），直接读写 `.agentstasks/{runId}.json`
+- `src/objects/event.js` — 3 个裸函数（report/query/archive），直接读写 `.agentsevents/` 和 `.agentsarchive/events/`
 - `src/tools/index.js` — 注册 8 个命名空间工具（task.* + event.*）
 - `src/tools/schemas.js` — 8 个工具的 parameters schema
 - `src/tools/handlers.js` — 薄适配层，包装 objects 函数返回值
@@ -12,7 +12,7 @@
 - `src/utils/validate.js` — runId / status / 状态转换校验
 - `src/utils/helpers.js` — getNow, generateRunId, generatePlan
 - `src/assets/task.json` + `src/assets/event.md` — 模板文件
-- `.agent/archive/` — 归档目录结构（tasks/ + events/）
+- `.agentsarchive/` — 归档目录结构（tasks/ + events/）
 - `task.update` — 通用更新入口，支持 status/deviation/attribution/outcome/eventFilePath/reason 任一字段
 - `event.report` — 任务完成后一次性从 task.json 生成 event.md
 - `event.query` — 按 runId/date/type 筛选查询事件
@@ -38,7 +38,7 @@
 - Guide 类工具 — `guide.planning`、`guide.monitoring`、`guide.regulation`、`guide.development`
 - 诊断/文件类工具 — `task.files`、`task.diagnose`、`task.deviate`、`task.attribute`
 - 旧版 flat 工具名 — `create_plan`、`update_task_status`、`advance_phase`、`archive_task` 等
-- 系统级持久化 — `~/.agent/state/`、`~/.agent/memory/`、`~/.agent/logs/` 等系统层存储
+- 系统级持久化 — `~/.agentsstate/`、`~/.agentsmemory/`、`~/.agentslogs/` 等系统层存储
 - `src/common/hook.js` — HookRegistry
 - `src/common/heartbeat.js` — 后台监控（如有）
 

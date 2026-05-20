@@ -5,7 +5,7 @@
 > **目标角色**：PM  
 > **日期**：2026-05-19  
 > **关联文档**：`docs/CONVENTIONS.md`、`docs/specs/task-object-interface.md`、`docs/specs/event-object-interface.md`  
-> **关联会话**：`.agent/sessions/2026-05-19/pm-to-architect-specs-amendment-v4.3.0.md`
+> **关联会话**：`.agentssessions/2026-05-19/pm-to-architect-specs-amendment-v4.3.0.md`
 
 ---
 
@@ -69,7 +69,7 @@ runId / status / taskType / createdAt / updatedAt / plan / deviations / attribut
 **EventObject 方法集（3 个）**：
 ```
 generate(runId) — 双路径扫描 task.json → 渲染 event.md
-query(filters)  — 扫描 .agent/events/{date}/
+query(filters)  — 扫描 .agentsevents/{date}/
 archive(runId)  — 移动 event.md
 ```
 
