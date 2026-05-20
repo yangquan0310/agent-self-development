@@ -179,7 +179,7 @@ describe('handlers', () => {
       await update({ runId, status: 'pending_approval' }, ctx());
       await update({ runId, status: 'active' }, ctx());
       await update({ runId, status: 'completed' }, ctx());
-      const originalPath = join('.agent', 'tasks', `${runId}.json`);
+      const originalPath = join('.agents', 'tasks', `${runId}.json`);
       const r = await archive({ runId }, ctx());
       assert.ok(!r.error);
       assert.strictEqual(r.status, 'archived');
