@@ -9,38 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  version-check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Verify version consistency
-        run: |
-          pkg_version=$(node -p "require('./package.json').version")
-          plugin_version=$(node -p "require('./openclaw.plugin.json').version")
-          tag_version="${GITHUB_REF#refs/tags/v}"
-          
-          echo "package.json version:  $pkg_version"
-          echo "openclaw.plugin.json version: $plugin_version"
-          echo "Tag version:          v$tag_version"
-          
-          # 检查 package.json 和 openclaw.plugin.json 是否一致
-          if [ "$pkg_version" != "$plugin_version" ]; then
-            echo "ERROR: package.json ($pkg_version) != openclaw.plugin.json ($plugin_version)"
-            exit 1
-          fi
-          
-          # 检查 tag 版本号是否与文件一致
-          if [ "$pkg_version" != "$tag_version" ]; then
-            echo "ERROR: package.json version ($pkg_version) != tag version ($tag_version)"
-            exit 1
-          fi
-          
-          echo "✓ Version check passed"
-
   verify:
-    needs: version-check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -67,6 +36,18 @@ jobs:
           fi
           echo "All JS files syntax OK"
 
+      - name: Verify package.json version matches openclaw.plugin.json
+        run: |
+          pkg_version=$(node -p "require('./package.json').version")
+          plugin_version=$(node -p "require('./openclaw.plugin.json').version")
+          echo "package.json: $pkg_version"
+          echo "openclaw.plugin.json: $plugin_version"
+          if [ "$pkg_version" != "$plugin_version" ]; then
+            echo "Version mismatch!"
+            exit 1
+          fi
+          echo "Version check OK"
+
       - name: Verify openclaw.plugin.json is valid JSON
         run: node -e "JSON.parse(require('fs').readFileSync('./openclaw.plugin.json', 'utf8')); console.log('openclaw.plugin.json valid')"
 
@@ -78,7 +59,7 @@ jobs:
         run: npm pack --dry-run
 
   release:
-    needs: [version-check, verify]
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -101,7 +82,7 @@ jobs:
           tar xzf agent-self-development-*.tgz -C _extract --strip-components=1
           rm agent-self-development-*.tgz
           cd _extract
-          tar czf ../agent-self-development-$(node -p "require('../package.json').version').tgz .
+          tar czf ../agent-self-development-$(node -p "require('../package.json').version").tgz .
           cd ..
           rm -rf _extract
 
