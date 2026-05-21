@@ -1,5 +1,5 @@
 /**
- * Agent Self-Development — v4.3.1
+ * Agent Self-Development — v4.4.0
  *
  * OpenClaw 插件入口。暴露 register(api) 同步接口。
  *
@@ -97,6 +97,6 @@ export function register(api) {
 export default {
   id: 'agent-self-development',
   name: 'Agent Self-Development',
-  version: '4.3.1',
+  version: '4.4.0',
   register,
 };
