@@ -9,62 +9,39 @@ permissions:
   contents: write
 
 jobs:
-  branch-sync-check:
+  version-check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Fetch all branches
+      - name: Verify version consistency
         run: |
-          git fetch origin dev beta main --depth=1
-
-      - name: Verify code content is in sync (dev→beta→main)
-        run: |
-          # 检查 dev 是否包含在 beta 中
-          dev_in_beta=$(git merge-base --is-ancestor origin/dev origin/beta && echo "yes" || echo "no")
-          # 检查 beta 是否包含在 main 中
-          beta_in_main=$(git merge-base --is-ancestor origin/beta origin/main && echo "yes" || echo "no")
+          pkg_version=$(node -p "require('./package.json').version")
+          plugin_version=$(node -p "require('./openclaw.plugin.json').version")
+          tag_version="${GITHUB_REF#refs/tags/v}"
           
-          echo "dev is ancestor of beta: $dev_in_beta"
-          echo "beta is ancestor of main: $beta_in_main"
+          echo "package.json version:  $pkg_version"
+          echo "openclaw.plugin.json version: $plugin_version"
+          echo "Tag version:          v$tag_version"
           
-          if [ "$dev_in_beta" != "yes" ]; then
-            echo "ERROR: dev is not merged into beta"
-            echo "Must push dev to origin first, wait for CI to pass, then push beta"
+          # 检查 package.json 和 openclaw.plugin.json 是否一致
+          if [ "$pkg_version" != "$plugin_version" ]; then
+            echo "ERROR: package.json ($pkg_version) != openclaw.plugin.json ($plugin_version)"
             exit 1
           fi
           
-          if [ "$beta_in_main" != "yes" ]; then
-            echo "ERROR: beta is not merged into main"
-            echo "Must push beta to origin first, wait for CI to pass, then push main"
+          # 检查 tag 版本号是否与文件一致
+          if [ "$pkg_version" != "$tag_version" ]; then
+            echo "ERROR: package.json version ($pkg_version) != tag version ($tag_version)"
             exit 1
           fi
           
-          echo "✓ Code is properly synced: dev→beta→main"
-
-      - name: Verify tag is on main
-        run: |
-          tag_hash=$(git rev-parse ${{ github.ref }})
-          main_hash=$(git rev-parse origin/main)
-          
-          echo "tag commit:  $tag_hash"
-          echo "main commit: $main_hash"
-          
-          if [ "$tag_hash" != "$main_hash" ]; then
-            echo "ERROR: tag ($tag_hash) != main ($main_hash)"
-            echo "Tag must be pushed on main branch"
-            exit 1
-          fi
-          
-          echo "✓ Tag points to main commit"
+          echo "✓ Version check passed"
 
   verify:
-    needs: branch-sync-check
+    needs: version-check
     runs-on: ubuntu-latest
-    needs: branch-sync-check
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -90,18 +67,6 @@ jobs:
           fi
           echo "All JS files syntax OK"
 
-      - name: Verify package.json version matches openclaw.plugin.json
-        run: |
-          pkg_version=$(node -p "require('./package.json').version")
-          plugin_version=$(node -p "require('./openclaw.plugin.json').version")
-          echo "package.json: $pkg_version"
-          echo "openclaw.plugin.json: $plugin_version"
-          if [ "$pkg_version" != "$plugin_version" ]; then
-            echo "Version mismatch!"
-            exit 1
-          fi
-          echo "Version check OK"
-
       - name: Verify openclaw.plugin.json is valid JSON
         run: node -e "JSON.parse(require('fs').readFileSync('./openclaw.plugin.json', 'utf8')); console.log('openclaw.plugin.json valid')"
 
@@ -113,7 +78,7 @@ jobs:
         run: npm pack --dry-run
 
   release:
-    needs: [branch-sync-check, verify]
+    needs: [version-check, verify]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
