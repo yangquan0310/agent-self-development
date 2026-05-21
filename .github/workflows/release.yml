@@ -9,8 +9,66 @@ permissions:
   contents: write
 
 jobs:
+  branch-sync-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check dev branch
+        run: |
+          git fetch origin dev
+          echo "dev commit: $(git rev-parse origin/dev)"
+
+      - name: Check beta branch
+        run: |
+          git fetch origin beta
+          echo "beta commit: $(git rev-parse origin/beta)"
+
+      - name: Check main branch
+        run: |
+          git fetch origin main
+          echo "main commit: $(git rev-parse origin/main)"
+
+      - name: Verify all three branches are in sync
+        run: |
+          dev_hash=$(git rev-parse origin/dev)
+          beta_hash=$(git rev-parse origin/beta)
+          main_hash=$(git rev-parse origin/main)
+          tag_hash=$(git rev-parse ${{ github.ref }})
+          
+          echo "=== Branch Hashes ==="
+          echo "dev:  $dev_hash"
+          echo "beta: $beta_hash"
+          echo "main: $main_hash"
+          echo "tag:  $tag_hash"
+          
+          if [ "$dev_hash" != "$beta_hash" ]; then
+            echo "ERROR: dev ($dev_hash) != beta ($beta_hash)"
+            echo "Must push dev to origin first, wait for CI to pass, then push beta"
+            exit 1
+          fi
+          
+          if [ "$beta_hash" != "$main_hash" ]; then
+            echo "ERROR: beta ($beta_hash) != main ($main_hash)"
+            echo "Must push beta to origin first, wait for CI to pass, then push main"
+            exit 1
+          fi
+          
+          if [ "$tag_hash" != "$main_hash" ]; then
+            echo "ERROR: tag ($tag_hash) != main ($main_hash)"
+            echo "Tag must point to main"
+            exit 1
+          fi
+          
+          echo "✓ All three branches (dev, beta, main) are in sync!"
+          echo "✓ Tag points to main commit"
+
   verify:
     runs-on: ubuntu-latest
+    needs: branch-sync-check
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,7 +117,7 @@ jobs:
         run: npm pack --dry-run
 
   release:
-    needs: verify
+    needs: [branch-sync-check, verify]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
