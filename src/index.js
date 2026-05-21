@@ -6,6 +6,7 @@
  * 钩子说明：
  * - session_start:        在会话启动时触发，注入任务管理/偏差追踪/归因分析/事件记录/自我发展提醒
  * - after_compaction:    在压缩合并后触发，注入相同的自我发展提醒
+ * - before_prompt_build: 在构建prompt前触发，每次都注入自我发展提醒
  */
 
 import { registerTools } from './tools/index.js';
@@ -80,6 +81,20 @@ function registerSessionHooks(api, logger) {
       logInfo(logger, `[agent-self-development] after_compaction enqueueNextTurnInjection failed: ${err.message}`);
     }
   }, { priority: 50 });
+
+  // before_prompt_build：在构建prompt前注入提醒（每次都触发）
+  api.on('before_prompt_build', async (event) => {
+    logInfo(logger, `[agent-self-development] before_prompt_build hook fired, enqueuing reminder injection`);
+
+    try {
+      await api.enqueueNextTurnInjection({
+        idempotencyKey: 'agent-self-development:before-prompt-reminder',
+        prependContext: INJECT_REMINDER,
+      });
+    } catch (err) {
+      logInfo(logger, `[agent-self-development] before_prompt_build enqueueNextTurnInjection failed: ${err.message}`);
+    }
+  }, { priority: 50 });
 }
 
 export function register(api) {
@@ -96,7 +111,7 @@ export function register(api) {
   // 注册 session_start / after_compaction 钩子
   registerSessionHooks(api, logger);
 
-  logInfo(logger, '[agent-self-development] v4.4.0 初始化完成，8 个工具 + 2 个钩子已注册');
+  logInfo(logger, '[agent-self-development] v4.4.0 初始化完成，8 个工具 + 3 个钩子已注册');
 }
 
 export default {
