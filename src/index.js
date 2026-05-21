@@ -15,6 +15,15 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// 日志工具：优先使用 api.logger，fallback 到 console.error（避免静默失败）
+function logInfo(logger, ...args) {
+  if (logger?.info) {
+    logger.info(...args);
+  } else {
+    console.error('[agent-self-development]', ...args);
+  }
+}
+
 // 需要注入到提示词的提醒文本
 const INJECT_REMINDER = `【自我发展提醒】
 当按照项目 TODO 执行任务时，你需要使用本插件（agent-self-development）完成以下工作：
@@ -43,14 +52,10 @@ function loadTemplates() {
 
 function registerSessionHooks(api, logger) {
   // session_start：在会话启动时注入提醒
+  // 注意：session_start 事件的 event.reason 字段不存在（reason 仅在 session_end 事件中）
+  // skipReasons 检查移至 session_end handler；此处无需跳过任何场景
   api.on('session_start', async (event) => {
-    // reason: 'new' | 'reset' | 'idle' | 'daily' | 'compaction' | 'deleted' | 'shutdown' | 'restart' | 'unknown'
-    const skipReasons = ['deleted', 'shutdown', 'restart', 'unknown'];
-    if (skipReasons.includes(event.reason)) {
-      return;
-    }
-
-    logger?.info(`[agent-self-development] session_start hook fired (reason=${event.reason}), enqueuing reminder injection`);
+    logInfo(logger, `[agent-self-development] session_start hook fired (sessionId=${event.sessionId}, resumedFrom=${event.resumedFrom}), enqueuing reminder injection`);
 
     try {
       await api.enqueueNextTurnInjection({
@@ -58,13 +63,13 @@ function registerSessionHooks(api, logger) {
         prependContext: INJECT_REMINDER,
       });
     } catch (err) {
-      logger?.warn(`[agent-self-development] enqueueNextTurnInjection failed: ${err.message}`);
+      logInfo(logger, `[agent-self-development] session_start enqueueNextTurnInjection failed: ${err.message}`);
     }
   }, { priority: 50 });
 
   // after_compaction：在压缩合并后注入提醒
   api.on('after_compaction', async (event) => {
-    logger?.info(`[agent-self-development] after_compaction hook fired (session=${event.context?.sessionKey}), enqueuing reminder injection`);
+    logInfo(logger, `[agent-self-development] after_compaction hook fired (session=${event.context?.sessionKey}), enqueuing reminder injection`);
 
     try {
       await api.enqueueNextTurnInjection({
@@ -72,7 +77,7 @@ function registerSessionHooks(api, logger) {
         prependContext: INJECT_REMINDER,
       });
     } catch (err) {
-      logger?.warn(`[agent-self-development] enqueueNextTurnInjection failed: ${err.message}`);
+      logInfo(logger, `[agent-self-development] after_compaction enqueueNextTurnInjection failed: ${err.message}`);
     }
   }, { priority: 50 });
 }
@@ -91,7 +96,7 @@ export function register(api) {
   // 注册 session_start / after_compaction 钩子
   registerSessionHooks(api, logger);
 
-  logger?.info('[agent-self-development] v4.3.1 初始化完成，8 个工具 + 2 个钩子已注册');
+  logInfo(logger, '[agent-self-development] v4.4.0 初始化完成，8 个工具 + 2 个钩子已注册');
 }
 
 export default {
