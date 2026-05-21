@@ -32,14 +32,14 @@ jobs:
           git fetch origin main
           echo "main commit: $(git rev-parse origin/main)"
 
-      - name: Verify all three branches are in sync
+      - name: Verify all branches sync to dev
         run: |
           dev_hash=$(git rev-parse origin/dev)
           beta_hash=$(git rev-parse origin/beta)
           main_hash=$(git rev-parse origin/main)
           tag_hash=$(git rev-parse ${{ github.ref }})
           
-          echo "=== Branch Hashes ==="
+          echo "=== Branch Hashes (default: dev) ==="
           echo "dev:  $dev_hash"
           echo "beta: $beta_hash"
           echo "main: $main_hash"
@@ -51,20 +51,20 @@ jobs:
             exit 1
           fi
           
-          if [ "$beta_hash" != "$main_hash" ]; then
-            echo "ERROR: beta ($beta_hash) != main ($main_hash)"
+          if [ "$dev_hash" != "$main_hash" ]; then
+            echo "ERROR: dev ($dev_hash) != main ($main_hash)"
             echo "Must push beta to origin first, wait for CI to pass, then push main"
             exit 1
           fi
           
-          if [ "$tag_hash" != "$main_hash" ]; then
-            echo "ERROR: tag ($tag_hash) != main ($main_hash)"
-            echo "Tag must point to main"
+          if [ "$tag_hash" != "$dev_hash" ]; then
+            echo "ERROR: tag ($tag_hash) != dev ($dev_hash)"
+            echo "Tag must point to dev (default branch)"
             exit 1
           fi
           
-          echo "✓ All three branches (dev, beta, main) are in sync!"
-          echo "✓ Tag points to main commit"
+          echo "✓ All branches (dev, beta, main) are in sync with dev!"
+          echo "✓ Tag points to dev commit"
 
   verify:
     runs-on: ubuntu-latest
