@@ -82,9 +82,9 @@ v4.3.0 的设计哲学可以用三个关键词概括：**拉取式**、**显式�
 │ → 纯函数 handler，无类、无状态、无 Hook           │
 ├─────────────────────────────────────────────────┤
 │ 文件系统（项目级持久化）                          │
-│ .agent/tasks/{runId}.json                        │
-│ .agent/events/{date}/{runId}.md                  │
-│ .agent/tasks/archive/ + .agent/events/archive/   │
+│ .agentstasks/{runId}.json                        │
+│ .agentsevents/{date}/{runId}.md                  │
+│ .agentstasks/archive/ + .agentsevents/archive/   │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -114,7 +114,7 @@ v4.3.0：   api.registerTool() → Agent 列出可用 tools → 自主选择
 | 拉取式 | **无注入**。Agent 自行读取 SKILL.md 或调用 task.get() |
 | 显式接口 | 8 个命名空间工具有明确的 parameters schema |
 | 被动响应 | `task.create()` 只在 Agent 调用时创建 task，插件不主动操作 |
-| Agent 自治 | Agent 可直接写 `.agent/tasks/{runId}.json`，不强制走 Tool |
+| Agent 自治 | Agent 可直接写 `.agentstasks/{runId}.json`，不强制走 Tool |
 | 扁平简单 | 无类、无依赖注入、无 Hook 链，三层清晰 |
 
 ---

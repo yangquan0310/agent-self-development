@@ -21,7 +21,7 @@ author: Yang Quan
 **核心原则**：
 - **插件只暴露工具**：不做决策、不注入 prompt、不代劳
 - **Agent 自主管理**：自行决定何时 create / record / advance / archive
-- **对象即边界**：TaskObject 是 `.agent/tasks/` 的唯一写入者，EventObject 是 `.agent/events/` 的唯一写入者
+- **对象即边界**：TaskObject 是 `.agentstasks/` 的唯一写入者，EventObject 是 `.agentsevents/` 的唯一写入者
 - **目录极简**：`src/` 下仅保留 `objects/`、`assets/`、`tools/`、`utils/`
 
 **详细设计**：见 `docs/roadmap/v4.3.0.md`
@@ -70,7 +70,7 @@ author: Yang Quan
   - 验收标准：
     - 8 个 Handler 零依赖旧模块，仅依赖 `src/utils/`
     - `test/handlers.test.js` 20/20 通过
-    - event.md 文件路径格式：`.agent/events/{YYYY-MM-DD}/{HH-MM-SS}.md`
+    - event.md 文件路径格式：`.agentsevents/{YYYY-MM-DD}/{HH-MM-SS}.md`
 
 - [x] **P0-3：tools 注册与入口适配** — Developer
   - 来源问题：当前 tools 仍包含 guide.* 工具和多余工具；需适配扁平化 Handler

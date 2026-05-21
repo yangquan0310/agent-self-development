@@ -8,7 +8,7 @@
 > **关联文档**：
 > - `docs/reports/review-v4.3.0-blueprint-issues-2026-05-19-11-56-20.md`
 > - `docs/roadmap/v4.3.0.md`
-> - `.agent/events/2026-05-19/pm-to-architect-decision-v4.3.0.md`
+> - `.agentsevents/2026-05-19/pm-to-architect-decision-v4.3.0.md`
 
 ---
 

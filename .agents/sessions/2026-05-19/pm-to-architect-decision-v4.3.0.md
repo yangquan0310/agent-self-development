@@ -56,7 +56,7 @@ Reviewer 在审查中发现 `docs/roadmap/v4.3.0.md`（PM 新方向）与 `docs/
 
 **event.md 规范**：
 - 文件名：`{runId}.md`
-- 路径：`./.agent/events/{YYYY-MM-DD}/{runId}.md`
+- 路径：`./.agentsevents/{YYYY-MM-DD}/{runId}.md`
 - 触发：Agent 显式调用 `event.record`（task 完成后）
 
 **Architect 行动**：确认 `docs/specs/event-object-interface.md` 中接口定义需更新（`generate()` 替代 `createEvent()` + `record()` 增量追加）。

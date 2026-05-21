@@ -98,5 +98,5 @@ draft → pending_approval → active → completed
 
 - **task.update 是唯一更新入口** — 所有变更（状态/偏差/归因/结果/事件路径）都通过它完成
 - **不要直接读写 task.json** — 所有操作通过工具调用
-- **归档不可逆** — task.json 移动到 `.agent/tasks/archive/`
+- **归档不可逆** — task.json 移动到 `.agentstasks/archive/`
 - **task.get 支持双路径回退** — 先查活跃目录，再查归档目录

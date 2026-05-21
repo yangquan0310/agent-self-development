@@ -18,7 +18,7 @@ v4.3.0（ADR-014）对架构进行了扁平化重构：
 | `before_agent_finalize` | 解析 `[STATUS]` 标记和 toolCalls | **无解析** |
 | `agent_end` | 归档 task、flush hook 链 | **无触发** |
 | `HookRegistry` | 调用链累积与可视化 | **已删除** |
-| 钩子调用链日志 | `~/.agent/logs/agent-self-development-hooks.log` | **不再生成** |
+| 钩子调用链日志 | `~/.agentslogs/agent-self-development-hooks.log` | **不再生成** |
 
 ## 为什么移除
 

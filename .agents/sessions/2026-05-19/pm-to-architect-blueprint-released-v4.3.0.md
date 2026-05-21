@@ -5,7 +5,7 @@
 > **目标角色**：Architect  
 > **日期**：2026-05-19  
 > **关联文档**：`docs/roadmap/v4.3.0.md`（v2.0.0 已更新）  
-> **关联审查**：`.agent/sessions/2026-05-13/22-07-00-reviewer-to-pm-blueprint-scope-violation.md`
+> **关联审查**：`.agentssessions/2026-05-13/22-07-00-reviewer-to-pm-blueprint-scope-violation.md`
 
 ---
 
@@ -49,7 +49,7 @@ PM 已接受审查意见，重写蓝图为 v2.0.0，**移除了所有架构实�
 | 暴露**事件报告工具**，使 Agent 能在任务完成后生成事件报告 | 蓝图 v2.0.0 | 无数量限制、无命名限制 |
 | **不暴露**认知指导类工具（planning/monitoring/regulation/development） | 蓝图决策 1 | Agent 自行决策，插件不提供指导 |
 | **不注入 Hook**，纯工具插件 | 蓝图决策 2 | 不修改 Agent prompt |
-| 保留 `.agent/tasks/` 和 `.agent/events/` 文件格式契约 | 蓝图决策 3 | 文件路径和格式需兼容 |
+| 保留 `.agentstasks/` 和 `.agentsevents/` 文件格式契约 | 蓝图决策 3 | 文件路径和格式需兼容 |
 | event.md **延迟凝练**（task 完成后生成，非增量追加） | 蓝图决策 4 | 生成时机约束 |
 | M1 截止 **2026-05-23** | 蓝图里程碑 | 时间约束 |
 

@@ -215,7 +215,7 @@ interface ToolSpec {
 **Handler 内部逻辑**：
 1. 双路径扫描读取 task.json（活跃 → 归档）
 2. 校验 `task.status === 'completed'`
-3. 渲染模板，写入 `.agent/events/{date}/{runId}.md`
+3. 渲染模板，写入 `.agentsevents/{date}/{runId}.md`
 4. 返回 `eventFilePath`
 
 **Tool Handler 层协调**（在 `tools/handlers.js` 中）：

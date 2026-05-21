@@ -1,6 +1,6 @@
 # Task JSON 数据结构参考
 
-`.agent/tasks/{runId}.json` 的完整字段说明。
+`.agentstasks/{runId}.json` 的完整字段说明。
 
 ## 顶层字段
 
@@ -88,4 +88,4 @@
 
 | 类型 | 活跃路径 | 归档路径 |
 |------|---------|---------|
-| 任务 | `.agent/tasks/{runId}.json` | `.agent/tasks/archive/{runId}.json` |
+| 任务 | `.agentstasks/{runId}.json` | `.agentstasks/archive/{runId}.json` |

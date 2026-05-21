@@ -24,21 +24,21 @@
 
 | 我是... | 核心文档 | 辅助文档 |
 |---------|---------|---------|
-| **产品经理（PM）** | `.agent/agents/product-manager.md` | `docs/roadmap/v{x.y.z}.md`, `docs/changelog/INDEX.md`, `docs/reference/design-philosophy.md` |
-| **程序员（Developer）** | `.agent/agents/developer.md` | `docs/CONVENTIONS.md`, `docs/specs/*.md`, `docs/reference/design-philosophy.md` |
-| **审核（Reviewer）** | `.agent/agents/reviewer.md` | `docs/CONVENTIONS.md`, `docs/reports/latest.md`, `docs/reference/design-philosophy.md` |
-| **架构师（Architect）** | `.agent/agents/architect.md` | `docs/roadmap/v{x.y.z}.md`, `docs/adr/*.md`, `docs/specs/*.md` |
+| **产品经理（PM）** | `.agentsagents/product-manager.md` | `docs/roadmap/v{x.y.z}.md`, `docs/changelog/INDEX.md`, `docs/reference/design-philosophy.md` |
+| **程序员（Developer）** | `.agentsagents/developer.md` | `docs/CONVENTIONS.md`, `docs/specs/*.md`, `docs/reference/design-philosophy.md` |
+| **审核（Reviewer）** | `.agentsagents/reviewer.md` | `docs/CONVENTIONS.md`, `docs/reports/latest.md`, `docs/reference/design-philosophy.md` |
+| **架构师（Architect）** | `.agentsagents/architect.md` | `docs/roadmap/v{x.y.z}.md`, `docs/adr/*.md`, `docs/specs/*.md` |
 
 ### 按任务
 
 | 任务 | 先读 | 再读 |
 |------|------|------|
-| 新 Agent 接手项目 | `README.md` → `docs/INDEX.md` | `.agent/agents/{role}.md` |
+| 新 Agent 接手项目 | `README.md` → `docs/INDEX.md` | `.agentsagents/{role}.md` |
 | 新增工具或对象方法 | `docs/CONVENTIONS.md` 目录结构 + 命名规范 | `docs/specs/task-object-interface.md` / `docs/specs/event-object-interface.md` |
 | 修复 Bug | `docs/reports/latest.md` | `docs/CONVENTIONS.md` 错误处理章节 |
-| 代码审查 | `.agent/agents/reviewer.md` Checklist | `docs/CONVENTIONS.md` 工具注册规范 |
+| 代码审查 | `.agentsagents/reviewer.md` Checklist | `docs/CONVENTIONS.md` 工具注册规范 |
 | 版本发布 | `docs/changelog/INDEX.md` | `docs/roadmap/v{x.y.z}.md` |
-| 跨角色通讯 | `docs/COLLABORATION.md` 四段式模板 | `.agent/sessions/{date}/` 历史事件 |
+| 跨角色通讯 | `docs/COLLABORATION.md` 四段式模板 | `.agentssessions/{date}/` 历史事件 |
 
 ---
 
@@ -66,14 +66,14 @@
 | INDEX.md（本文件） | PM | PM | Reviewer | `docs/` |
 | **设计哲学** | PM | PM | Reviewer | `docs/reference/` |
 | **理论基础** | PM | PM | Reviewer | `docs/reference/` |
-| 角色定义（.agent/） | PM | PM | Reviewer | `.agent/agents/` |
+| 角色定义（.agents） | PM | PM | Reviewer | `.agentsagents/` |
 | 蓝图（roadmap/） | PM | PM | — | `docs/roadmap/` |
 | 变更日志（changelog/） | PM | PM | — | `docs/changelog/` |
 | 接口规范（specs/） | Architect | Architect | Reviewer | `docs/specs/` |
 | 架构决策（adr/） | Architect | Architect | Reviewer | `docs/adr/` |
 | 技术参考（reference/） | Developer | Developer | Reviewer | `docs/reference/` |
 | 测试报告（reports/） | Developer | Developer | Reviewer | `docs/reports/` |
-| 跨角色事件（sessions/） | 所有角色 | 所有角色 | — | `.agent/sessions/` |
+| 跨角色事件（sessions/） | 所有角色 | 所有角色 | — | `.agentssessions/` |
 
 ---
 

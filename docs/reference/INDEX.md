@@ -11,7 +11,7 @@
 | [design-philosophy.md](design-philosophy.md) | **v4.3.0 设计哲学**：从"代劳"到"赋能"，拉取式、显式接口、被动响应、扁平架构 | 理解架构决策时 |
 | [theory.md](theory.md) | **认知科学理论基础**：自传体记忆、工作自我、同化/顺应（基于博士论文）→ Agent 架构映射 | 理解框架为何这样设计时 |
 | [architecture.md](architecture.md) | **v4.3.0 扁平工具架构**：Agent / Tool / 文件系统三层 + 8 个命名空间工具 | 理解模块职责划分时 |
-| [project-structure.md](project-structure.md) | 被管理项目的标准目录结构（四文件契约 / .agent/ / archive/ / 业务目录） | 初始化新项目或查阅目录规范时 |
+| [project-structure.md](project-structure.md) | 被管理项目的标准目录结构（四文件契约 / .agents / archive/ / 业务目录） | 初始化新项目或查阅目录规范时 |
 | [object-model.md](object-model.md) | **v4.3.0 函数模块模型**：对象层裸函数 + 工具层薄适配 + 基础设施原子 IO | 开发新模块或修改现有模块时 |
 | [data-model.md](data-model.md) | Task / Deviation / Attribution / Outcome / Event JSON 结构 + 状态转换规则 + 8 个工具示例 | 操作数据对象或更新 SKILL.md 时 |
 | [state-keys.md](state-keys.md) | **v4.3.0** 项目级文件系统键空间、task.json 字段规范、已移除系统级键清单 | 查阅数据存储位置时 |

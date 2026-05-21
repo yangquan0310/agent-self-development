@@ -1,16 +1,20 @@
 /**
- * Tool Schemas — v4.3.0
+ * Tool Schemas — v4.3.1
  *
  * 8 个命名空间工具的 TypeBox Schema 定义。
+ * 重要：所有工具的 baseDir 参数为必填，用于项目级路径解析。
  */
 
 import { Type } from '@sinclair/typebox';
+
+const BaseDirParam = Type.String({ description: '项目根目录（必填），用于生成 .agents 子目录路径' });
 
 export const TOOL_SCHEMAS = {
   'task.create': {
     name: 'task.create',
     description: '创建 draft task',
     parameters: Type.Object({
+      baseDir: BaseDirParam,
       runId: Type.Optional(Type.String({ description: '任务运行 ID（可选，默认自动生成）' })),
       prompt: Type.String({ description: '用户原始输入（前 500 字）' }),
       taskType: Type.Optional(Type.Union([
@@ -42,6 +46,7 @@ export const TOOL_SCHEMAS = {
     name: 'task.update',
     description: '更新 task 状态、偏差、归因、结果或事件路径',
     parameters: Type.Object({
+      baseDir: BaseDirParam,
       runId: Type.String({ description: '任务运行 ID' }),
       status: Type.Optional(Type.Union([
         Type.Literal('draft'),
@@ -76,6 +81,7 @@ export const TOOL_SCHEMAS = {
     name: 'task.advance',
     description: '推进 task 到下一阶段',
     parameters: Type.Object({
+      baseDir: BaseDirParam,
       runId: Type.String({ description: '任务运行 ID' }),
       phaseId: Type.Optional(Type.String({ description: '可选，指定阶段 ID' }))
     })
@@ -85,6 +91,7 @@ export const TOOL_SCHEMAS = {
     name: 'task.get',
     description: '查询指定 runId 的完整 Task JSON 状态',
     parameters: Type.Object({
+      baseDir: BaseDirParam,
       runId: Type.String({ description: '任务运行 ID' })
     })
   },
@@ -93,6 +100,7 @@ export const TOOL_SCHEMAS = {
     name: 'task.archive',
     description: '归档已完成的任务',
     parameters: Type.Object({
+      baseDir: BaseDirParam,
       runId: Type.String({ description: '任务运行 ID' })
     })
   },
@@ -101,6 +109,7 @@ export const TOOL_SCHEMAS = {
     name: 'event.report',
     description: '任务完成后一次性从 task.json 生成 event.md',
     parameters: Type.Object({
+      baseDir: BaseDirParam,
       runId: Type.String({ description: '任务运行 ID' })
     })
   },
@@ -109,6 +118,7 @@ export const TOOL_SCHEMAS = {
     name: 'event.query',
     description: '查询事件记录，支持按 runId、日期、类型筛选',
     parameters: Type.Object({
+      baseDir: BaseDirParam,
       runId: Type.Optional(Type.String({ description: '可选，精确匹配任务 ID' })),
       date: Type.Optional(Type.String({ description: '可选，YYYY-MM-DD' })),
       type: Type.Optional(Type.Union([
@@ -122,6 +132,7 @@ export const TOOL_SCHEMAS = {
     name: 'event.archive',
     description: '归档事件文件（移动 event.md 到 archive 目录）',
     parameters: Type.Object({
+      baseDir: BaseDirParam,
       runId: Type.String({ description: '任务运行 ID' })
     })
   }

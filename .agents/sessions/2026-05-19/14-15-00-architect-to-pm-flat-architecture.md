@@ -5,7 +5,7 @@
 > **目标角色**：PM  
 > **日期**：2026-05-19  
 > **关联文档**：`docs/adr/adr-014.md`、`docs/CONVENTIONS.md`、`docs/specs/*.md`  
-> **关联事件**：`.agent/sessions/2026-05-19/pm-to-architect-blueprint-released-v4.3.0.md`
+> **关联事件**：`.agentssessions/2026-05-19/pm-to-architect-blueprint-released-v4.3.0.md`
 
 ---
 
@@ -90,7 +90,7 @@ src/
 
 | 工具 | Handler | 操作 |
 |------|---------|------|
-| `task.create` | `createTask` | 写 `.agent/tasks/{runId}.json` |
+| `task.create` | `createTask` | 写 `.agentstasks/{runId}.json` |
 | `task.update` | `updateTask` | 读 → 改 → 写 task.json（万能更新入口） |
 | `task.advance` | `advanceTask` | 推进 phase |
 | `task.get` | `getTask` | 读 task.json（活跃+归档双路径） |
@@ -105,7 +105,7 @@ src/
 | 事件报告工具 | ✅ `event.report` |
 | 不暴露认知指导 | ✅ 无 planning/monitoring/regulation/development |
 | 不注入 Hook | ✅ 纯 `api.registerTool` |
-| 保留文件格式契约 | ✅ `.agent/tasks/` + `.agent/events/{date}/` |
+| 保留文件格式契约 | ✅ `.agentstasks/` + `.agentsevents/{date}/` |
 | event.md 延迟凝练 | ✅ `event.report` 仅在 completed 时调用，一次性渲染 |
 
 ---

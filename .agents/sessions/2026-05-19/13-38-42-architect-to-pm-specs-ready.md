@@ -26,7 +26,7 @@
 | R1 | I1 — Specs 过时 | 重写三份接口规范文档，对齐 v4.3.0 架构：TaskObject 新增 4 方法、EventObject 改为延迟凝练、Tool Registry 定义 7 工具 | Architect | 2026-05-19 |
 | R2 | I2 — ADR-009 命名 | 重命名为 `adr-009.md`（小写连字符），内容标注「部分过时」 | Architect | 2026-05-19 |
 | R3 | I3 — cases 过时 | 删除 `docs/cases/paper-revision-collaboration.md`（v4.0.0 案例，与当前架构无关） | Architect | 2026-05-19 |
-| R4 | — | 新增 `.gitignore` 排除运行时数据目录 `.agent/events/`、`.agent/tasks/` | Architect | 2026-05-19 |
+| R4 | — | 新增 `.gitignore` 排除运行时数据目录 `.agentsevents/`、`.agentstasks/` | Architect | 2026-05-19 |
 
 ---
 
@@ -48,7 +48,7 @@
 | S1 | Developer 启动 M1 前，先阅读最新 specs 三份文档，确认接口定义无歧义 | Architect | 🔴 高 | 待确认 |
 | S2 | M1 执行时建议保留 `src/common/utils.js` 的 `safeReadJson` / `safeWriteJson` 函数迁移到 `src/utils/file.js`，而非重写 | Architect | 🟡 中 | 待确认 |
 | S3 | `docs/COLLABORATION.md` 增加跨角色通讯协议章节（含本汇报的四段式模板），规范日常协作格式 | Architect | 🟡 中 | 待 PM 确认 |
-| S4 | 建议每次角色间正式通讯（如 PM→Architect、Architect→Developer）均使用 `.agent/sessions/{date}/` 目录归档，替代散落在 TODO 或聊天记录中的信息 | Architect | 🟢 低 | 待确认 |
+| S4 | 建议每次角色间正式通讯（如 PM→Architect、Architect→Developer）均使用 `.agentssessions/{date}/` 目录归档，替代散落在 TODO 或聊天记录中的信息 | Architect | 🟢 低 | 待确认 |
 
 ---
 

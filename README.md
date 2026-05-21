@@ -18,14 +18,14 @@ v4.3.0 是纯粹的 **Tool Plugin**：仅通过 `api.registerTool()` 暴露 8 �
 
 | 工具 | 功能 | 说明 |
 |------|------|------|
-| `task.create` | 创建 draft task | 基于 prompt 自动推断 plan，写入 `.agent/tasks/{runId}.json` |
+| `task.create` | 创建 draft task | 基于 prompt 自动推断 plan，写入 `.agentstasks/{runId}.json` |
 | `task.update` | 更新 task | 唯一更新入口，支持 status / deviation / attribution / outcome / eventFilePath 任意组合 |
 | `task.advance` | 推进阶段 | 推进到下一阶段或指定 phaseId |
 | `task.get` | 查询 task | 返回完整 task.json（支持活跃/归档双路径回退） |
-| `task.archive` | 归档 task | 移动 task.json 到 `.agent/tasks/archive/` |
+| `task.archive` | 归档 task | 移动 task.json 到 `.agentstasks/archive/` |
 | `event.report` | 生成事件文件 | 任务完成后从 task.json 一次性凝练生成 event.md，并回写 task.eventFilePath |
 | `event.query` | 查询事件 | 按 runId / date / type 筛选 |
-| `event.archive` | 归档事件 | 移动 event.md 到 `.agent/events/archive/` |
+| `event.archive` | 归档事件 | 移动 event.md 到 `.agentsevents/archive/` |
 
 **状态机**：
 ```
@@ -70,7 +70,7 @@ openclaw plugins enable agent-self-development
 本框架的理论基础来源于**仓库作者的博士论文**《数字化存储对自传体记忆的影响及其机制》。将人类自传体记忆机制迁移至 Agent 记忆设计：
 
 - **语义记忆** → 语义向量检索（memory-core）
-- **自传体记忆** → 行动序列索引（`.agent/events/` 事件流）
+- **自传体记忆** → 行动序列索引（`.agentsevents/` 事件流）
 
 详见 [`docs/reference/theory.md`](docs/reference/theory.md)。
 
