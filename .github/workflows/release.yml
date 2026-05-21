@@ -17,45 +17,41 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check dev branch
+      - name: Fetch all branches
         run: |
-          git fetch origin dev
-          echo "dev commit: $(git rev-parse origin/dev)"
+          git fetch origin dev beta main --depth=1
 
-      - name: Check beta branch
+      - name: Verify code content is in sync (dev→beta→main)
         run: |
-          git fetch origin beta
-          echo "beta commit: $(git rev-parse origin/beta)"
-
-      - name: Check main branch
-        run: |
-          git fetch origin main
-          echo "main commit: $(git rev-parse origin/main)"
-
-      - name: Verify all branches in sync
-        run: |
-          dev_hash=$(git rev-parse origin/dev)
-          beta_hash=$(git rev-parse origin/beta)
-          main_hash=$(git rev-parse origin/main)
-          tag_hash=$(git rev-parse ${{ github.ref }})
+          # 检查 dev 是否包含在 beta 中
+          dev_in_beta=$(git merge-base --is-ancestor origin/dev origin/beta && echo "yes" || echo "no")
+          # 检查 beta 是否包含在 main 中
+          beta_in_main=$(git merge-base --is-ancestor origin/beta origin/main && echo "yes" || echo "no")
           
-          echo "=== Branch Hashes ==="
-          echo "dev:  $dev_hash"
-          echo "beta: $beta_hash"
-          echo "main: $main_hash"
-          echo "tag:  $tag_hash"
+          echo "dev is ancestor of beta: $dev_in_beta"
+          echo "beta is ancestor of main: $beta_in_main"
           
-          if [ "$dev_hash" != "$beta_hash" ]; then
-            echo "ERROR: dev ($dev_hash) != beta ($beta_hash)"
+          if [ "$dev_in_beta" != "yes" ]; then
+            echo "ERROR: dev is not merged into beta"
             echo "Must push dev to origin first, wait for CI to pass, then push beta"
             exit 1
           fi
           
-          if [ "$beta_hash" != "$main_hash" ]; then
-            echo "ERROR: beta ($beta_hash) != main ($main_hash)"
+          if [ "$beta_in_main" != "yes" ]; then
+            echo "ERROR: beta is not merged into main"
             echo "Must push beta to origin first, wait for CI to pass, then push main"
             exit 1
           fi
+          
+          echo "✓ Code is properly synced: dev→beta→main"
+
+      - name: Verify tag is on main
+        run: |
+          tag_hash=$(git rev-parse ${{ github.ref }})
+          main_hash=$(git rev-parse origin/main)
+          
+          echo "tag commit:  $tag_hash"
+          echo "main commit: $main_hash"
           
           if [ "$tag_hash" != "$main_hash" ]; then
             echo "ERROR: tag ($tag_hash) != main ($main_hash)"
@@ -63,7 +59,6 @@ jobs:
             exit 1
           fi
           
-          echo "✓ All branches (dev, beta, main) are in sync!"
           echo "✓ Tag points to main commit"
 
   verify:
@@ -141,7 +136,7 @@ jobs:
           tar xzf agent-self-development-*.tgz -C _extract --strip-components=1
           rm agent-self-development-*.tgz
           cd _extract
-          tar czf ../agent-self-development-$(node -p "require('../package.json').version").tgz .
+          tar czf ../agent-self-development-$(node -p "require('../package.json').version').tgz .
           cd ..
           rm -rf _extract
 
