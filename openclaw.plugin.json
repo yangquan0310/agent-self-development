@@ -1,11 +1,13 @@
 {
   "id": "agent-self-development",
   "name": "Agent Self-Development",
-  "version": "4.3.1",
+  "version": "4.4",
   "description": "OpenClaw plugin for agent self-development based on Piaget's cognitive development theory",
   "main": "src/index.js",
   "type": "native",
-  "extensions": ["./src/index.js"],
+  "extensions": [
+    "./src/index.js"
+  ],
   "minVersion": "2026.5.0",
   "contracts": {
     "tools": [
@@ -28,9 +30,13 @@
     "properties": {
       "archive": {
         "type": "object",
-        "description": "任务归档配置",
+        "description": "\u4efb\u52a1\u5f52\u6863\u914d\u7f6e",
         "properties": {
-          "maxArchivedTasks": { "type": "number", "default": 50, "description": "archive/ 目录保留的最大已完成任务数" }
+          "maxArchivedTasks": {
+            "type": "number",
+            "default": 50,
+            "description": "archive/ \u76ee\u5f55\u4fdd\u7559\u7684\u6700\u5927\u5df2\u5b8c\u6210\u4efb\u52a1\u6570"
+          }
         }
       }
     }
