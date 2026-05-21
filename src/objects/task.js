@@ -1,7 +1,7 @@
 /**
  * Task Objects — v4.3.0
  *
- * 5 个扁平化 Task Handler，直接读写 .agentstasks/。
+ * 5 个扁平化 Task Handler，直接读写 .agents/tasks/。
  * 函数签名: (params, context) => result | { error }
  * 不抛出异常，错误通过 { error } 返回。
  */

@@ -7,25 +7,25 @@
 import { join } from 'path';
 
 export function taskPath(baseDir, runId) {
-  return join(baseDir, ''.agents', 'tasks', `${runId}.json`);
+  return join(baseDir, '.agents', 'tasks', `${runId}.json`);
 }
 
 export function archiveTaskPath(baseDir, runId) {
-  return join(baseDir, ''.agents', 'tasks', 'archive', `${runId}.json`);
+  return join(baseDir, '.agents', 'tasks', 'archive', `${runId}.json`);
 }
 
 export function eventPath(baseDir, runId, date) {
-  return join(baseDir, ''.agents', 'events', date, `${runId}.md`);
+  return join(baseDir, '.agents', 'events', date, `${runId}.md`);
 }
 
 export function archiveEventPath(baseDir, date, runId) {
-  return join(baseDir, ''.agents', 'events', 'archive', `${date}-${runId}.md`);
+  return join(baseDir, '.agents', 'events', 'archive', `${date}-${runId}.md`);
 }
 
 export function eventsDir(baseDir) {
-  return join(baseDir, ''.agents', 'events');
+  return join(baseDir, '.agents', 'events');
 }
 
 export function tasksDir(baseDir) {
-  return join(baseDir, ''.agents', 'tasks');
+  return join(baseDir, '.agents', 'tasks');
 }

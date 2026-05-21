@@ -1,7 +1,7 @@
 /**
  * Event Objects — v4.3.0
  *
- * 3 个扁平化 Event Handler，直接读写 .agentsevents/。
+ * 3 个扁平化 Event Handler，直接读写 .agents/events/。
  * 函数签名: (params, context) => result | { error }
  * 不抛出异常，错误通过 { error } 返回。
  */
