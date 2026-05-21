@@ -22,10 +22,10 @@
               ↓ 直接文件 IO
 ┌─────────────────────────────────────────────┐
 │           文件系统（项目级持久化）              │
-│  · .agent/tasks/{runId}.json                 │
-│  · .agent/events/{YYYY-MM-DD}/{runId}.md     │
-│  · .agent/tasks/archive/{runId}.json         │
-│  · .agent/events/archive/{date}-{runId}.md   │
+│  · .agentstasks/{runId}.json                 │
+│  · .agentsevents/{YYYY-MM-DD}/{runId}.md     │
+│  · .agentstasks/archive/{runId}.json         │
+│  · .agentsevents/archive/{date}-{runId}.md   │
 └─────────────────────────────────────────────┘
 ```
 
@@ -70,9 +70,9 @@ v4.3.0 移除了所有类和依赖注入：
 
 ### 文件系统层
 
-- ✅ `.agent/tasks/{runId}.json` — 任务状态持久化
-- ✅ `.agent/events/{YYYY-MM-DD}/{runId}.md` — 事件归档（延迟生成）
-- ✅ `.agent/tasks/archive/` + `.agent/events/archive/` — 归档子目录
+- ✅ `.agentstasks/{runId}.json` — 任务状态持久化
+- ✅ `.agentsevents/{YYYY-MM-DD}/{runId}.md` — 事件归档（延迟生成）
+- ✅ `.agentstasks/archive/` + `.agentsevents/archive/` — 归档子目录
 - ❌ 不做业务逻辑
 - ❌ 不替 Agent 或插件决策
 
@@ -81,7 +81,7 @@ v4.3.0 移除了所有类和依赖注入：
 ```
 Agent 调用 task.create({ prompt })
     └→ handlers.create() ──→ objects/task.create()
-        └→ io.writeJson('.agent/tasks/{runId}.json', taskJSON)
+        └→ io.writeJson('.agentstasks/{runId}.json', taskJSON)
 
 Agent 调用 task.update({ runId, status, deviation })
     └→ handlers.update() ──→ objects/task.update()
@@ -91,7 +91,7 @@ Agent 调用 event.report({ runId })
     └→ handlers.report() ──→ objects/event.report()
         ├─→ 读取 task.json
         ├─→ 渲染 templates/event.md
-        ├─→ io.writeMarkdown('.agent/events/{date}/{runId}.md')
+        ├─→ io.writeMarkdown('.agentsevents/{date}/{runId}.md')
         └─→ 自动回写 task.json eventFilePath（通过 task.update）
 ```
 
@@ -99,10 +99,10 @@ Agent 调用 event.report({ runId })
 
 | 存储类型 | 路径 | 格式 | 写入者 | 读取者 |
 |----------|------|------|--------|--------|
-| 活跃任务 | `.agent/tasks/{runId}.json` | JSON | Tool handler | Agent + Tool |
-| 归档任务 | `.agent/tasks/archive/{runId}.json` | JSON | Tool handler | Agent + Tool |
-| 事件文件 | `.agent/events/{YYYY-MM-DD}/{runId}.md` | Markdown | Tool handler | Agent + Tool |
-| 归档事件 | `.agent/events/archive/{date}-{runId}.md` | Markdown | Tool handler | Agent + Tool |
+| 活跃任务 | `.agentstasks/{runId}.json` | JSON | Tool handler | Agent + Tool |
+| 归档任务 | `.agentstasks/archive/{runId}.json` | JSON | Tool handler | Agent + Tool |
+| 事件文件 | `.agentsevents/{YYYY-MM-DD}/{runId}.md` | Markdown | Tool handler | Agent + Tool |
+| 归档事件 | `.agentsevents/archive/{date}-{runId}.md` | Markdown | Tool handler | Agent + Tool |
 | 任务模板 | `src/assets/task.json` | JSON | — | Tool handler |
 | 事件模板 | `src/assets/event.md` | Markdown | — | Tool handler |
 

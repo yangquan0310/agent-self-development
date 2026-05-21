@@ -50,7 +50,7 @@ event.report({ runId }) → 生成 event.md（含"回顾与调节"章节）
 2. 调用 event.report({ runId })
    - 读取对应 task.json（活跃目录 → 归档目录回退）
    - 使用模板渲染 event.md
-   - 写入 `.agent/events/{YYYY-MM-DD}/{runId}.md`
+   - 写入 `.agentsevents/{YYYY-MM-DD}/{runId}.md`
    - 自动回写 eventFilePath 到 task.json
 3. 返回 { eventFilePath }
 ```
@@ -75,7 +75,7 @@ event.query({ runId?, date?, type? })
 event.archive({ runId })
 ```
 
-- 移动 event.md 到 `.agent/events/archive/{日期}-{runId}.md`
+- 移动 event.md 到 `.agentsevents/archive/{日期}-{runId}.md`
 
 ## 任务与事件的协作关系
 

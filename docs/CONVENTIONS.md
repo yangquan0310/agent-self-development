@@ -202,7 +202,7 @@ api.registerTool({
 
 ### Event Markdown（v4.3.0）
 
-文件路径：`./.agent/events/{YYYY-MM-DD}/{runId}.md`
+文件路径：`./.agentsevents/{YYYY-MM-DD}/{runId}.md`
 
 七章节结构：
 

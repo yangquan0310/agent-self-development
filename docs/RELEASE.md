@@ -15,7 +15,7 @@
 - **8 个命名空间工具（M2）**：`task.create/update/advance/get/archive` + `event.report/query/archive`
 - **通用更新入口**：`task.update` 支持 status/deviation/attribution/outcome/eventFilePath/reason 任一字段
 - **延迟事件生成**：`event.report` 任务完成后一次性从 task.json 凝练生成 event.md
-- **归档目录**：`.agent/archive/tasks/` + `.agent/archive/events/` 分离活跃与归档数据
+- **归档目录**：`.agentsarchive/tasks/` + `.agentsarchive/events/` 分离活跃与归档数据
 - **测试套件重写（M3）**：覆盖正常/异常/边界路径
 
 **移除**：
@@ -23,7 +23,7 @@
 - 3 个认知模块（metacognition / working-memory / personality）
 - 适配器层（State / Memory / Flow / Log / Hook 类）
 - 5 个 guide 类工具 + 4 个诊断/文件类工具
-- 系统级持久化（`~/.agent/state/`、`~/.agent/memory/`、`~/.agent/logs/`）
+- 系统级持久化（`~/.agentsstate/`、`~/.agentsmemory/`、`~/.agentslogs/`）
 - 废弃字段 `sessionIds`、`tools`、`revisionReason`
 
 **参考文档同步**：`architecture.md`、`object-model.md`、`data-model.md`、`project-structure.md`、`state-keys.md`、`design-philosophy.md`
@@ -35,7 +35,7 @@
 **主题**：让 Tool-Driven 架构从「可用」走向「智能」
 
 **核心交付**：
-- **认知轨迹基础设施**（P0-1）：每次 tool 调用记录到 `~/.agent/cognitive-traces/{runId}.jsonl`，`self_diagnose` 返回 `cognitiveTraceSummary`
+- **认知轨迹基础设施**（P0-1）：每次 tool 调用记录到 `~/.agentscognitive-traces/{runId}.jsonl`，`self_diagnose` 返回 `cognitiveTraceSummary`
 - **模板智能渲染引擎**（P0-2）：`src/common/template-engine.js` 支持变量/条件/列表/嵌套，4 个 guide tools 集成
 - **案例索引数据库**（P0-3）：SQLite + Jaccard 相似度，`create_plan` 返回相似案例，`archive_task` 自动索引
 - **诊断增强 v2**（P0-4）：`self_diagnose` 返回 `trendAnalysis`（阶段耗时/偏差频率/历史均值）+ `riskFlags`（最多 3 条预警）

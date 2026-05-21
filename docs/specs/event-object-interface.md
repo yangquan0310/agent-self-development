@@ -70,12 +70,12 @@ interface ReportEventError {
 
 **业务规则**：
 1. 扫描双路径读取 `task.json`：
-   - `{baseDir}/.agent/tasks/{runId}.json`
-   - `{baseDir}/.agent/tasks/archive/{runId}.json`
+   - `{baseDir}/.agentstasks/{runId}.json`
+   - `{baseDir}/.agentstasks/archive/{runId}.json`
    - 均不存在则返回错误
 2. 校验 `task.status === 'completed'`，否则拒绝生成
 3. 从 `templates.event` 加载模板
-4. 渲染后写入 `{baseDir}/.agent/events/{date}/{runId}.md`
+4. 渲染后写入 `{baseDir}/.agentsevents/{date}/{runId}.md`
    - `date` 由 `task.createdAt` 解析为 `YYYY-MM-DD`
 5. 返回 `eventFilePath`，由 Tool Handler 层决定是否调用 `task.update` 关联
 
@@ -115,7 +115,7 @@ interface EventItem {
 ```
 
 **查询规则**：
-- 遍历 `{baseDir}/.agent/events/` 下的所有 `YYYY-MM-DD/` 子目录
+- 遍历 `{baseDir}/.agentsevents/` 下的所有 `YYYY-MM-DD/` 子目录
 - `type` 过滤需解析文件内容后匹配
 - 结果按 `date` 降序排列
 
@@ -142,8 +142,8 @@ interface ArchiveEventError {
 ```
 
 **业务规则**：
-- 源路径：从 `.agent/events/` 下扫描找到包含该 runId 的 `.md` 文件
-- 目标路径：`{baseDir}/.agent/events/archive/{date}-{runId}.md`
+- 源路径：从 `.agentsevents/` 下扫描找到包含该 runId 的 `.md` 文件
+- 目标路径：`{baseDir}/.agentsevents/archive/{date}-{runId}.md`
 
 ---
 
@@ -176,9 +176,9 @@ interface ArchiveEventError {
 
 | 操作 | 活跃路径 | 归档路径 |
 |------|---------|---------|
-| reportEvent | — | `{baseDir}/.agent/events/{date}/{runId}.md` |
-| queryEvent | 遍历 `{baseDir}/.agent/events/` | 不包含 archive/ |
-| archiveEvent | 从活跃路径移动 | `{baseDir}/.agent/events/archive/{date}-{runId}.md` |
+| reportEvent | — | `{baseDir}/.agentsevents/{date}/{runId}.md` |
+| queryEvent | 遍历 `{baseDir}/.agentsevents/` | 不包含 archive/ |
+| archiveEvent | 从活跃路径移动 | `{baseDir}/.agentsevents/archive/{date}-{runId}.md` |
 
 ---
 

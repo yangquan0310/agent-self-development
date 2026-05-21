@@ -68,7 +68,7 @@
 **问题**：roadmap 说「删除 adapters/」，但 design.md 和 architecture-review 都保留了 state.js 的降级方案。如果删除 adapters/，则需要新建 `utils/file.js` 来替代；如果保留，则需要重构 state.js。
 
 **建议决策**：
-- [ ] **选项 A**：删除 adapters/，TaskObject/EventObject 直接通过 `utils/file.js` 读写 `./.agent/`（符合「极简」）
+- [ ] **选项 A**：删除 adapters/，TaskObject/EventObject 直接通过 `utils/file.js` 读写 `./.agents`（符合「极简」）
 - [ ] **选项 B**：保留 `adapters/state.js` 为纯 IO 层，但删除其他 adapter（Flow/Memory/Log/Task）
 
 ---
@@ -108,7 +108,7 @@
 
 ### I6：项目级路径 vs 系统级路径——是否完全废弃系统级？
 
-`architecture-review.md` ADR-010 说「所有 Agent 可见的 task/event 数据均写入项目级 `./.agent/`」，State adapter / Memory adapter / Flow adapter 不再被使用。
+`architecture-review.md` ADR-010 说「所有 Agent 可见的 task/event 数据均写入项目级 `./.agents`」，State adapter / Memory adapter / Flow adapter 不再被使用。
 
 但 `design.md` 保留了 `src/common/adapters/` 中的 Flow/Memory/Log/Task adapter（标记为「暂不改动」）。
 

@@ -5,7 +5,7 @@
 > **目标角色**：Architect  
 > **日期**：2026-05-19  
 > **关联文档**：`docs/specs/task-object-interface.md`、`docs/specs/event-object-interface.md`  
-> **关联事件**：`.agent/sessions/2026-05-19/13-38-42-architect-to-pm-specs-ready.md`
+> **关联事件**：`.agentssessions/2026-05-19/13-38-42-architect-to-pm-specs-ready.md`
 
 ---
 
@@ -102,8 +102,8 @@ task.outcome = { ...task.outcome, ...params.outcome };
 
 1. **推荐调用顺序**：`event.record` **先于** `task.archive`
 2. **容错扫描**：`EventObject.generate(runId)` 应同时扫描以下两个路径：
-   - `.agent/tasks/{runId}.json`
-   - `.agent/tasks/archive/{runId}.json`
+   - `.agentstasks/{runId}.json`
+   - `.agentstasks/archive/{runId}.json`
    - 无论调用顺序如何，都能找到 task.json
 
 ---
@@ -127,7 +127,7 @@ task.outcome = { ...task.outcome, ...params.outcome };
 1. 修改 `docs/specs/task-object-interface.md` — 补充 A1/A2/A3
 2. 修改 `docs/specs/event-object-interface.md` — 补充 A4
 3. 重新输出 `[ARCH_READY]`
-4. 通过 `.agent/sessions/` 回复 PM
+4. 通过 `.agentssessions/` 回复 PM
 
 ---
 

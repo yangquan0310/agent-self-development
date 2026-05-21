@@ -7,7 +7,7 @@
 
 ## 1. Task 对象（task.json）
 
-**存储位置**：`.agent/tasks/{runId}.json`
+**存储位置**：`.agentstasks/{runId}.json`
 
 ```json
 {
@@ -55,7 +55,7 @@
 | `active` | 阶段正常推进 → `task.advance({ runId })` | `active`（currentPhase++） |
 | `active` | 所有 phases 完成 → `task.advance()` 返回 `isComplete=true` | `completed` |
 | `active` | 重大偏差需重规划 → `task.update({ status: "revising" })` | `revising` → 回到 `draft` |
-| `completed` | Agent 调用 `task.archive({ runId })` | 移动到 `.agent/tasks/archive/` |
+| `completed` | Agent 调用 `task.archive({ runId })` | 移动到 `.agentstasks/archive/` |
 
 ### 1.2 Tool 调用后的状态变更示例
 
@@ -270,14 +270,14 @@ const result = await tools['task.update']({
 
 ## 5. 事件文件（event.md）
 
-**存储位置**：`.agent/events/{YYYY-MM-DD}/{runId}.md`
+**存储位置**：`.agentsevents/{YYYY-MM-DD}/{runId}.md`
 
 **生成时机**：任务完成后，Agent 调用 `event.report({ runId })` **一次性生成**。
 
 **生成流程**：
 1. `event.report` 读取对应 `task.json`（活跃或归档）
 2. 使用 `src/assets/event.md` 模板渲染 Markdown
-3. 写入 `.agent/events/{date}/{runId}.md`
+3. 写入 `.agentsevents/{date}/{runId}.md`
 4. `handlers.report` 自动调用 `task.update` 回写 `eventFilePath`
 
 **事件文件包含内容**（由模板决定）：
@@ -295,17 +295,17 @@ const result = await tools['task.update']({
 ## 6. 归档模型
 
 **任务归档**：
-- 源文件：`.agent/tasks/{runId}.json`
-- 目标文件：`.agent/tasks/archive/{runId}.json`
+- 源文件：`.agentstasks/{runId}.json`
+- 目标文件：`.agentstasks/archive/{runId}.json`
 - 触发：`task.archive({ runId })`
 
 **事件归档**：
-- 源文件：`.agent/events/{date}/{runId}.md`
-- 目标文件：`.agent/events/archive/{date}-{runId}.md`
+- 源文件：`.agentsevents/{date}/{runId}.md`
+- 目标文件：`.agentsevents/archive/{date}-{runId}.md`
 - 触发：`event.archive({ runId })`
 
 **查询回退**：
-- `task.get({ runId })` 先在 `.agent/tasks/` 查找，找不到则回退到 `.agent/tasks/archive/`
+- `task.get({ runId })` 先在 `.agentstasks/` 查找，找不到则回退到 `.agentstasks/archive/`
 
 ---
 

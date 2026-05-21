@@ -14,17 +14,17 @@
 ├── metadata.json          # 机器可读架构
 ├── SKILL.md               # 项目级操作手册
 ├── TODO.md                # 进度看板
-├── .agentignore           # 可见性控制文件
+├── .agentsignore           # 可见性控制文件
 │
 ├── skills/                # 项目级技能（协作协议、技术规范、上下文管理）
 │
-├── .agent/                # 元数据层（隐藏目录）
-│   ├── events/            # 事件流：.agent/events/{YYYY-MM-DD}/{runId}.md
-│   │   └── archive/       # 归档事件：.agent/events/archive/{date}-{runId}.md
-│   ├── locks/             # 并发控制：.agent/locks/{文件路径替换-为-}.json
-│   ├── decisions/         # 决策存档：.agent/decisions/{YYYYMMDD-HHMM}-标题.md
-│   └── tasks/             # 任务索引：.agent/tasks/{runId}.json
-│       └── archive/       # 归档任务：.agent/tasks/archive/{runId}.json
+├── .agentss                # 元数据层（隐藏目录）
+│   ├── events/            # 事件流：.agentssevents/{YYYY-MM-DD}/{runId}.md
+│   │   └── archive/       # 归档事件：.agentssevents/archive/{date}-{runId}.md
+│   ├── locks/             # 并发控制：.agentsslocks/{文件路径替换-为-}.json
+│   ├── decisions/         # 决策存档：.agentssdecisions/{YYYYMMDD-HHMM}-标题.md
+│   └── tasks/             # 任务索引：.agentsstasks/{runId}.json
+│       └── archive/       # 归档任务：.agentsstasks/archive/{runId}.json
 │
 ├── uploads/               # 用户上传的原始材料（Agent 只读）
 ├── manuscripts/           # Agent 工作草稿（进行中、未确认）
@@ -64,7 +64,7 @@
     "中文目录名": "english_path/"
   },
   "tags": ["string"],
-  ".agent": [
+  ".agents": [
     { "id": "string", "role": "string", "handles": ["string"] }
   ],
   "collaboration": {
@@ -99,7 +99,7 @@
 
 ---
 
-## .agent/ 元数据层
+## .agentss 元数据层
 
 | 子目录 | 职责 | 结构 | 读写规则 |
 |--------|------|------|----------|
@@ -118,7 +118,7 @@
 
 ### events/ 详细设计
 
-- **目录结构**：`.agent/events/{YYYY-MM-DD}/`
+- **目录结构**：`.agentssevents/{YYYY-MM-DD}/`
 - **文件命名**：`{runId}.md`（与 task.runId 对应）
 - **生成时机**：任务完成后由 `event.report` **一次性生成**
 - **内容**：基于 `src/assets/event.md` 模板渲染，包含 Metadata、Plan、Execution、Deviation、Attribution、Outcome
@@ -126,8 +126,8 @@
 ### archive/ 详细设计（v4.3.0 新增）
 
 - **目的**：分离活跃数据与归档数据，简化查询逻辑
-- **任务归档**：`.agent/tasks/{runId}.json` → `.agent/tasks/archive/{runId}.json`
-- **事件归档**：`.agent/events/{date}/{runId}.md` → `.agent/events/archive/{date}-{runId}.md`
+- **任务归档**：`.agentsstasks/{runId}.json` → `.agentsstasks/archive/{runId}.json`
+- **事件归档**：`.agentssevents/{date}/{runId}.md` → `.agentssevents/archive/{date}-{runId}.md`
 - **查询回退**：`task.get` 先在活跃目录查找，找不到自动回退到归档目录
 
 ---
@@ -151,7 +151,7 @@
 
 ---
 
-## .agentignore 可见性控制
+## .agentsignore 可见性控制
 
 ```
 # 完全隐藏（Agent 不可见）
@@ -161,8 +161,8 @@ node_modules/
 *.log
 dist/
 build/
-.agent/locks/       # 锁文件对 Agent 透明
-.agentignore        # 本文件自身对 Agent 透明
+.agentsslocks/       # 锁文件对 Agent 透明
+.agentsignore        # 本文件自身对 Agent 透明
 .DS_Store
 ```
 
@@ -170,14 +170,14 @@ build/
 |----------|------|-----------|
 | 完全隐藏 | `.env`, `.git/`, `node_modules/` | 对 Agent 不存在，提问时回答"无此文件" |
 | 只读 | `uploads/` | 可读但不可写，写入操作被拒绝 |
-| 透明 | `.agent/locks/` | 锁文件对 Agent 透明，冲突检测由插件处理 |
+| 透明 | `.agentsslocks/` | 锁文件对 Agent 透明，冲突检测由插件处理 |
 
 ---
 
 ## 初始化命令
 
 ```bash
-mkdir -p .agent/{events,locks,decisions,tasks}
+mkdir -p .agentss{events,locks,decisions,tasks}
 mkdir -p {uploads,manuscripts,docs,knowledge,skills,temp}
 ```
 
@@ -214,11 +214,11 @@ src/
 
 | 存储类型 | 路径 | 格式 | 写入者 | 读取者 |
 |----------|------|------|--------|--------|
-| 活跃任务 | `.agent/tasks/{runId}.json` | JSON | Tool handler | Agent + Tool |
-| 归档任务 | `.agent/tasks/archive/{runId}.json` | JSON | Tool handler | Agent + Tool |
-| 事件文件 | `.agent/events/{YYYY-MM-DD}/{runId}.md` | Markdown | Tool handler | Agent + Tool |
-| 归档事件 | `.agent/events/archive/{date}-{runId}.md` | Markdown | Tool handler | Agent + Tool |
-| 项目级 Lock | `.agent/locks/{文件路径替换-为-}.json` | JSON | Agent | Agent + Tool |
+| 活跃任务 | `.agentsstasks/{runId}.json` | JSON | Tool handler | Agent + Tool |
+| 归档任务 | `.agentsstasks/archive/{runId}.json` | JSON | Tool handler | Agent + Tool |
+| 事件文件 | `.agentssevents/{YYYY-MM-DD}/{runId}.md` | Markdown | Tool handler | Agent + Tool |
+| 归档事件 | `.agentssevents/archive/{date}-{runId}.md` | Markdown | Tool handler | Agent + Tool |
+| 项目级 Lock | `.agentsslocks/{文件路径替换-为-}.json` | JSON | Agent | Agent + Tool |
 
 > **双系统原则**：Agent 是项目文件系统的主要写入者；插件只响应 Tool 调用执行文件写入。
 > **v4.3.0 变更**：插件不再通过 Hook 主动操作文件。所有文件写入均由 Agent 显式调用 Tool 触发。

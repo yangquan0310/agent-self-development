@@ -18,16 +18,16 @@ describe('utils', () => {
 
   describe('resolve.js', () => {
     it('taskPath returns correct path', () => {
-      assert.strictEqual(taskPath('/base', 'abc-123'), join('/base', '.agent', 'tasks', 'abc-123.json'));
+      assert.strictEqual(taskPath('/base', 'abc-123'), join('/base', '.agents', 'tasks', 'abc-123.json'));
     });
 
     it('eventsDir returns correct path', () => {
-      assert.strictEqual(eventsDir('/base'), join('/base', '.agent', 'events'));
+      assert.strictEqual(eventsDir('/base'), join('/base', '.agents', 'events'));
     });
 
     it('eventPath returns correct path from date', () => {
       const path = eventPath('/base', 'run-1', '2026-05-20');
-      assert.strictEqual(path, join('/base', '.agent', 'events', '2026-05-20', 'run-1.md'));
+      assert.strictEqual(path, join('/base', '.agents', 'events', '2026-05-20', 'run-1.md'));
     });
   });
 

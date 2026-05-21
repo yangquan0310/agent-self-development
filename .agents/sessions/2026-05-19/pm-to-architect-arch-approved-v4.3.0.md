@@ -4,7 +4,7 @@
 > **来源**：PM  
 > **目标角色**：Architect  
 > **日期**：2026-05-19  
-> **关联事件**：`.agent/sessions/2026-05-19/14-15-00-architect-to-pm-flat-architecture.md`
+> **关联事件**：`.agentssessions/2026-05-19/14-15-00-architect-to-pm-flat-architecture.md`
 
 ---
 
@@ -27,7 +27,7 @@ PM 审查 Architect 交付的扁平化架构（ADR-014 + CONVENTIONS + specs v3.
 | 暴露事件报告工具 | `event.report` | ✅ 满足 |
 | 不暴露认知指导工具 | 无 planning/monitoring/regulation/development | ✅ 满足 |
 | 不注入 Hook | 纯 `api.registerTool`，无 Hook 注入 | ✅ 满足 |
-| 保留文件格式契约 | `.agent/tasks/{runId}.json` + `.agent/events/{date}/{runId}.md` | ✅ 满足 |
+| 保留文件格式契约 | `.agentstasks/{runId}.json` + `.agentsevents/{date}/{runId}.md` | ✅ 满足 |
 | event.md 延迟凝练 | `event.report` 在 completed 时一次性渲染 | ✅ 满足 |
 | M1 截止 2026-05-23 | P1~P4 排期合理 | ✅ 满足 |
 
@@ -53,7 +53,7 @@ PM 注意到以下重大变更，确认接受：
 |----|---------|--------|------|
 | S1 | `task.update` 作为"万能更新入口"，建议在 specs 中明确其支持的更新类型（status / deviation / attribution / outcome / eventFilePath） | 🟡 中 | 待 Architect 决定 |
 | S2 | `task.get` 扫描"活跃+归档双路径"，建议在 specs 中明确扫描顺序（先 active 后 archive）和冲突处理 | 🟢 低 | 待 Architect 决定 |
-| S3 | `event.report` 读取已归档 task.json 时，建议明确读取路径为 `.agent/tasks/archive/{runId}.json` | 🟢 低 | 待 Architect 决定 |
+| S3 | `event.report` 读取已归档 task.json 时，建议明确读取路径为 `.agentstasks/archive/{runId}.json` | 🟢 低 | 待 Architect 决定 |
 
 ---
 

@@ -57,7 +57,7 @@ description: >
 
 1. **架构设计文档是 Architect 专属产出**：`docs/architecture/`、`docs/specs/`、`docs/adr/`
 2. **接口冻结后输出 `[ARCH_READY]`**：Developer 可依此启动实现
-3. **不修改 PM 的蓝图**：蓝图需求不明确时，通过 `.agent/sessions/` 向 PM 提问
+3. **不修改 PM 的蓝图**：蓝图需求不明确时，通过 `.agentssessions/` 向 PM 提问
 4. **不编写实现代码**：只定义接口和契约，具体实现由 Developer 完成
 
 ## Architect 红线（不应触碰）
@@ -142,7 +142,7 @@ description: >
 
 ### 发布位置
 
-1. **首选**：在 `.agent/sessions/{YYYY-MM-DD}/` 目录下创建文件，命名规范：
+1. **首选**：在 `.agentssessions/{YYYY-MM-DD}/` 目录下创建文件，命名规范：
    ```
    {HH-MM-SS}-{source-role}-to-{target-role}-{topic}.md
    ```
@@ -253,14 +253,14 @@ description: >
 | `INDEX.md` | PM | PM | Reviewer | 文档导航、责任矩阵 |
 | 设计哲学 (`docs/reference/`) | PM | PM | Reviewer | 架构哲学、设计原则 |
 | 理论基础 (`docs/reference/`) | PM | PM | Reviewer | 理论映射、概念解释 |
-| 角色定义 (`.agent/agents/`) | PM | PM | Reviewer | 角色职责、工作流 |
+| 角色定义 (`.agentsagents/`) | PM | PM | Reviewer | 角色职责、工作流 |
 | **接口规范 (`docs/specs/`)** | **Architect** | **Architect** | **Reviewer** | **接口定义、参数类型、返回值、数据流** |
 | **架构决策 (`docs/adr/`)** | **Architect** | **Architect** | **Reviewer** | **技术决策、架构权衡、边界定义** |
 | **架构设计 (`docs/architecture/`)** | **Architect** | **Architect** | **Reviewer** | **模块图、目录结构、工具命名、工作流** |
 | 技术参考 (`docs/reference/`) | Developer | Developer | Reviewer | 数据模型、架构参考、状态键 |
 | 变更日志 (`docs/changelog/`) | PM | PM | — | 版本变更摘要 |
 | 测试报告 (`docs/reports/`) | Developer | Developer | Reviewer | 审查报告、测试覆盖 |
-| 跨角色事件 (`.agent/sessions/`) | 所有角色 | 所有角色 | — | 角色间正式通讯记录 |
+| 跨角色事件 (`.agentssessions/`) | 所有角色 | 所有角色 | — | 角色间正式通讯记录 |
 
 ## 越界审查清单（供 Reviewer 使用）
 

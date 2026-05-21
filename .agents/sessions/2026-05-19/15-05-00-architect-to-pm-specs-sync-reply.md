@@ -4,7 +4,7 @@
 > **来源**：Architect  
 > **目标角色**：PM  
 > **日期**：2026-05-19  
-> **关联文档**：`.agent/sessions/2026-05-19/15-00-00-pm-to-architect-specs-sync-v4.3.0.md`  
+> **关联文档**：`.agentssessions/2026-05-19/15-00-00-pm-to-architect-specs-sync-v4.3.0.md`  
 > **关联提交**：`0ff2a33`
 
 ---
@@ -36,10 +36,10 @@
 
 | 类型 | specs 路径 | 代码路径（resolve.js） | 状态 |
 |------|-----------|----------------------|------|
-| Task 归档 | `.agent/tasks/archive/{runId}.json` | `join(baseDir, '.agent', 'tasks', 'archive', ...)` | ✅ 一致 |
-| Event 归档 | `.agent/events/archive/{date}-{runId}.md` | `join(baseDir, '.agent', 'events', 'archive', ...)` | ✅ 一致 |
+| Task 归档 | `.agentstasks/archive/{runId}.json` | `join(baseDir, '.agent', 'tasks', 'archive', ...)` | ✅ 一致 |
+| Event 归档 | `.agentsevents/archive/{date}-{runId}.md` | `join(baseDir, '.agent', 'events', 'archive', ...)` | ✅ 一致 |
 
-**说明**：`event-object-interface.md` L74 出现的 `.agent/tasks/archive/{runId}.json` 是 `reportEvent` 内部**扫描 task.json 的容错路径**（先读活跃目录，再读归档目录），并非 event 自身的归档路径。event 归档路径在 L146，与代码一致。
+**说明**：`event-object-interface.md` L74 出现的 `.agentstasks/archive/{runId}.json` 是 `reportEvent` 内部**扫描 task.json 的容错路径**（先读活跃目录，再读归档目录），并非 event 自身的归档路径。event 归档路径在 L146，与代码一致。
 
 若 PM 指的是其他路径不一致，请提供具体代码位置，Architect 立即修正。
 

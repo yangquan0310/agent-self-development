@@ -7,7 +7,7 @@
 
 import { Type } from '@sinclair/typebox';
 
-const BaseDirParam = Type.String({ description: '项目根目录（必填），用于生成 .agent 子目录路径' });
+const BaseDirParam = Type.String({ description: '项目根目录（必填），用于生成 .agents 子目录路径' });
 
 export const TOOL_SCHEMAS = {
   'task.create': {

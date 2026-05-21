@@ -11,12 +11,12 @@ v4.3.0 是纯粹的 **Tool Plugin**，无 Hook、无系统层 SQLite、无 `ctx.
 
 | 文件/目录 | 路径 | 格式 | 写入者 | 读取者 | 说明 |
 |-----------|------|------|--------|--------|------|
-| 活跃任务 | `.agent/tasks/{runId}.json` | JSON | Tool handler | Agent + Tool | 任务完整状态，包含 plan/deviations/attributions/outcome |
-| 归档任务 | `.agent/tasks/archive/{runId}.json` | JSON | Tool handler | Agent + Tool | `task.archive()` 后移动至此 |
-| 事件文件 | `.agent/events/{YYYY-MM-DD}/{runId}.md` | Markdown | Tool handler | Agent + Tool | `event.report()` 一次性生成 |
-| 归档事件 | `.agent/events/archive/{date}-{runId}.md` | Markdown | Tool handler | Agent + Tool | `event.archive()` 后移动至此 |
-| 文件锁 | `.agent/locks/{文件路径替换-为-}.json` | JSON | Agent | Agent + Tool | 并发控制，Agent 编辑前创建、编辑后删除 |
-| 决策存档 | `.agent/decisions/{YYYYMMDD-HHMM}-标题.md` | Markdown | Agent | Agent + Tool | 重要决策记录 |
+| 活跃任务 | `.agentstasks/{runId}.json` | JSON | Tool handler | Agent + Tool | 任务完整状态，包含 plan/deviations/attributions/outcome |
+| 归档任务 | `.agentstasks/archive/{runId}.json` | JSON | Tool handler | Agent + Tool | `task.archive()` 后移动至此 |
+| 事件文件 | `.agentsevents/{YYYY-MM-DD}/{runId}.md` | Markdown | Tool handler | Agent + Tool | `event.report()` 一次性生成 |
+| 归档事件 | `.agentsevents/archive/{date}-{runId}.md` | Markdown | Tool handler | Agent + Tool | `event.archive()` 后移动至此 |
+| 文件锁 | `.agentslocks/{文件路径替换-为-}.json` | JSON | Agent | Agent + Tool | 并发控制，Agent 编辑前创建、编辑后删除 |
+| 决策存档 | `.agentsdecisions/{YYYYMMDD-HHMM}-标题.md` | Markdown | Agent | Agent + Tool | 重要决策记录 |
 
 ### 任务文件（task.json）键空间
 
@@ -67,16 +67,16 @@ v4.3.0 扁平化重构后，以下系统级存储不再存在：
 
 | 键/存储 | v4.2.x 用途 | v4.3.0 状态 |
 |---------|------------|------------|
-| `task:{runId}`（State 插件） | 系统级 task JSON 存储 | **已移除**，数据直接存 `.agent/tasks/{runId}.json` |
+| `task:{runId}`（State 插件） | 系统级 task JSON 存储 | **已移除**，数据直接存 `.agentstasks/{runId}.json` |
 | `session:{sessionId}`（State 插件） | Session 生命周期管理 | **已移除**，Session 模块整体删除 |
-| `eventlog:{YYYY-MM-DD}`（Memory） | 按日聚合事件日志 | **已移除**，事件直接存 `.agent/events/` |
+| `eventlog:{YYYY-MM-DD}`（Memory） | 按日聚合事件日志 | **已移除**，事件直接存 `.agentsevents/` |
 | `logs:{YYYY-MM-DD}`（Log） | 按日累积日志 | **已移除**，无系统级日志 |
 | `prompt:${runId}`（State） | before_prompt_build prompt 缓存 | **已移除**，无 Hook 注入 |
 | `flow:{flowId}`（Flow） | Flow 工作流实例 | **已移除**，Flow 模块整体删除 |
-| `~/.agent/state/agent-self-development/` | 插件专属 State 目录 | **已移除** |
-| `~/.agent/memory/{agentId}.sqlite` | 记忆归档 SQLite | **已移除** |
-| `~/.agent/logs/{agentId}.log` | 代理独立日志 | **已移除** |
-| `~/.agent/hooks/agent-self-development/` | Hook 声明文件 | **已移除**，无 Hook |
+| `~/.agentsstate/agent-self-development/` | 插件专属 State 目录 | **已移除** |
+| `~/.agentsmemory/{agentId}.sqlite` | 记忆归档 SQLite | **已移除** |
+| `~/.agentslogs/{agentId}.log` | 代理独立日志 | **已移除** |
+| `~/.agentshooks/agent-self-development/` | Hook 声明文件 | **已移除**，无 Hook |
 
 ---
 

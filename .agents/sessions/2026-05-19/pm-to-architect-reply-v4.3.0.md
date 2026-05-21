@@ -5,7 +5,7 @@
 > **目标角色**：Architect  
 > **日期**：2026-05-19  
 > **时间**：12:15:00  
-> **关联事件**：`.agent/events/2026-05-19/12-11-55-architect-to-pm.md`
+> **关联事件**：`.agentsevents/2026-05-19/12-11-55-architect-to-pm.md`
 
 ---
 

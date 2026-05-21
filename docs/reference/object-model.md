@@ -16,11 +16,11 @@ v4.3.0 从面向对象架构迁移到**纯函数 + 直接 IO**的扁平架构。
 
 | 函数 | 参数 | 返回值 | 职责 |
 |------|------|--------|------|
-| `create(params, context)` | `{ prompt, runId?, taskType?, planInput? }` | `{ task }` 或 `{ error }` | 验证 prompt/runId，生成 plan，写入 `.agent/tasks/{runId}.json` |
+| `create(params, context)` | `{ prompt, runId?, taskType?, planInput? }` | `{ task }` 或 `{ error }` | 验证 prompt/runId，生成 plan，写入 `.agentstasks/{runId}.json` |
 | `update(params, context)` | `{ runId, status?, deviation?, attribution?, outcome?, eventFilePath?, reason? }` | `{ task, previousStatus?, updatedFields? }` 或 `{ error }` | 读取 task.json，应用部分更新，写回 |
 | `advance(params, context)` | `{ runId, phaseId? }` | `{ task, previousPhase, nextPhase, isComplete }` 或 `{ error }` | 推进 currentPhase，标记 completed 若最后阶段 |
 | `get(params, context)` | `{ runId }` | `{ task }` 或 `{ error }` | 读取 task.json（先查活跃目录，再查归档目录） |
-| `archive(params, context)` | `{ runId }` | `{ success, archivePath }` 或 `{ error }` | 移动 task.json 到 `.agent/tasks/archive/` |
+| `archive(params, context)` | `{ runId }` | `{ success, archivePath }` 或 `{ error }` | 移动 task.json 到 `.agentstasks/archive/` |
 
 **关键设计**：
 - `update` 是通用更新入口。Agent 通过一次调用更新状态、偏差、归因、结果中的任意字段。
@@ -33,9 +33,9 @@ v4.3.0 从面向对象架构迁移到**纯函数 + 直接 IO**的扁平架构。
 
 | 函数 | 参数 | 返回值 | 职责 |
 |------|------|--------|------|
-| `report(params, context)` | `{ runId }` | `{ eventFilePath }` 或 `{ error }` | 读取 task.json，渲染模板，生成 `.agent/events/{date}/{runId}.md` |
+| `report(params, context)` | `{ runId }` | `{ eventFilePath }` 或 `{ error }` | 读取 task.json，渲染模板，生成 `.agentsevents/{date}/{runId}.md` |
 | `query(params, context)` | `{ runId?, date?, type? }` | `{ events: [] }` 或 `{ error }` | 扫描事件目录，支持按 runId、日期、类型筛选 |
-| `archive(params, context)` | `{ runId }` | `{ success, archivePath }` 或 `{ error }` | 移动 event.md 到 `.agent/events/archive/` |
+| `archive(params, context)` | `{ runId }` | `{ success, archivePath }` 或 `{ error }` | 移动 event.md 到 `.agentsevents/archive/` |
 
 **关键设计**：
 - `report` 是**一次性生成**，非增量追加。仅在任务完成后调用。
@@ -126,10 +126,10 @@ function adaptError(message) {
 
 | 函数 | 返回值 |
 |------|--------|
-| `taskPath(runId)` | `.agent/tasks/{runId}.json` |
-| `archiveTaskPath(runId)` | `.agent/tasks/archive/{runId}.json` |
-| `eventPath(runId, date?)` | `.agent/events/{date}/{runId}.md` |
-| `archiveEventPath(runId, date?)` | `.agent/events/archive/{date}-{runId}.md` |
+| `taskPath(runId)` | `.agentstasks/{runId}.json` |
+| `archiveTaskPath(runId)` | `.agentstasks/archive/{runId}.json` |
+| `eventPath(runId, date?)` | `.agentsevents/{date}/{runId}.md` |
+| `archiveEventPath(runId, date?)` | `.agentsevents/archive/{date}-{runId}.md` |
 
 ### 3.3 校验
 
@@ -180,7 +180,7 @@ agent-self-development/
 │       └── helpers.js            # 生成器工具
 ├── test/                         # 测试套件
 ├── skills/                       # 项目级技能
-├── .agent/                       # 角色定义
+├── .agents                       # 角色定义
 └── docs/                         # 项目文档
 ```
 
