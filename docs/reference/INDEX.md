@@ -9,7 +9,7 @@
 | 文档 | 内容 | 阅读时机 |
 |------|------|---------|
 | [design-philosophy.md](design-philosophy.md) | **v4.3.0 设计哲学**：从"代劳"到"赋能"，拉取式、显式接口、被动响应、扁平架构 | 理解架构决策时 |
-| [theory.md](theory.md) | **认知科学理论基础**：自传体记忆、工作自我、同化/顺应（基于博士论文）→ Agent 架构映射 | 理解框架为何这样设计时 |
+| [distributed-autobiographical-memory-architecture.md](distributed-autobiographical-memory-architecture.md) | **分布式自传体记忆架构**：自传体记忆、工作自我、六维度平衡（基于博士论文）→ Agent 架构映射 | 理解框架为何这样设计时 |
 | [architecture.md](architecture.md) | **v4.3.0 扁平工具架构**：Agent / Tool / 文件系统三层 + 8 个命名空间工具 | 理解模块职责划分时 |
 | [project-structure.md](project-structure.md) | 被管理项目的标准目录结构（四文件契约 / .agents / archive/ / 业务目录） | 初始化新项目或查阅目录规范时 |
 | [object-model.md](object-model.md) | **v4.3.0 函数模块模型**：对象层裸函数 + 工具层薄适配 + 基础设施原子 IO | 开发新模块或修改现有模块时 |
@@ -21,7 +21,7 @@
 ## 快速定位
 
 **我是新开发者，第一次接触本项目**
-→ 按顺序阅读：`design-philosophy.md` → `theory.md` → `architecture.md` → `object-model.md` → `data-model.md`
+→ 按顺序阅读：`design-philosophy.md` → `distributed-autobiographical-memory-architecture.md` → `architecture.md` → `object-model.md` → `data-model.md`
 
 **我要添加一个新 tool**
 → 重点阅读：`architecture.md`（架构约束）+ `object-model.md`（函数模块模板）+ `data-model.md`（数据模型）
@@ -36,7 +36,7 @@
 → 阅读：`hook-reference.md`（v4.5.0 新设计）
 
 **我要了解皮亚杰发展算法**
-→ 阅读：`piaget-development-algorithm.md`（六维度形式化 + 同化/顺应算法）
+→ 阅读：`piaget-development-algorithm.md`（六维度形式化 + 六维度平衡算法）
 
 ## 外部参考
 
