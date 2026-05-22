@@ -47,7 +47,11 @@ draft → pending_approval → active → completed
 
 ## 理论基础
 
-本框架基于**工作自我理论**与**自传体记忆系统**：
+本框架基于两大理论基础：
+
+### 1. 交互式自传体记忆 → [ch02](docs/reference/ch02-distributed-autobiographical-memory-architecture.md)
+
+### 2. 皮亚杰发展理论 → [ch01](docs/reference/ch01-piaget-development-algorithm.md)
 
 ### 工作自我的三种功能
 
