@@ -84,8 +84,6 @@ draft → pending_approval → active → completed
 | $D_5$ 程序性记忆 | 因果模式集合 | 归因揭示新因果模式 |
 | $D_6$ 技能 | 技能条目集合 | 获得新技能或发现不足 |
 
-详见 [`docs/reference/ch01-piaget-development-algorithm.md`](docs/reference/ch01-piaget-development-algorithm.md) 和 [`docs/reference/ch02-distributed-autobiographical-memory-architecture.md`](docs/reference/ch02-distributed-autobiographical-memory-architecture.md)。
-
 ---
 
 ## 快速开始
@@ -112,8 +110,6 @@ openclaw plugins enable agent-self-development
   }
 }
 ```
-
-重启 Gateway 后生效。
 
 ---
 
@@ -162,15 +158,6 @@ agent-self-development/
 | [ch09 状态键](docs/reference/ch09-state-keys.md) | 文件系统键空间、task.json 字段规范 |
 | [ch10 Hook机制](docs/reference/ch10-hook-reference.md) | v4.5.0 条件触发、注入时机矩阵 |
 
-### 外部参考
-
-| 文档 | 说明 |
-|------|------|
-| [COLLABORATION.md](docs/COLLABORATION.md) | 多 Agent 协作协议、角色边界 |
-| [CONVENTIONS.md](docs/CONVENTIONS.md) | 编码规范、目录命名 |
-| [roadmap/](docs/roadmap/) | 版本路线图 |
-| [changelog/](docs/changelog/) | 完整版本历史 |
-
 ---
 
 ## 版本历史
@@ -181,8 +168,6 @@ agent-self-development/
 | v4.3.0 | 2026-05-19 | 扁平化架构：纯 Tool Plugin，8 个命名空间工具 |
 | v4.2.0 | 2026-05-13 | Cognitive Intelligence：认知轨迹、模板引擎、案例索引 |
 | v4.1.0 | 2026-05-11 | Tool-Driven 架构：13 个 tools 暴露、Hook 注入最小化 |
-
-完整历史见 [`docs/changelog/`](docs/changelog/)。
 
 ---
 
