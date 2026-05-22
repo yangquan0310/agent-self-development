@@ -113,7 +113,7 @@
 ### tasks/ 详细设计
 
 - **文件命名**：`tasks/{runId}.json`（与 task.runId 一一对应）
-- **内容**：完整的 Task JSON（见 [`data-model.md`](data-model.md)）
+- **内容**：完整的 Task JSON（见 [第二章：数据模型](ch02-data-model.md)）
 - **生命周期**：`create` → 活跃目录 → `archive` → `tasks/archive/`
 
 ### events/ 详细设计

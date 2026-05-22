@@ -130,7 +130,7 @@ v4.3.0：   api.registerTool() → Agent 列出可用 tools → 自主选择
 | 显式接口 | **分布式记忆**：外部辅助记忆需要明确的交互协议 |
 | 被动响应 | **同化与顺应**：变化应由 Agent 自身驱动，而非外部强加 |
 
-详见：`docs/reference/theory.md`
+详见：[第四章：分布式自传体记忆架构](ch04-distributed-autobiographical-memory-architecture.md)
 
 ---
 
