@@ -15,7 +15,8 @@
 | [object-model.md](object-model.md) | **v4.3.0 函数模块模型**：对象层裸函数 + 工具层薄适配 + 基础设施原子 IO | 开发新模块或修改现有模块时 |
 | [data-model.md](data-model.md) | Task / Deviation / Attribution / Outcome / Event JSON 结构 + 状态转换规则 + 8 个工具示例 | 操作数据对象或更新 SKILL.md 时 |
 | [state-keys.md](state-keys.md) | **v4.3.0** 项目级文件系统键空间、task.json 字段规范、已移除系统级键清单 | 查阅数据存储位置时 |
-| [hook-reference.md](hook-reference.md) | ⚠️ **已废弃（v4.3.0）**：v4.2.x Hook + Tool 混合架构参考，仅作历史存档 | 了解历史架构时 |
+| [hook-reference.md](hook-reference.md) | **v4.5.0 Hook 机制**：三事件触发（session:start / session:compact:after / before_prompt_build）+ 条件触发 | 了解 Hook 注入时机时 |
+| [piaget-development-algorithm.md](piaget-development-algorithm.md) | **皮亚杰发展算法**：六维度形式化定义、同化/顺应/平衡的数学建模、李雅普诺夫函数 | 理解自我调节算法时 |
 
 ## 快速定位
 
@@ -31,16 +32,19 @@
 **我要更新 SKILL.md**
 → 重点阅读：`data-model.md`（JSON 示例 + 工具调用示例）+ `architecture.md`（工具列表）
 
-**我要了解历史架构**
-→ 阅读：`hook-reference.md`（v4.2.x 已废弃）
+**我要了解 Hook 机制**
+→ 阅读：`hook-reference.md`（v4.5.0 新设计）
+
+**我要了解皮亚杰发展算法**
+→ 阅读：`piaget-development-algorithm.md`（六维度形式化 + 同化/顺应算法）
 
 ## 外部参考
 
 - [项目协作协议](../../COLLABORATION.md) — 多角色协作规范、边界定义、沟通模板
 - [项目规范](../../CONVENTIONS.md) — 编码规范、目录结构、命名规则
-- [版本路线图](../roadmap/) — v4.0 → v4.3 架构演进
+- [版本路线图](../roadmap/) — v4.0 → v4.5 架构演进
 
 ---
 
-*文档版本：v4.3.0*
-*最后更新：2026-05-19*
+*文档版本：v4.5.0*
+*最后更新：2026-05-22*
