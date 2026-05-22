@@ -143,7 +143,7 @@
 | **技能** | 技能体系、工具熟练度 | skills/ |
 | **程序性记忆** | If-Then 规则、操作习惯 | MEMORY.md |
 
-详见 [第六章：皮亚杰发展算法](ch06-piaget-development-algorithm.md)。
+详见 [第九章：皮亚杰发展算法](ch09-piaget-development-algorithm.md)。
 
 ---
 

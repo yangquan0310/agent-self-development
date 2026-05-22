@@ -154,8 +154,8 @@ api.on('after_tool_call', async (event) => {
 
 ## 七、相关文档
 
-- [第六章：皮亚杰发展算法](ch06-piaget-development-algorithm.md) — 皮亚杰发展算法（六维度形式化）
-- [第四章：分布式自传体记忆架构](ch04-distributed-autobiographical-memory-architecture.md) — 理论基础
+- [第九章：皮亚杰发展算法](ch09-piaget-development-algorithm.md) — 皮亚杰发展算法（六维度形式化）
+- [第二章：分布式自传体记忆架构](ch02-distributed-autobiographical-memory-architecture.md) — 理论基础
 
 ---
 
