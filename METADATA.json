@@ -1,0 +1,31 @@
+{
+  "project_id": "agent-self-development",
+  "title": "Agent Self-Development",
+  "created_date": "2026-05-08",
+  "status": "active",
+  "version": "v4.3.0",
+  "description": "OpenClaw plugin for agent self-development based on Piaget's cognitive development theory",
+  "type": "openclaw-plugin",
+  "directories": {
+    "源码": "src/",
+    "测试": "test/",
+    "技能": "skills/",
+    "角色定义": ".agentsagents",
+    "文档": "docs/",
+    "变更日志": "docs/changelog/",
+    "路线图": "docs/roadmap/",
+    "参考文档": "docs/reference/"
+  },
+  "tags": ["openclaw", "plugin", "agent", "self-development", "tool-plugin", "flat-architecture"],
+  ".agent": [
+    { "id": "pm", "role": "product-manager", "handles": ["需求分析",  "进度管理"] },
+    { "id": "architect", "role": "architect", "handles": ["架构设计"] },
+    { "id": "developer", "role": "developer", "handles": ["代码实现", "测试验证", "文档同步"] },
+    { "id": "reviewer", "role": "reviewer", "handles": ["代码审查", "合规检查", "裁决"] }
+  ],
+  "collaboration": {
+    "mode": "multi-agent",
+    "protocol": "4.0.0"
+  },
+  "updated_at": "2026-05-20T13:48:00"
+}
