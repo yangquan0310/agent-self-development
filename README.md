@@ -49,13 +49,9 @@ draft → pending_approval → active → completed
 
 本框架基于两大理论基础：
 
-### 1. 交互式自传体记忆 → [ch02](docs/reference/ch02-distributed-autobiographical-memory-architecture.md)
+### 1. 分布式自传体记忆 → [ch02](docs/reference/ch02-distributed-autobiographical-memory-architecture.md)
 
-### 2. 皮亚杰发展理论 → [ch01](docs/reference/ch01-piaget-development-algorithm.md)
-
-### 工作自我的三种功能
-
-自我记忆系统模型（Conway & Pleydell-Pearce, 2000）指出，工作自我作为执行控制系统，根据当前目标动态调控记忆的编码与提取：
+**工作自我的三种功能**（Conway & Pleydell-Pearce, 2000）：
 
 | 工作自我功能 | 代理操作 | 记录位置 |
 |-------------|---------|---------|
@@ -63,11 +59,8 @@ draft → pending_approval → active → completed
 | **偏差** | 实际执行与预期的差异 | `.agentstasks/{runId}.json` |
 | **归因** | 对偏差的分析与策略调整 | `.agentstasks/{runId}.json` |
 
-### 自传体记忆：以"我"为索引
-
-核心问题：为什么语义检索不够？
-
-- 语义检索只能找到"语义相近"的内容
+**自传体记忆：以"我"为索引**
+- 核心问题：为什么语义检索不够？
 - 自传体记忆以"我之前做了什么、为什么那样做、结果如何"为主线组织经验
 
 **分布式架构**：
@@ -75,9 +68,9 @@ draft → pending_approval → active → completed
 - **内部上下文窗口**：Session 承担内部记忆
 - **二者协同**：扩展 Agent 的自我加工能力
 
-### 六维度平衡
+### 2. 皮亚杰发展理论 → [ch01](docs/reference/ch01-piaget-development-algorithm.md)
 
-插件在检测到偏差后，对六个维度进行平衡性判断，触发技能固化：
+**六维度平衡**：
 
 | 维度 | 内容 | 失衡信号 |
 |------|------|----------|
@@ -87,6 +80,8 @@ draft → pending_approval → active → completed
 | $D_4$ 身份 | 角色定义集合 | 承担超出身份的职责 |
 | $D_5$ 程序性记忆 | 因果模式集合 | 归因揭示新因果模式 |
 | $D_6$ 技能 | 技能条目集合 | 获得新技能或发现不足 |
+
+**核心机制**：同化（结构不变）+ 顺应（结构重组）+ 动态平衡
 
 ---
 
@@ -100,8 +95,6 @@ openclaw plugins enable agent-self-development
 ```
 
 ### Agent 白名单配置
-
-在 `openclaw.json` 中启用 8 个工具：
 
 ```json
 {
@@ -122,11 +115,6 @@ openclaw plugins enable agent-self-development
 ```
 agent-self-development/
 ├── src/                    # 插件源码
-│   ├── index.js            # 入口：加载模板 + 注册 8 个工具
-│   ├── objects/            # 业务函数（task.js / event.js）
-│   ├── tools/              # 工具注册 + Handler + Schema
-│   ├── utils/              # IO / 路径解析 / 校验 / 生成器
-│   └── assets/             # 模板文件（task.json / event.md）
 ├── test/                   # 测试套件
 ├── docs/                   # 文档
 │   └── reference/          # 技术参考手册（10章节）
