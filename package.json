@@ -1,6 +1,6 @@
 {
-  "name": "agent-self-development",
-  "version": "4.4.0",
+  "name": "agent-autobiography",
+  "version": "4.5.0",
   "description": "OpenClaw plugin for agent self-development based on Piaget's cognitive development theory",
   "type": "module",
   "main": "src/index.js",
@@ -11,8 +11,8 @@
     "openclaw",
     "openclaw-plugin",
     "agent",
-    "self-development",
-    "metacognition"
+    "autobiographical-memory",
+    "self-development"
   ],
   "author": "Yang Quan",
   "license": "MIT",

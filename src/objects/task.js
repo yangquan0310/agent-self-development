@@ -107,6 +107,7 @@ export async function update(params, context) {
     changed = true;
   }
 
+  const deviationRecorded = !!params.deviation;
   if (params.deviation) {
     task.deviations.push({
       type: params.deviation.type,
@@ -142,7 +143,7 @@ export async function update(params, context) {
     await writeJson(tp, task);
   }
 
-  return { runId, status: task.status, updatedAt: task.updatedAt, changed };
+  return { runId, status: task.status, updatedAt: task.updatedAt, changed, deviationRecorded };
 }
 
 // ── advance ──

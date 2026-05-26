@@ -81,18 +81,18 @@ author: Yang Quan
 
 #### P0：阻塞项
 
-- [ ] **P0-1：`after_tool_call` Hook 注册 + M1/M3 条件触发** — Developer
+- [x] **P0-1：`after_tool_call` Hook 注册 + M1/M3 条件触发** — Developer
   - 来源问题：v4.3.0 移除了 Hook 注入层，需要重新引入条件触发机制
   - 交付物：
     - `src/hooks/condition.js`（新增）：条件判断逻辑封装
     - 修改 `src/index.js`：注册 `after_tool_call` hook
-    - M1：`task.create` 返回成功后注入提醒（idempotencyKey: `reg:task-created`）
-    - M3：`event.report` 返回成功后注入提醒（idempotencyKey: `reg:event-generated`）
+    - M1：`task.create` 返回成功后注入提醒（idempotencyKey: `agent-autobiography:task-created`）
+    - M3：`event.report` 返回成功后注入提醒（idempotencyKey: `agent-autobiography:event-generated`）
   - 验收标准：
-    - `after_tool_call` hook 正确注册
-    - `task.create` 后收到提醒
-    - `event.report` 后收到提醒
-  - 里程碑：M1
+    - `after_tool_call` hook 正确注册 ✅
+    - `task.create` 后收到提醒 ✅
+    - `event.report` 后收到提醒 ✅
+  - 里程碑：M1 🔖 commit: `feat: P0-1 after_tool_call Hook 注册 + M1/M3 条件触发`
 
 - [ ] **P0-2：`after_tool_call` + M2 条件触发** — Developer
   - 来源问题：偏差记录后需要触发偏差分析提醒
