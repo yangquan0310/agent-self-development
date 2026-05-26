@@ -1,6 +1,6 @@
-# agent-self-development 操作手册
+# agent-autobiography 操作手册
 
-> 版本：4.3.0
+> 版本：4.5.0
 > 类型：OpenClaw 插件项目
 
 ---
@@ -75,7 +75,7 @@
 
 | 产出类型 | 归档目录 | 说明 |
 |----------|----------|------|
-| 插件源代码 | `src/` | .js 模块文件，含 `tools/`、`utils/`、`index.js` |
+| 插件源代码 | `src/` | .js 模块文件，含 `tools/`、`utils/`、`hooks/`、`index.js` |
 | 测试代码 | `test/` | .test.js 测试套件 |
 | 项目级技能 | `.agentsskills/` | 协作协议、技术规范、上下文管理 |
 | 角色定义 | `.agentsagents/` | PM / Developer / Reviewer 角色 .md 文件 |
@@ -94,9 +94,10 @@
 |------|------|----------|
 | `openclaw.plugin.json` | 插件清单（id、configSchema 等） | PM + 架构师 |
 | `package.json` | npm 配置（dependencies、scripts 等） | Developer |
-| `src/index.js` | 插件入口（initialize） | Developer |
+| `src/index.js` | 插件入口（register） | Developer |
 | `src/tools/` | 8 个 tools 实现 + schemas + handlers | Developer |
 | `src/utils/` | 工具函数（path、io、validate、helpers） | Developer |
+| `src/hooks/` | Hook 条件判断逻辑（condition.js） | Developer |
 
 ---
 
@@ -152,6 +153,24 @@ draft → pending_approval → active → completed
 10. event.archive({ runId }) → 归档事件文件
 11. task.archive({ runId }) → 归档任务
 ```
+
+---
+
+## Hook 注入时机矩阵（v4.5.0）
+
+插件通过条件触发机制，在关键时机自动注入提醒：
+
+| # | 触发时机 | 监听工具 | 条件 | 注入内容 | IdempotencyKey |
+|---|----------|----------|------|----------|----------------|
+| M1 | 任务创建后 | `task.create` | 返回成功 | 提醒：制定计划 → 拆解 TODO | `agent-autobiography:task-created` |
+| M2 | 偏差记录后 | `task.update` | deviationRecorded=true | 提醒：执行偏差分析 → 归因分析 | `agent-autobiography:deviation-detected` |
+| M3 | 事件生成后 | `event.report` | 返回成功 | 提醒：六维度平衡性判断 | `agent-autobiography:event-generated` |
+| M4 | 无任务执行时 | `before_prompt_build` | 无 active task | 提醒：创建任务 | `agent-autobiography:no-active-task` |
+
+**实现说明**：
+- `after_tool_call`：监听 `task.create` / `task.update` / `event.report` 返回结果，条件触发注入
+- `before_prompt_build`：扫描 `.agents/tasks/` 目录，有 active/draft/pending_approval 任务时跳过
+- 幂等性：每个提醒使用独立 `idempotencyKey`，避免重复注入
 
 ---
 
