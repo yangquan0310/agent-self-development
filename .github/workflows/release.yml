@@ -11,6 +11,9 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    outputs:
+      pkg_name: ${{ steps.vars.outputs.pkg_name }}
+      pkg_version: ${{ steps.vars.outputs.pkg_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,6 +22,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+
+      - name: Set version variables
+        id: vars
+        run: |
+          echo "pkg_name=$(node -p \"require('./package.json').name\")" >> $GITHUB_OUTPUT
+          echo "pkg_version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: npm ci
@@ -74,20 +83,24 @@ jobs:
         run: npm ci
 
       - name: Pack
-        run: npm pack
+        run: |
+          npm pack
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "artifact=${PKG_NAME}-${PKG_VERSION}.tgz" >> $GITHUB_ENV
 
       - name: Repack without package/ prefix
         run: |
           mkdir -p _extract
-          tar xzf agent-self-development-*.tgz -C _extract --strip-components=1
-          rm agent-self-development-*.tgz
+          tar xzf ${{ env.artifact }} -C _extract --strip-components=1
+          rm ${{ env.artifact }}
           cd _extract
-          tar czf ../agent-self-development-$(node -p "require('../package.json').version").tgz .
+          tar czf ../${{ env.artifact }} .
           cd ..
           rm -rf _extract
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: agent-self-development-*.tgz
+          files: ${{ env.artifact }}
           generate_release_notes: true
