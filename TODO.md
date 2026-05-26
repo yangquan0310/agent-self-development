@@ -4,17 +4,40 @@ version: 2.3.0
 author: Yang Quan
 ---
 
-# TODO.md — Agent Self-Development 进度看板
+# TODO.md — Agent Autobiography 进度看板
 
-> 项目：`agent-self-development` | 当前版本：`v4.3.0`（工具插件重构中）
-> 更新日期：2026-05-19
+> 项目：`agent-autobiography`（原 `agent-self-development`）| 当前版本：`v4.3.0`（工具插件重构中）
+> 更新日期：2026-05-26
 > 维护者：PM（产品经理）
 
 ---
 
 ## 版本目标
 
-### v4.3.0：Object-Driven Tool Plugin 🔨 开发中（预计 2026-05-31 完成）
+### v4.5.0：Hook 注入时机精细化 🔨 开发中（预计 2026-05-29 完成）
+
+借鉴 self-improving-agent 条件触发机制，优化 Hook 注入时机，实现精准提醒。
+
+**核心变更**：
+- **条件触发**：通过 `after_tool_call` 监听关键工具返回值，条件触发提醒
+- **精准时机**：只在业务关键节点触发，不打扰正常执行
+- **注入时机矩阵**：M1~M4 四个触发场景
+
+**注入时机矩阵**：
+| # | 触发时机 | 监听工具 | 条件 | 注入内容 |
+|---|----------|----------|------|----------|
+| M1 | 任务创建后 | `task.create` | 返回成功 | 提醒：制定计划 → 拆解 TODO |
+| M2 | 偏差记录后 | `task.update` | 检测到 deviation 字段 | 提醒：执行偏差分析 → 归因分析 |
+| M3 | 事件生成后 | `event.report` | 返回成功 | 提醒：六维度平衡性判断 |
+| M4 | 无任务执行时 | `before_prompt_build` | 检测无 active task | 提醒：创建任务 |
+
+**详细设计**：见 `docs/roadmap/v4.5.0.md`
+
+预计完成：**2026-05-29**
+
+---
+
+### v4.3.0：Object-Driven Tool Plugin ✅ 已完成
 
 从「全功能认知框架」退回到「工具插件」——只通过 `api.registerTool()` 暴露 6 个命名空间工具，让 Agent 自主调用完成 task.json 和 event.md 的全生命周期管理。不再维护元认知模块、工作记忆模块、人格模块、Hook 注入、Heartbeat 等重框架组件。
 
@@ -26,24 +49,93 @@ author: Yang Quan
 
 **详细设计**：见 `docs/roadmap/v4.3.0.md`
 
-预计完成：**2026-05-31**
+预计完成：**2026-05-31** ✅ 已完成（2026-05-26）
 
 ---
 
 ## 里程碑
+
+### v4.5.0 里程碑
+
+| 里程碑 | 时间 | 交付物 | 状态 |
+|--------|------|--------|------|
+| M1 | 2026-05-27 | `after_tool_call` + M1/M3 条件触发 | 🔨 开发中 |
+| M2 | 2026-05-28 | `after_tool_call` + M2 条件触发 | ⏳ 待开发 |
+| M3 | 2026-05-28 | `before_prompt_build` + M4 条件降频 | ⏳ 待开发 |
+| M4 | 2026-05-29 | 测试覆盖 + 文档更新 | ⏳ 待开发 |
+
+### v4.3.0 里程碑
 
 | 里程碑 | 时间 | 交付物 | 状态 |
 |--------|------|--------|------|
 | M1 | 2026-05-23 | 目录清理 + utils 提取 + handlers 实现 + **旧代码零残留验证** | ✅ 已完成 |
 | M2 | 2026-05-26 | tools 重写 + schemas 精简 + 插件入口适配 + metadata 同步 | ✅ 已完成（M1 合并） |
 | M3 | 2026-05-29 | 测试套件重写（≥50 用例）+ README/SKILL.md 更新 | ✅ 已完成 |
-| M4 | 2026-05-31 | 验收 + 发布 v4.3.0 | ⏳ 待执行（M1~M3 已完成） |
+| M4 | 2026-05-31 | 验收 + 发布 v4.3.0 | ✅ 已完成 |
 
 ---
 
 ## 任务树
 
-### P0：阻塞项（必须完成，否则版本无法发布）
+### v4.5.0 任务
+
+#### P0：阻塞项
+
+- [ ] **P0-1：`after_tool_call` Hook 注册 + M1/M3 条件触发** — Developer
+  - 来源问题：v4.3.0 移除了 Hook 注入层，需要重新引入条件触发机制
+  - 交付物：
+    - `src/hooks/condition.js`（新增）：条件判断逻辑封装
+    - 修改 `src/index.js`：注册 `after_tool_call` hook
+    - M1：`task.create` 返回成功后注入提醒（idempotencyKey: `reg:task-created`）
+    - M3：`event.report` 返回成功后注入提醒（idempotencyKey: `reg:event-generated`）
+  - 验收标准：
+    - `after_tool_call` hook 正确注册
+    - `task.create` 后收到提醒
+    - `event.report` 后收到提醒
+  - 里程碑：M1
+
+- [ ] **P0-2：`after_tool_call` + M2 条件触发** — Developer
+  - 来源问题：偏差记录后需要触发偏差分析提醒
+  - 交付物：
+    - 修改 `src/hooks/condition.js`：新增 deviation 检测逻辑
+    - M2：`task.update` 含 deviation 字段时注入提醒（idempotencyKey: `reg:deviation-detected`）
+  - 验收标准：`task.update` 含 deviation 后收到偏差分析提醒
+  - 里程碑：M2
+
+- [ ] **P0-3：`before_prompt_build` + M4 条件降频** — Developer
+  - 来源问题：无任务执行时需要提醒创建任务
+  - 交付物：
+    - 修改 `src/index.js`：注册 `before_prompt_build` hook
+    - M4：检测无 active task 时注入提醒（idempotencyKey: `reg:no-active-task`）
+    - 有 active task 时跳过，避免打扰
+  - 验收标准：
+    - 无 active task 时收到提醒
+    - 有任务时不打扰
+  - 里程碑：M3
+
+- [ ] **P0-4：测试覆盖 + 文档更新** — Developer
+  - 来源问题：Hook 注入需要完整测试覆盖
+  - 交付物：
+    - `test/hooks-conditional.test.js`（新增）：4 个触发场景的单元测试
+    - 更新 `SKILL.md`：新增 Hook 时机矩阵说明
+  - 验收标准：4 个触发场景全部测试通过
+  - 里程碑：M4
+
+#### P1：重要项
+
+- [ ] **P1-1：openclaw.plugin.json 同步更新** — Developer
+  - 交付物：更新 `openclaw.plugin.json`
+  - 验收标准：`version` 更新为 `4.5.0`
+  - 里程碑：M4
+
+- [ ] **P1-2：changelog + 发布 v4.5.0** — Developer
+  - 交付物：更新 `docs/changelog/unreleased.md`，发布 v4.5.0
+  - 验收标准：changelog 完整记录变更；版本标签已推送
+  - 里程碑：M4
+
+---
+
+### v4.3.0 P0：阻塞项（已完成）
 
 - [x] **P0-1：目录清理与代码迁移** — Developer
   - 来源问题：v4.2.0 遗留大量非工具插件代码（metacognition/、working-memory/、personality/、common/ 中大部分）
@@ -237,7 +329,8 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 | 版本 | 日期 | 核心变化 | 状态 |
 |------|------|----------|------|
-| **v4.3.0** | 2026-05-31（预计） | 扁平化 Tool Plugin：8 个 Handler 直接 IO，移除重框架 | 🔨 开发中（M1 完成） |
+| **v4.5.0** | 2026-05-29（预计） | Hook 注入时机精细化：条件触发精准提醒 | 🔨 开发中 |
+| **v4.3.0** | 2026-05-26 | 扁平化 Tool Plugin：8 个 Handler 直接 IO，移除重框架 | ✅ 已完成 |
 | v4.2.0 | 2026-06-01 | Cognitive Intelligence + 架构风险评估修复 | ✅ 已完成 |
 | v4.1.0 | 2026-05-11 | Tool-Driven Agent Autonomy | ✅ 已发布 |
 | v4.0.0 | 2026-05-01 | 项目上下文层 + 双系统架构 | ✅ 已发布 |
@@ -246,6 +339,7 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 ## 最近更新
 
+- **2026-05-26 10:13**：项目更名 `agent-self-development` → `agent-autobiography`。v4.5.0 启动：Hook 注入时机精细化。
 - **2026-05-19 14:20**：PM 批准 Architect 扁平化架构 `[ARCH_APPROVED]`。核心变更：删除 TaskObject/EventObject 类 → Handler 直接 IO；工具规范为 8 个（`task.*` 5 个 + `event.*` 3 个）；目录结构改为 `assets/objects/tools/utils`。Developer 正式启动 M1。
 - **2026-05-19 ~ 2026-05-20**：Developer 完成 M1~M3 全部编码：
   - 新建 `src/utils/` 4 个文件 + `src/tools/handlers.js` + 重写 `src/tools/index.js` / `src/tools/schemas.js` / `src/index.js`
