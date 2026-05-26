@@ -1,5 +1,11 @@
 # Unreleased
 
+## Project Rename
+
+- **项目名称变更**：`agent-self-development` → `agent-autobiography`
+  - 理由：更准确地反映项目的核心功能——自传体记忆（Autobiographical Memory），记录 Agent 的事件记忆与发展历程
+  - 日期：2026-05-26
+
 ## Added
 - `src/objects/task.js` — 5 个裸函数（create/update/advance/get/archive），直接读写 `.agentstasks/{runId}.json`
 - `src/objects/event.js` — 3 个裸函数（report/query/archive），直接读写 `.agentsevents/` 和 `.agentsarchive/events/`
