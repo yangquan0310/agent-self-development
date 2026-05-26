@@ -33,7 +33,7 @@ describe('hooks condition', () => {
       const { shouldInject, idempotencyKey, prependContext } = evaluateAfterToolCall(event);
 
       assert.strictEqual(shouldInject, true);
-      assert.strictEqual(idempotencyKey, 'agent-autobiography:task-created');
+      assert.strictEqual(idempotencyKey, 'agent-self-development:task-created');
       assert.ok(prependContext.includes('任务创建提醒'));
     });
 
@@ -54,7 +54,7 @@ describe('hooks condition', () => {
       const { shouldInject, idempotencyKey, prependContext } = evaluateAfterToolCall(event);
 
       assert.strictEqual(shouldInject, true);
-      assert.strictEqual(idempotencyKey, 'agent-autobiography:deviation-detected');
+      assert.strictEqual(idempotencyKey, 'agent-self-development:deviation-detected');
       assert.ok(prependContext.includes('偏差分析提醒'));
     });
 
@@ -75,7 +75,7 @@ describe('hooks condition', () => {
       const { shouldInject, idempotencyKey, prependContext } = evaluateAfterToolCall(event);
 
       assert.strictEqual(shouldInject, true);
-      assert.strictEqual(idempotencyKey, 'agent-autobiography:event-generated');
+      assert.strictEqual(idempotencyKey, 'agent-self-development:event-generated');
       assert.ok(prependContext.includes('事件复盘提醒'));
     });
 
@@ -118,7 +118,7 @@ describe('hooks condition', () => {
       const { shouldInject, idempotencyKey, prependContext } = await evaluateBeforePromptBuild(context);
 
       assert.strictEqual(shouldInject, true);
-      assert.strictEqual(idempotencyKey, 'agent-autobiography:no-active-task');
+      assert.strictEqual(idempotencyKey, 'agent-self-development:no-active-task');
       assert.ok(prependContext.includes('任务创建提醒'));
     });
 

@@ -29,10 +29,10 @@ v4.3.0 移除 Hook 后，Agent 完全依赖显式调用。但在关键业务时�
 
 | # | 触发时机 | 监听工具 | 条件 | 注入内容 | IdempotencyKey |
 |---|----------|----------|------|----------|----------------|
-| M1 | 任务创建后 | `task.create` | 返回成功 | 提醒：制定计划 → 拆解 TODO | `agent-autobiography:task-created` |
-| M2 | 偏差记录后 | `task.update` | 检测到 deviation 字段 | 提醒：执行偏差分析 → 归因分析 | `agent-autobiography:deviation-detected` |
-| M3 | 事件生成后 | `event.report` | 返回成功 | 提醒：六维度平衡性判断 | `agent-autobiography:event-generated` |
-| M4 | 无任务执行时 | `before_prompt_build` | 检测无 active task | 提醒：创建任务 | `agent-autobiography:no-active-task` |
+| M1 | 任务创建后 | `task.create` | 返回成功 | 提醒：制定计划 → 拆解 TODO | `agent-self-development:task-created` |
+| M2 | 偏差记录后 | `task.update` | 检测到 deviation 字段 | 提醒：执行偏差分析 → 归因分析 | `agent-self-development:deviation-detected` |
+| M3 | 事件生成后 | `event.report` | 返回成功 | 提醒：六维度平衡性判断 | `agent-self-development:event-generated` |
+| M4 | 无任务执行时 | `before_prompt_build` | 检测无 active task | 提醒：创建任务 | `agent-self-development:no-active-task` |
 
 ---
 
@@ -47,9 +47,9 @@ after_tool_call hook
 解析 event.toolName + event.result
     ↓
 条件匹配
-    ├── task.create → idempotencyKey: 'agent-autobiography:task-created'
-    ├── task.update (含 deviation) → idempotencyKey: 'agent-autobiography:deviation-detected'
-    └── event.report → idempotencyKey: 'agent-autobiography:event-generated'
+    ├── task.create → idempotencyKey: 'agent-self-development:task-created'
+    ├── task.update (含 deviation) → idempotencyKey: 'agent-self-development:deviation-detected'
+    └── event.report → idempotencyKey: 'agent-self-development:event-generated'
     ↓
 enqueueNextTurnInjection(perIdempotencyKey)
 ```
@@ -63,17 +63,17 @@ function matchCondition(event) {
     
     // M1: task.create 成功后
     if (toolName === 'task.create' && result.success) {
-        return { trigger: 'M1', key: 'agent-autobiography:task-created' };
+        return { trigger: 'M1', key: 'agent-self-development:task-created' };
     }
     
     // M2: task.update 含 deviation
     if (toolName === 'task.update' && result.deviation) {
-        return { trigger: 'M2', key: 'agent-autobiography:deviation-detected' };
+        return { trigger: 'M2', key: 'agent-self-development:deviation-detected' };
     }
     
     // M3: event.report 成功后
     if (toolName === 'event.report' && result.success) {
-        return { trigger: 'M3', key: 'agent-autobiography:event-generated' };
+        return { trigger: 'M3', key: 'agent-self-development:event-generated' };
     }
     
     return null;
@@ -85,7 +85,7 @@ function matchCondition(event) {
 ```javascript
 // M4: 仅在无 active task 时触发
 if (!hasActiveTask(session)) {
-    enqueueInjection('agent-autobiography:no-active-task', CREATE_TASK_REMINDER);
+    enqueueInjection('agent-self-development:no-active-task', CREATE_TASK_REMINDER);
 }
 ```
 

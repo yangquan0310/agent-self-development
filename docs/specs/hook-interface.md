@@ -84,9 +84,9 @@ interface InjectionDecision {
 
 | 条件 | toolName | result 解析后 | additional check | idempotencyKey |
 |------|----------|--------------|-----------------|----------------|
-| M1 | `task.create` | isSuccess=true | `parsedResult.runId` 存在 | `agent-autobiography:task-created` |
-| M2 | `task.update` | isSuccess=true | `parsedResult.deviationRecorded === true` | `agent-autobiography:deviation-detected` |
-| M3 | `event.report` | isSuccess=true | `parsedResult.eventFilePath` 存在 | `agent-autobiography:event-generated` |
+| M1 | `task.create` | isSuccess=true | `parsedResult.runId` 存在 | `agent-self-development:task-created` |
+| M2 | `task.update` | isSuccess=true | `parsedResult.deviationRecorded === true` | `agent-self-development:deviation-detected` |
+| M3 | `event.report` | isSuccess=true | `parsedResult.eventFilePath` 存在 | `agent-self-development:event-generated` |
 | — | 其他 | — | — | 不注入 |
 
 ### 4.5 内部逻辑
@@ -110,13 +110,13 @@ export function evaluateAfterToolCall(event) {
 
   // Step 3: 匹配条件
   if (toolName === 'task.create' && isSuccess && parsedResult.runId) {
-    return { shouldInject: true, idempotencyKey: 'agent-autobiography:task-created', prependContext: REMINDERS.taskCreated };
+    return { shouldInject: true, idempotencyKey: 'agent-self-development:task-created', prependContext: REMINDERS.taskCreated };
   }
   if (toolName === 'task.update' && isSuccess && parsedResult.deviationRecorded) {
-    return { shouldInject: true, idempotencyKey: 'agent-autobiography:deviation-detected', prependContext: REMINDERS.deviationDetected };
+    return { shouldInject: true, idempotencyKey: 'agent-self-development:deviation-detected', prependContext: REMINDERS.deviationDetected };
   }
   if (toolName === 'event.report' && isSuccess && parsedResult.eventFilePath) {
-    return { shouldInject: true, idempotencyKey: 'agent-autobiography:event-generated', prependContext: REMINDERS.eventGenerated };
+    return { shouldInject: true, idempotencyKey: 'agent-self-development:event-generated', prependContext: REMINDERS.eventGenerated };
   }
 
   return { shouldInject: false };
@@ -132,7 +132,7 @@ evaluateAfterToolCall({
   params: { runId: 'abc123', ... },
   result: { content: [{ type: 'text', text: '{"runId":"abc123","task":{...}}' }] }
 });
-// → { shouldInject: true, idempotencyKey: 'agent-autobiography:task-created', prependContext: REMINDERS.taskCreated }
+// → { shouldInject: true, idempotencyKey: 'agent-self-development:task-created', prependContext: REMINDERS.taskCreated }
 
 // M2: task.update 含 deviation
 evaluateAfterToolCall({
@@ -140,7 +140,7 @@ evaluateAfterToolCall({
   params: { runId: 'abc123', deviation: { type: 'output', description: '...' } },
   result: { content: [{ type: 'text', text: '{"deviationRecorded":true}' }] }
 });
-// → { shouldInject: true, idempotencyKey: 'agent-autobiography:deviation-detected', prependContext: REMINDERS.deviationDetected }
+// → { shouldInject: true, idempotencyKey: 'agent-self-development:deviation-detected', prependContext: REMINDERS.deviationDetected }
 
 // 不注入：task.get
 evaluateAfterToolCall({
@@ -214,7 +214,7 @@ export async function evaluateBeforePromptBuild(context) {
     if (!hasActive) {
       return {
         shouldInject: true,
-        idempotencyKey: 'agent-autobiography:no-active-task',
+        idempotencyKey: 'agent-self-development:no-active-task',
         prependContext: REMINDERS.noActiveTask
       };
     }
@@ -249,7 +249,7 @@ await evaluateBeforePromptBuild({ baseDir: '/project' });
 
 // 无 active 任务
 await evaluateBeforePromptBuild({ baseDir: '/empty-project' });
-// → { shouldInject: true, idempotencyKey: 'agent-autobiography:no-active-task', prependContext: REMINDERS.noActiveTask }
+// → { shouldInject: true, idempotencyKey: 'agent-self-development:no-active-task', prependContext: REMINDERS.noActiveTask }
 ```
 
 ---
@@ -260,10 +260,10 @@ await evaluateBeforePromptBuild({ baseDir: '/empty-project' });
 
 | idempotencyKey | 触发场景 | 去重范围 |
 |----------------|---------|---------|
-| `agent-autobiography:task-created` | M1 | 单次 task.create 调用 |
-| `agent-autobiography:deviation-detected` | M2 | 单次含 deviation 的 task.update |
-| `agent-autobiography:event-generated` | M3 | 单次 event.report 调用 |
-| `agent-autobiography:no-active-task` | M4 | before_prompt_build 触发周期 |
+| `agent-self-development:task-created` | M1 | 单次 task.create 调用 |
+| `agent-self-development:deviation-detected` | M2 | 单次含 deviation 的 task.update |
+| `agent-self-development:event-generated` | M3 | 单次 event.report 调用 |
+| `agent-self-development:no-active-task` | M4 | before_prompt_build 触发周期 |
 
 ### 6.2 去重机制
 
@@ -320,9 +320,9 @@ function registerSessionHooks(api, logger, context) {
 async function enqueueInjection(api, logger, idempotencyKey, prependContext) {
   try {
     await api.enqueueNextTurnInjection({ idempotencyKey, prependContext });
-    logInfo(logger, `[agent-autobiography] Injection queued: ${idempotencyKey}`);
+    logInfo(logger, `[agent-self-development] Injection queued: ${idempotencyKey}`);
   } catch (err) {
-    logInfo(logger, `[agent-autobiography] Injection failed: ${err.message}`);
+    logInfo(logger, `[agent-self-development] Injection failed: ${err.message}`);
   }
 }
 ```
