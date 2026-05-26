@@ -175,8 +175,8 @@ describe('hooks condition', () => {
 
   describe('REMINDERS', () => {
     it('taskCreated 提醒包含任务创建相关提示', () => {
-      assert.ok(REMINDERS.taskCreated.includes('任务创建'));
-      assert.ok(REMINDERS.taskCreated.includes('task.create'));
+      assert.ok(REMINDERS.taskCreated.includes('任务创建提醒'));
+      assert.ok(REMINDERS.taskCreated.includes('拆解 TODO'));
     });
 
     it('deviationDetected 提醒包含偏差分析相关提示', () => {
