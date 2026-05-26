@@ -18,7 +18,9 @@ const origCwd = process.cwd();
 function createMockApi() {
   const tools = new Map();
   return {
-    registerTool: (spec) => {
+    registerTool: (factory, _options) => {
+      // factory 是 (_ctx) => ({ name, description, parameters, execute })
+      const spec = factory();
       tools.set(spec.name, spec);
     },
     getTool: (name) => tools.get(name),
@@ -44,7 +46,7 @@ describe('registry & adapter', () => {
   describe('registerTools', () => {
     it('registers all 8 tools', () => {
       const api = createMockApi();
-      registerTools(api, ctx());
+      registerTools(api);
       assert.strictEqual(api.tools.size, 8);
       for (const name of ALL_TOOLS) {
         assert.ok(api.tools.has(name), `Missing tool: ${name}`);
@@ -53,7 +55,7 @@ describe('registry & adapter', () => {
 
     it('each tool has correct schema fields', () => {
       const api = createMockApi();
-      registerTools(api, ctx());
+      registerTools(api);
       for (const name of ALL_TOOLS) {
         const tool = api.tools.get(name);
         assert.ok(tool.name, `${name} missing name`);
@@ -63,25 +65,25 @@ describe('registry & adapter', () => {
       }
     });
 
-    it('task.create parameters require prompt', () => {
+    it('task.create parameters require baseDir and prompt', () => {
       const api = createMockApi();
-      registerTools(api, ctx());
+      registerTools(api);
       const schema = api.tools.get('task.create').parameters;
-      assert.deepStrictEqual(schema.required, ['prompt']);
+      assert.deepStrictEqual(schema.required.sort(), ['baseDir', 'prompt'].sort());
     });
 
-    it('task.update parameters require runId', () => {
+    it('task.update parameters require baseDir and runId', () => {
       const api = createMockApi();
-      registerTools(api, ctx());
+      registerTools(api);
       const schema = api.tools.get('task.update').parameters;
-      assert.deepStrictEqual(schema.required, ['runId']);
+      assert.deepStrictEqual(schema.required.sort(), ['baseDir', 'runId'].sort());
     });
 
     it('execute returns correct format on success', async () => {
       const api = createMockApi();
-      registerTools(api, ctx());
+      registerTools(api);
       const tool = api.tools.get('task.create');
-      const result = await tool.execute('id-1', { prompt: 'Test registry' });
+      const result = await tool.execute('id-1', { prompt: 'Test registry', baseDir: process.cwd() });
       assert.ok(result.content);
       assert.strictEqual(result.content[0].type, 'text');
       const parsed = JSON.parse(result.content[0].text);
@@ -91,58 +93,58 @@ describe('registry & adapter', () => {
 
     it('execute returns error format on failure', async () => {
       const api = createMockApi();
-      registerTools(api, ctx());
+      registerTools(api);
       const tool = api.tools.get('task.get');
-      const result = await tool.execute('id-1', { runId: 'no-such-task' });
+      const result = await tool.execute('id-1', { runId: 'no-such-task', baseDir: process.cwd() });
       assert.ok(result.isError);
       assert.ok(result.content[0].text.includes('error'));
     });
 
     it('event.report updates task eventFilePath', async () => {
       const api = createMockApi();
-      const context = ctx();
-      registerTools(api, context);
+      registerTools(api);
+      const baseDir = process.cwd();
 
       const createTool = api.tools.get('task.create');
       const updateTool = api.tools.get('task.update');
       const reportTool = api.tools.get('event.report');
       const getTool = api.tools.get('task.get');
 
-      const created = await createTool.execute('id-1', { prompt: 'Test report' });
+      const created = await createTool.execute('id-1', { prompt: 'Test report', baseDir });
       const { runId } = JSON.parse(created.content[0].text);
 
-      await updateTool.execute('id-2', { runId, status: 'pending_approval' });
-      await updateTool.execute('id-3', { runId, status: 'active' });
-      await updateTool.execute('id-4', { runId, status: 'completed' });
+      await updateTool.execute('id-2', { runId, status: 'pending_approval', baseDir });
+      await updateTool.execute('id-3', { runId, status: 'active', baseDir });
+      await updateTool.execute('id-4', { runId, status: 'completed', baseDir });
 
-      const reported = await reportTool.execute('id-5', { runId });
+      const reported = await reportTool.execute('id-5', { runId, baseDir });
       const reportResult = JSON.parse(reported.content[0].text);
       assert.ok(reportResult.eventFilePath);
 
-      const got = await getTool.execute('id-6', { runId });
+      const got = await getTool.execute('id-6', { runId, baseDir });
       const task = JSON.parse(got.content[0].text);
       assert.strictEqual(task.eventFilePath, reportResult.eventFilePath);
     });
 
     it('event.archive archives event file', async () => {
       const api = createMockApi();
-      const context = ctx();
-      registerTools(api, context);
+      registerTools(api);
+      const baseDir = process.cwd();
 
       const createTool = api.tools.get('task.create');
       const updateTool = api.tools.get('task.update');
       const reportTool = api.tools.get('event.report');
       const archiveEventTool = api.tools.get('event.archive');
 
-      const created = await createTool.execute('id-1', { prompt: 'Test archive' });
+      const created = await createTool.execute('id-1', { prompt: 'Test archive', baseDir });
       const { runId } = JSON.parse(created.content[0].text);
 
-      await updateTool.execute('id-2', { runId, status: 'pending_approval' });
-      await updateTool.execute('id-3', { runId, status: 'active' });
-      await updateTool.execute('id-4', { runId, status: 'completed' });
-      await reportTool.execute('id-5', { runId });
+      await updateTool.execute('id-2', { runId, status: 'pending_approval', baseDir });
+      await updateTool.execute('id-3', { runId, status: 'active', baseDir });
+      await updateTool.execute('id-4', { runId, status: 'completed', baseDir });
+      await reportTool.execute('id-5', { runId, baseDir });
 
-      const archived = await archiveEventTool.execute('id-6', { runId });
+      const archived = await archiveEventTool.execute('id-6', { runId, baseDir });
       const archiveResult = JSON.parse(archived.content[0].text);
       assert.ok(archiveResult.archivePath);
     });
