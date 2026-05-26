@@ -69,12 +69,12 @@ function registerSessionHooks(api, logger, context) {
 function loadTemplates() {
   const templates = {};
   try {
-    templates.task = readFileSync(join(__dirname, 'assets', 'task.json'), 'utf-8');
+    templates.task = readFileSync(join(__dirname, 'assets', 'templates', 'task.json'), 'utf-8');
   } catch {
     // 模板可选
   }
   try {
-    templates.event = readFileSync(join(__dirname, 'assets', 'event.md'), 'utf-8');
+    templates.event = readFileSync(join(__dirname, 'assets', 'templates', 'event.md'), 'utf-8');
   } catch {
     // 模板可选
   }

@@ -16,11 +16,11 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const assetsDir = join(__dirname, '..', 'assets');
+const remindersDir = join(__dirname, '..', 'assets', 'reminders');
 
 // 加载提醒文本
 function loadReminder(filename) {
-  const path = join(assetsDir, filename);
+  const path = join(remindersDir, filename);
   if (existsSync(path)) {
     return readFileSync(path, 'utf-8').trim();
   }
