@@ -1,6 +1,13 @@
 # Unreleased
 
-（暂无）
+> 发布日期：2026-05-26
+
+## Beta Release
+
+- **v4.5.1-beta.0** — Beta 版本发布
+  - 修复 registry.test.js mock API 兼容性问题
+  - baseDir 参数调整（从 params.baseDir 动态提取）
+  - npm test 98/98 通过
 
 ---
 

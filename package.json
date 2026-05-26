@@ -1,6 +1,6 @@
 {
   "name": "agent-autobiography",
-  "version": "4.5.0",
+  "version": "4.5.1-beta.0",
   "description": "OpenClaw plugin for agent self-development based on Piaget's cognitive development theory",
   "type": "module",
   "main": "src/index.js",
