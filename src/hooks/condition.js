@@ -86,15 +86,6 @@ export function evaluateAfterToolCall(event) {
 }
 
 /**
- * 判断 task.update 是否包含 deviation
- * @param {object} params - tool call params
- * @returns {boolean}
- */
-export function hasDeviation(params) {
-  return params && params.deviation && typeof params.deviation === 'object';
-}
-
-/**
  * 判断 before_prompt_build 是否需要触发注入
  * @param {object} context - 插件 context
  * @returns {Promise<object>} { shouldInject, idempotencyKey, prependContext }
