@@ -307,8 +307,8 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 | 角色 | 当前状态 |
 |------|----------|
 | **PM** | v4.3.0 新方向已确认，已输出 roadmap + TODO 更新 |
-| **Developer** | 🔨 M1 开发中 — 扁平化 Handler 实现 |
-| **Reviewer** | 待命，待 M3 完成后介入审查 |
+| **Developer** | ✅ M1~M4 代码实现完成，98/98 测试通过 |
+| **Reviewer** | 🔍 审查中 — M1~M4 代码审查 |
 | **Architect** | ✅ **`[ARCH_APPROVED]`** — ADR-014 扁平化架构已批准，specs v3.0.0 + CONVENTIONS 已交付 |
 
 ---
