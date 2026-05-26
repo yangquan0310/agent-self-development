@@ -1,23 +1,12 @@
 # Unreleased
 
-> 发布日期：2026-05-26
-
-## Beta Release
-
-- **v4.5.1-beta.0** — Beta 版本发布
-  - 修复 registry.test.js mock API 兼容性问题
-  - baseDir 参数调整（从 params.baseDir 动态提取）
-  - npm test 98/98 通过
+（暂无）
 
 ---
 
 # v4.5.0
 
 > 发布日期：2026-05-26
-
-## Project Rename
-
-- **项目名称变更**：`agent-self-development` → `agent-autobiography`
   - 理由：更准确地反映项目的核心功能——自传体记忆（Autobiographical Memory），记录 Agent 的事件记忆与发展历程
 
 ## Added

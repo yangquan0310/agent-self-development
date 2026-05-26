@@ -1,4 +1,4 @@
-# agent-autobiography 操作手册
+# agent-self-development 操作手册
 
 > 版本：4.5.0
 > 类型：OpenClaw 插件项目
@@ -162,10 +162,10 @@ draft → pending_approval → active → completed
 
 | # | 触发时机 | 监听工具 | 条件 | 注入内容 | IdempotencyKey |
 |---|----------|----------|------|----------|----------------|
-| M1 | 任务创建后 | `task.create` | 返回成功 | 提醒：制定计划 → 拆解 TODO | `agent-autobiography:task-created` |
-| M2 | 偏差记录后 | `task.update` | deviationRecorded=true | 提醒：执行偏差分析 → 归因分析 | `agent-autobiography:deviation-detected` |
-| M3 | 事件生成后 | `event.report` | 返回成功 | 提醒：六维度平衡性判断 | `agent-autobiography:event-generated` |
-| M4 | 无任务执行时 | `before_prompt_build` | 无 active task | 提醒：创建任务 | `agent-autobiography:no-active-task` |
+| M1 | 任务创建后 | `task.create` | 返回成功 | 提醒：制定计划 → 拆解 TODO | `agent-self-development:task-created` |
+| M2 | 偏差记录后 | `task.update` | deviationRecorded=true | 提醒：执行偏差分析 → 归因分析 | `agent-self-development:deviation-detected` |
+| M3 | 事件生成后 | `event.report` | 返回成功 | 提醒：六维度平衡性判断 | `agent-self-development:event-generated` |
+| M4 | 无任务执行时 | `before_prompt_build` | 无 active task | 提醒：创建任务 | `agent-self-development:no-active-task` |
 
 **实现说明**：
 - `after_tool_call`：监听 `task.create` / `task.update` / `event.report` 返回结果，条件触发注入

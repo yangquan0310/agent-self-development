@@ -59,7 +59,7 @@ export function evaluateAfterToolCall(event) {
   if (toolName === 'task.create' && isSuccess && parsedResult.runId) {
     return {
       shouldInject: true,
-      idempotencyKey: 'agent-autobiography:task-created',
+      idempotencyKey: 'agent-self-development:task-created',
       prependContext: REMINDERS.taskCreated
     };
   }
@@ -68,7 +68,7 @@ export function evaluateAfterToolCall(event) {
   if (toolName === 'event.report' && isSuccess && parsedResult.eventFilePath) {
     return {
       shouldInject: true,
-      idempotencyKey: 'agent-autobiography:event-generated',
+      idempotencyKey: 'agent-self-development:event-generated',
       prependContext: REMINDERS.eventGenerated
     };
   }
@@ -77,7 +77,7 @@ export function evaluateAfterToolCall(event) {
   if (toolName === 'task.update' && isSuccess && parsedResult.deviationRecorded) {
     return {
       shouldInject: true,
-      idempotencyKey: 'agent-autobiography:deviation-detected',
+      idempotencyKey: 'agent-self-development:deviation-detected',
       prependContext: REMINDERS.deviationDetected
     };
   }
@@ -118,7 +118,7 @@ export async function evaluateBeforePromptBuild(context) {
     if (!hasActive) {
       return {
         shouldInject: true,
-        idempotencyKey: 'agent-autobiography:no-active-task',
+        idempotencyKey: 'agent-self-development:no-active-task',
         prependContext: REMINDERS.noActiveTask
       };
     }

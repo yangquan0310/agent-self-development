@@ -21,7 +21,7 @@ function logInfo(logger, ...args) {
   if (logger?.info) {
     logger.info(...args);
   } else {
-    console.error('[agent-autobiography]', ...args);
+    console.error('[agent-self-development]', ...args);
   }
 }
 
@@ -32,9 +32,9 @@ async function enqueueInjection(api, logger, idempotencyKey, prependContext) {
       idempotencyKey,
       prependContext,
     });
-    logInfo(logger, `[agent-autobiography] Injection queued: ${idempotencyKey}`);
+    logInfo(logger, `[agent-self-development] Injection queued: ${idempotencyKey}`);
   } catch (err) {
-    logInfo(logger, `[agent-autobiography] Injection failed: ${err.message}`);
+    logInfo(logger, `[agent-self-development] Injection failed: ${err.message}`);
   }
 }
 
@@ -42,7 +42,7 @@ function registerSessionHooks(api, logger, context) {
   // after_tool_call：条件触发精准提醒
   api.on('after_tool_call', async (event) => {
     const { toolName } = event;
-    logInfo(logger, `[agent-autobiography] after_tool_call: ${toolName}`);
+    logInfo(logger, `[agent-self-development] after_tool_call: ${toolName}`);
 
     // 只监听关键工具
     if (!['task.create', 'task.update', 'event.report'].includes(toolName)) {
@@ -57,7 +57,7 @@ function registerSessionHooks(api, logger, context) {
 
   // before_prompt_build：只在无 active task 时触发
   api.on('before_prompt_build', async (event) => {
-    logInfo(logger, `[agent-autobiography] before_prompt_build hook fired`);
+    logInfo(logger, `[agent-self-development] before_prompt_build hook fired`);
 
     const { shouldInject, idempotencyKey, prependContext } = await evaluateBeforePromptBuild(context);
     if (shouldInject) {
@@ -95,11 +95,11 @@ export function register(api) {
   // 注册 Hooks（条件触发）
   registerSessionHooks(api, logger, context);
 
-  logInfo(logger, '[agent-autobiography] v4.5.0 初始化完成，8 个工具 + 2 个 Hooks 已注册');
+  logInfo(logger, '[agent-self-development] v4.5.0 初始化完成，8 个工具 + 2 个 Hooks 已注册');
 }
 
 export default {
-  id: 'agent-autobiography',
+  id: 'agent-self-development',
   name: 'Agent Autobiography',
   version: '4.5.0',
   register,

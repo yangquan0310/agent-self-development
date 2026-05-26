@@ -6,7 +6,7 @@ author: Yang Quan
 
 # TODO.md — Agent Autobiography 进度看板
 
-> 项目：`agent-autobiography`（原 `agent-self-development`）| 当前版本：`v4.3.0`（工具插件重构中）
+> 项目：`agent-self-development`（原 `agent-self-development`）| 当前版本：`v4.3.0`（工具插件重构中）
 > 更新日期：2026-05-26
 > 维护者：PM（产品经理）
 
@@ -86,8 +86,8 @@ author: Yang Quan
   - 交付物：
     - `src/hooks/condition.js`（新增）：条件判断逻辑封装
     - 修改 `src/index.js`：注册 `after_tool_call` hook
-    - M1：`task.create` 返回成功后注入提醒（idempotencyKey: `agent-autobiography:task-created`）
-    - M3：`event.report` 返回成功后注入提醒（idempotencyKey: `agent-autobiography:event-generated`）
+    - M1：`task.create` 返回成功后注入提醒（idempotencyKey: `agent-self-development:task-created`）
+    - M3：`event.report` 返回成功后注入提醒（idempotencyKey: `agent-self-development:event-generated`）
   - 验收标准：
     - `after_tool_call` hook 正确注册 ✅
     - `task.create` 后收到提醒 ✅
@@ -339,7 +339,7 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 ## 最近更新
 
-- **2026-05-26 10:13**：项目更名 `agent-self-development` → `agent-autobiography`。v4.5.0 启动：Hook 注入时机精细化。
+- **2026-05-26 10:13**：项目更名 `agent-self-development` → `agent-self-development`。v4.5.0 启动：Hook 注入时机精细化。
 - **2026-05-19 14:20**：PM 批准 Architect 扁平化架构 `[ARCH_APPROVED]`。核心变更：删除 TaskObject/EventObject 类 → Handler 直接 IO；工具规范为 8 个（`task.*` 5 个 + `event.*` 3 个）；目录结构改为 `assets/objects/tools/utils`。Developer 正式启动 M1。
 - **2026-05-19 ~ 2026-05-20**：Developer 完成 M1~M3 全部编码：
   - 新建 `src/utils/` 4 个文件 + `src/tools/handlers.js` + 重写 `src/tools/index.js` / `src/tools/schemas.js` / `src/index.js`
