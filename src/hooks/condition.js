@@ -3,40 +3,35 @@
  *
  * 条件触发判断逻辑。封装 Hook 注入的判断条件，
  * 返回 { shouldInject, idempotencyKey, prependContext }。
+ *
+ * 提醒文本从 src/assets/ 目录加载：
+ * - task-created-reminder.md
+ * - deviation-detected-reminder.md
+ * - event-generated-reminder.md
+ * - no-active-task-reminder.md
  */
 
-// 提醒文本
+import { readFileSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const assetsDir = join(__dirname, '..', 'assets');
+
+// 加载提醒文本
+function loadReminder(filename) {
+  const path = join(assetsDir, filename);
+  if (existsSync(path)) {
+    return readFileSync(path, 'utf-8').trim();
+  }
+  return null;
+}
+
 const REMINDERS = {
-  taskCreated: `【任务创建提醒】
-新任务已创建。建议立即制定执行计划：
-1. 制定计划：使用 task.create 创建任务
-2. 拆解 TODO：使用 task.update 更新任务状态为 active，然后逐步推进
-3. 执行监控：执行过程中如遇偏差，使用 task.update 记录偏差
-4. 归因分析：每次记录偏差后分析原因，使用 task.update 记录归因
-5. 事件记录：任务完成后使用 event.report 生成事件报告`,
-
-  deviationDetected: `【偏差分析提醒】
-检测到任务执行偏差。建议立即进行偏差分析：
-1. 偏差分类：分析偏差类型（输入/过程/输出/环境）
-2. 归因分析：使用 task.update 的 attribution 参数记录根本原因
-3. 影响评估：评估对目标、时间、质量的影响
-4. 调整策略：根据归因结果调整后续执行计划`,
-
-  eventGenerated: `【事件复盘提醒】
-事件报告已生成。建议进行六维度平衡性判断：
-1. 自我认知：本次任务是否反映了真实的自我认知？
-2. 风格判断：执行风格是主动还是被动？需要调整吗？
-3. 信念验证：现有信念是否支持本次任务的决策？
-4. 身份一致性：行动是否与身份定位一致？
-5. 技能评估：哪些技能得到提升或暴露了短板？
-6. 程序性记忆：是否需要更新 MEMORY.md 记录新经验？`,
-
-  noActiveTask: `【任务创建提醒】
-当前没有进行中的任务。建议：
-1. 评估当前工作：是否有需要创建的任务？
-2. 使用 task.create 创建新任务
-3. 使用 task.update 推进任务状态
-4. 使用 event.* 工具管理事件记录`
+  taskCreated: loadReminder('task-created-reminder.md') || '【任务创建提醒】\n新任务已创建，建议立即制定执行计划。',
+  deviationDetected: loadReminder('deviation-detected-reminder.md') || '【偏差分析提醒】\n检测到任务执行偏差，建议立即进行偏差分析。',
+  eventGenerated: loadReminder('event-generated-reminder.md') || '【事件复盘提醒】\n事件报告已生成，建议进行六维度平衡性判断。',
+  noActiveTask: loadReminder('no-active-task-reminder.md') || '【任务创建提醒】\n当前没有进行中的任务，建议创建新任务。'
 };
 
 /**
