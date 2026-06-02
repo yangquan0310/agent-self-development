@@ -10,8 +10,8 @@ import { Type } from '@sinclair/typebox';
 const BaseDirParam = Type.String({ description: '项目根目录（必填），用于生成 .agents 子目录路径' });
 
 export const TOOL_SCHEMAS = {
-  'task.create': {
-    name: 'task.create',
+  'task_create': {
+    name: 'task_create',
     description: '创建 draft task',
     parameters: Type.Object({
       baseDir: BaseDirParam,
@@ -42,8 +42,8 @@ export const TOOL_SCHEMAS = {
     })
   },
 
-  'task.update': {
-    name: 'task.update',
+  'task_update': {
+    name: 'task_update',
     description: '更新 task 状态、偏差、归因、结果或事件路径',
     parameters: Type.Object({
       baseDir: BaseDirParam,
@@ -77,8 +77,8 @@ export const TOOL_SCHEMAS = {
     })
   },
 
-  'task.advance': {
-    name: 'task.advance',
+  'task_advance': {
+    name: 'task_advance',
     description: '推进 task 到下一阶段',
     parameters: Type.Object({
       baseDir: BaseDirParam,
@@ -87,8 +87,8 @@ export const TOOL_SCHEMAS = {
     })
   },
 
-  'task.get': {
-    name: 'task.get',
+  'task_get': {
+    name: 'task_get',
     description: '查询指定 runId 的完整 Task JSON 状态',
     parameters: Type.Object({
       baseDir: BaseDirParam,
@@ -96,8 +96,8 @@ export const TOOL_SCHEMAS = {
     })
   },
 
-  'task.archive': {
-    name: 'task.archive',
+  'task_archive': {
+    name: 'task_archive',
     description: '归档已完成的任务',
     parameters: Type.Object({
       baseDir: BaseDirParam,
@@ -105,8 +105,8 @@ export const TOOL_SCHEMAS = {
     })
   },
 
-  'event.report': {
-    name: 'event.report',
+  'event_report': {
+    name: 'event_report',
     description: '任务完成后一次性从 task.json 生成 event.md',
     parameters: Type.Object({
       baseDir: BaseDirParam,
@@ -114,8 +114,8 @@ export const TOOL_SCHEMAS = {
     })
   },
 
-  'event.query': {
-    name: 'event.query',
+  'event_query': {
+    name: 'event_query',
     description: '查询事件记录，支持按 runId、日期、类型筛选',
     parameters: Type.Object({
       baseDir: BaseDirParam,
@@ -128,8 +128,8 @@ export const TOOL_SCHEMAS = {
     })
   },
 
-  'event.archive': {
-    name: 'event.archive',
+  'event_archive': {
+    name: 'event_archive',
     description: '归档事件文件（移动 event.md 到 archive 目录）',
     parameters: Type.Object({
       baseDir: BaseDirParam,

@@ -6,8 +6,8 @@
 
 ```
 1. 确认 task.status === "completed"
-   - 如未完成，event.report 将拒绝执行
-2. 调用 event.report({ runId })
+   - 如未完成，event_report 将拒绝执行
+2. 调用 event_report({ runId })
 3. 内部流程：
    a. 读取 task.json，路径：`.agentstasks/{runId}.json`
    b. 如活跃目录未找到，回退到 `.agentstasks/archive/{runId}.json`
@@ -22,41 +22,41 @@
       - 结果：summary、artifacts、metrics
    f. 从 task.createdAt 解析日期 → `YYYY-MM-DD`
    g. 写入 `.agentsevents/{YYYY-MM-DD}/{runId}.md`
-   h. 调用 task.update({ runId, eventFilePath }) 自动关联
+   h. 调用 task_update({ runId, eventFilePath }) 自动关联
 4. 返回 { eventFilePath }
 ```
 
 ## 查询事件
 
 ```
-event.query({ runId?, date?, type? })
+event_query({ runId?, date?, type? })
 ```
 
 ### 按 runId 查询
 
 ```
-event.query({ runId: "20260519-abc123" })
+event_query({ runId: "20260519-abc123" })
 → 返回匹配该 runId 的所有事件
 ```
 
 ### 按日期查询
 
 ```
-event.query({ date: "2026-05-19" })
+event_query({ date: "2026-05-19" })
 → 返回该日期下的所有事件
 ```
 
 ### 按类型查询
 
 ```
-event.query({ type: "deviation" })
+event_query({ type: "deviation" })
 → 返回仅包含偏差记录的事件
 ```
 
 ### 组合查询
 
 ```
-event.query({ runId: "20260519-abc123", type: "attribution" })
+event_query({ runId: "20260519-abc123", type: "attribution" })
 → 返回指定任务的归因记录
 ```
 
@@ -64,7 +64,7 @@ event.query({ runId: "20260519-abc123", type: "attribution" })
 
 ```
 1. 确认事件文件存在且不再需要频繁访问
-2. 调用 event.archive({ runId })
+2. 调用 event_archive({ runId })
 3. 系统执行：
    a. 定位 `.agentsevents/{日期}/{runId}.md`
    b. 移动到 `.agentsevents/archive/{日期}-{runId}.md`
@@ -91,7 +91,7 @@ event.query({ runId: "20260519-abc123", type: "attribution" })
 ### 调节决策流程
 
 ```
-event.report({ runId }) 成功返回
+event_report({ runId }) 成功返回
   → 读取 reflectionPrompt
   → 读取 event.md（第 5 章"回顾与调节"）
   → 六维度平衡性判断：
@@ -121,17 +121,17 @@ event.report({ runId }) 成功返回
 
 ```
 [任务执行完成]
-  → task.update({ runId, status: "completed" })
-  → task.update({ runId, outcome: { summary: "...", artifacts: [...] } })
-  → event.report({ runId })
+  → task_update({ runId, status: "completed" })
+  → task_update({ runId, outcome: { summary: "...", artifacts: [...] } })
+  → event_report({ runId })
       → 生成 .agentsevents/2026-05-19/20260519-abc123.md（含"回顾与调节"章节）
       → 返回 reflectionPrompt，提示 Agent 考虑人格更新
       → 自动更新 task.json 的 eventFilePath
   → [Agent 自主回顾事件，决定更新 SOUL.md / MEMORY.md]
   → [数日后不再需要]
-  → event.archive({ runId })
+  → event_archive({ runId })
       → 移动到 .agentsevents/archive/2026-05-19-20260519-abc123.md
-  → task.archive({ runId })
+  → task_archive({ runId })
       → 移动到 .agentstasks/archive/20260519-abc123.json
 ```
 

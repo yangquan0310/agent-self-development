@@ -12,14 +12,14 @@ import { TOOL_SCHEMAS, ALL_TOOLS } from './schemas.js';
 import * as handlers from './handlers.js';
 
 const HANDLER_MAP = {
-  'task.create': handlers.create,
-  'task.update': handlers.update,
-  'task.advance': handlers.advance,
-  'task.get': handlers.get,
-  'task.archive': handlers.archive,
-  'event.report': handlers.report,
-  'event.query': handlers.query,
-  'event.archive': handlers.archiveEvent
+  'task_create': handlers.create,
+  'task_update': handlers.update,
+  'task_advance': handlers.advance,
+  'task_get': handlers.get,
+  'task_archive': handlers.archive,
+  'event_report': handlers.report,
+  'event_query': handlers.query,
+  'event_archive': handlers.archiveEvent
 };
 
 export function registerTools(api) {

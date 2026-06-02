@@ -22,16 +22,16 @@
 
 - **插件入口重写** — `src/index.js` 从 v4.4.0 的 session_start/after_compaction/before_prompt_build 改为 after_tool_call + before_prompt_build 条件触发
 - **版本升级至 v4.5.0** — 项目名称 + Hook 机制升级
-- task.update 返回值 — 新增 `deviationRecorded` 字段，标记是否记录了偏差
+- task_update 返回值 — 新增 `deviationRecorded` 字段，标记是否记录了偏差
 - `before_prompt_build` 行为变更 — 从"每次触发"改为"只在无 active task 时触发"（M4）
 
 ## Hook 注入时机矩阵
 
 | # | 触发时机 | 监听工具 | 条件 | 注入内容 | IdempotencyKey |
 |---|----------|----------|------|----------|----------------|
-| M1 | 任务创建后 | `task.create` | 返回成功 | 提醒：制定计划 → 拆解 TODO | `agent-self-development:task-created` |
-| M2 | 偏差记录后 | `task.update` | deviationRecorded=true | 提醒：执行偏差分析 → 归因分析 | `agent-self-development:deviation-detected` |
-| M3 | 事件生成后 | `event.report` | 返回成功 | 提醒：六维度平衡性判断 | `agent-self-development:event-generated` |
+| M1 | 任务创建后 | `task_create` | 返回成功 | 提醒：制定计划 → 拆解 TODO | `agent-self-development:task-created` |
+| M2 | 偏差记录后 | `task_update` | deviationRecorded=true | 提醒：执行偏差分析 → 归因分析 | `agent-self-development:deviation-detected` |
+| M3 | 事件生成后 | `event_report` | 返回成功 | 提醒：六维度平衡性判断 | `agent-self-development:event-generated` |
 | M4 | 无任务执行时 | `before_prompt_build` | 无 active task | 提醒：创建任务 | `agent-self-development:no-active-task` |
 
 ---
@@ -61,6 +61,6 @@
 - **版本升级至 v4.3.0** — 纯 Tool Plugin，无 Hook 注入
 - `src/` 目录重构 — 移除 `metacognition/`、`working-memory/`、`personality/`、`common/adapters/`，收敛为 `objects/` + `tools/` + `utils/` + `assets/`
 - 工具注册方式 — 从 13 个工具（含 guide 类）精简为 8 个命名空间工具（task 5 个 + event 3 个）
-- 事件生成策略 — 从增量追加改为延迟一次性生成（`event.report`）
+- 事件生成策略 — 从增量追加改为延迟一次性生成（`event_report`）
 - task.json 字段 — 移除 `sessionIds`、`tools`、`revisionReason`
 - 时间戳格式 — 从 Unix 毫秒数改为 ISO-8601 字符串

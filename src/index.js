@@ -4,7 +4,7 @@
  * OpenClaw 插件入口。暴露 register(api) 同步接口。
  *
  * Hook 注入时机（v4.5.0 条件触发）：
- * - after_tool_call:      监听 task.create / task.update / event.report，条件触发精准提醒
+ * - after_tool_call:      监听 task_create / task_update / event_report，条件触发精准提醒
  * - before_prompt_build:  只在无 active task 时触发，提醒创建任务
  */
 
@@ -45,7 +45,7 @@ function registerSessionHooks(api, logger, context) {
     logInfo(logger, `[agent-self-development] after_tool_call: ${toolName}`);
 
     // 只监听关键工具
-    if (!['task.create', 'task.update', 'event.report'].includes(toolName)) {
+    if (!['task_create', 'task_update', 'event_report'].includes(toolName)) {
       return;
     }
 

@@ -55,8 +55,8 @@ export function evaluateAfterToolCall(event) {
 
   const isSuccess = parsedResult && !parsedResult.error;
 
-  // M1: task.create 成功后注入
-  if (toolName === 'task.create' && isSuccess && parsedResult.runId) {
+  // M1: task_create 成功后注入
+  if (toolName === 'task_create' && isSuccess && parsedResult.runId) {
     return {
       shouldInject: true,
       idempotencyKey: 'agent-self-development:task-created',
@@ -64,8 +64,8 @@ export function evaluateAfterToolCall(event) {
     };
   }
 
-  // M3: event.report 成功后注入
-  if (toolName === 'event.report' && isSuccess && parsedResult.eventFilePath) {
+  // M3: event_report 成功后注入
+  if (toolName === 'event_report' && isSuccess && parsedResult.eventFilePath) {
     return {
       shouldInject: true,
       idempotencyKey: 'agent-self-development:event-generated',
@@ -73,8 +73,8 @@ export function evaluateAfterToolCall(event) {
     };
   }
 
-  // M2: task.update 含 deviation 时注入
-  if (toolName === 'task.update' && isSuccess && parsedResult.deviationRecorded) {
+  // M2: task_update 含 deviation 时注入
+  if (toolName === 'task_update' && isSuccess && parsedResult.deviationRecorded) {
     return {
       shouldInject: true,
       idempotencyKey: 'agent-self-development:deviation-detected',

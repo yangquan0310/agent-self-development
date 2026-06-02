@@ -12,9 +12,9 @@
 **核心交付**：
 - **扁平架构重构（ADR-014）**：移除所有类和 Hook 注入，采用纯函数 + 直接 IO
 - **目录清理（M1）**：`src/` 下仅剩 `objects/`、`tools/`、`utils/`、`assets/`，旧模块零残留
-- **8 个命名空间工具（M2）**：`task.create/update/advance/get/archive` + `event.report/query/archive`
-- **通用更新入口**：`task.update` 支持 status/deviation/attribution/outcome/eventFilePath/reason 任一字段
-- **延迟事件生成**：`event.report` 任务完成后一次性从 task.json 凝练生成 event.md
+- **8 个命名空间工具（M2）**：`task_create/update/advance/get/archive` + `event_report/query/archive`
+- **通用更新入口**：`task_update` 支持 status/deviation/attribution/outcome/eventFilePath/reason 任一字段
+- **延迟事件生成**：`event_report` 任务完成后一次性从 task.json 凝练生成 event.md
 - **归档目录**：`.agentsarchive/tasks/` + `.agentsarchive/events/` 分离活跃与归档数据
 - **测试套件重写（M3）**：覆盖正常/异常/边界路径
 

@@ -1,6 +1,6 @@
 # 事件文件模板参考
 
-`.agentsevents/{YYYY-MM-DD}/{runId}.md` 的结构说明，由 `event.report` 生成。
+`.agentsevents/{YYYY-MM-DD}/{runId}.md` 的结构说明，由 `event_report` 生成。
 
 ## 数据来源
 
@@ -110,7 +110,7 @@
 
 ### 触发机制
 
-1. **工具层触发**：`event.report` 返回的 `reflectionPrompt` 提示 Agent 执行六维度平衡性判断
+1. **工具层触发**：`event_report` 返回的 `reflectionPrompt` 提示 Agent 执行六维度平衡性判断
 2. **文件层触发**：event.md 第 5 章提供六维度对比框架和同化/顺应判定标准
 3. **Agent 自主执行**：Agent 读取 event.md 后，自主对比六个维度，决定同化或顺应
 
@@ -130,6 +130,6 @@
 - 模板源文件：`src/assets/event.md`
 - 渲染为**一次性**操作，在任务完成时执行
 - 生成后与 task.json 无实时关联
-- 如需更新 event.md，修改 task.json 后重新执行 `event.report`
-- event.report 会覆盖已存在的 event.md
+- 如需更新 event.md，修改 task.json 后重新执行 `event_report`
+- event_report 会覆盖已存在的 event.md
 - **"回顾与调节"章节是 v4.3.0 新增**，用于替代已移除的自动 personality 模块，改为 Agent 自主调节

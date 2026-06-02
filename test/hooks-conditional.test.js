@@ -25,9 +25,9 @@ describe('hooks condition', () => {
   });
 
   describe('evaluateAfterToolCall', () => {
-    it('M1: task.create 成功时应触发注入', () => {
+    it('M1: task_create 成功时应触发注入', () => {
       const event = {
-        toolName: 'task.create',
+        toolName: 'task_create',
         result: { content: [{ type: 'text', text: '{"runId":"test-123","status":"draft"}' }] }
       };
       const { shouldInject, idempotencyKey, prependContext } = evaluateAfterToolCall(event);
@@ -37,18 +37,18 @@ describe('hooks condition', () => {
       assert.ok(prependContext.includes('任务创建提醒'));
     });
 
-    it('M1: task.create 失败时不应触发', () => {
+    it('M1: task_create 失败时不应触发', () => {
       const event = {
-        toolName: 'task.create',
+        toolName: 'task_create',
         result: { content: [{ type: 'text', text: '{"error":"prompt 不能为空"}' }] }
       };
       const { shouldInject } = evaluateAfterToolCall(event);
       assert.strictEqual(shouldInject, false);
     });
 
-    it('M2: task.update 含 deviation 时应触发注入', () => {
+    it('M2: task_update 含 deviation 时应触发注入', () => {
       const event = {
-        toolName: 'task.update',
+        toolName: 'task_update',
         result: { content: [{ type: 'text', text: '{"runId":"test-123","status":"active","changed":true,"deviationRecorded":true}' }] }
       };
       const { shouldInject, idempotencyKey, prependContext } = evaluateAfterToolCall(event);
@@ -58,18 +58,18 @@ describe('hooks condition', () => {
       assert.ok(prependContext.includes('偏差分析提醒'));
     });
 
-    it('M2: task.update 不含 deviation 时不应触发', () => {
+    it('M2: task_update 不含 deviation 时不应触发', () => {
       const event = {
-        toolName: 'task.update',
+        toolName: 'task_update',
         result: { content: [{ type: 'text', text: '{"runId":"test-123","status":"active","changed":true,"deviationRecorded":false}' }] }
       };
       const { shouldInject } = evaluateAfterToolCall(event);
       assert.strictEqual(shouldInject, false);
     });
 
-    it('M3: event.report 成功时应触发注入', () => {
+    it('M3: event_report 成功时应触发注入', () => {
       const event = {
-        toolName: 'event.report',
+        toolName: 'event_report',
         result: { content: [{ type: 'text', text: '{"runId":"test-123","eventFilePath":".agents/events/2026-05-26/10-00-00.md"}' }] }
       };
       const { shouldInject, idempotencyKey, prependContext } = evaluateAfterToolCall(event);
@@ -79,9 +79,9 @@ describe('hooks condition', () => {
       assert.ok(prependContext.includes('事件复盘提醒'));
     });
 
-    it('M3: event.report 失败时不应触发', () => {
+    it('M3: event_report 失败时不应触发', () => {
       const event = {
-        toolName: 'event.report',
+        toolName: 'event_report',
         result: { content: [{ type: 'text', text: '{"error":"任务不存在"}' }] }
       };
       const { shouldInject } = evaluateAfterToolCall(event);
@@ -89,7 +89,7 @@ describe('hooks condition', () => {
     });
 
     it('非关键工具不应触发', () => {
-      const tools = ['task.advance', 'task.get', 'task.archive', 'event.query', 'event.archive'];
+      const tools = ['task_advance', 'task_get', 'task_archive', 'event_query', 'event_archive'];
       for (const toolName of tools) {
         const event = { toolName, result: { content: [{ type: 'text', text: '{"ok":true}' }] } };
         const { shouldInject } = evaluateAfterToolCall(event);
@@ -98,7 +98,7 @@ describe('hooks condition', () => {
     });
 
     it('空 result 不应触发', () => {
-      const event = { toolName: 'task.create', result: null };
+      const event = { toolName: 'task_create', result: null };
       const { shouldInject } = evaluateAfterToolCall(event);
       assert.strictEqual(shouldInject, false);
     });
@@ -191,7 +191,7 @@ describe('hooks condition', () => {
 
     it('noActiveTask 提醒包含创建任务提示', () => {
       assert.ok(REMINDERS.noActiveTask.includes('任务创建提醒'));
-      assert.ok(REMINDERS.noActiveTask.includes('task.create'));
+      assert.ok(REMINDERS.noActiveTask.includes('task_create'));
     });
   });
 });

@@ -6,7 +6,7 @@
 
 ```
 1. 评估任务复杂度 → 决定是否需要制定 Plan
-2. 调用 task.create({
+2. 调用 task_create({
      prompt: "用户原始需求",
      taskType?: "task" | "coding" | "research" | "documentation",
      planInput?: {
@@ -29,22 +29,22 @@
 ## 更新状态
 
 ```
-task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
+task_update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 ```
 
 | 当前状态 | 新状态 | 方式 |
 |---------|--------|------|
-| draft | pending_approval | `task.update({ status: "pending_approval" })` |
-| pending_approval | active | `task.update({ status: "active" })` |
-| pending_approval | revising | `task.update({ status: "revising" })` → 修改 plan → `task.update({ status: "draft" })` |
-| active | completed | `task.advance()` 返回 `isComplete: true`，或 `task.update({ status: "completed" })` |
-| revising | draft | `task.update({ status: "draft" })` |
+| draft | pending_approval | `task_update({ status: "pending_approval" })` |
+| pending_approval | active | `task_update({ status: "active" })` |
+| pending_approval | revising | `task_update({ status: "revising" })` → 修改 plan → `task_update({ status: "draft" })` |
+| active | completed | `task_advance()` 返回 `isComplete: true`，或 `task_update({ status: "completed" })` |
+| revising | draft | `task_update({ status: "draft" })` |
 
 ## 记录偏差
 
 ```
 1. 识别偏差（范围蔓延、技术债务、输出不符等）
-2. 调用 task.update({
+2. 调用 task_update({
      runId,
      deviation: {
        type: "scope_creep | technical_debt | output_mismatch | doc_lag | context_loss | file_mismatch | other",
@@ -59,7 +59,7 @@ task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 
 ```
 1. 分析偏差的根本原因
-2. 调用 task.update({
+2. 调用 task_update({
      runId,
      attribution: {
        rootCause: "根本原因",
@@ -74,7 +74,7 @@ task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 
 ```
 1. 任务全部完成
-2. 调用 task.update({
+2. 调用 task_update({
      runId,
      outcome: {
        summary: "完成摘要",
@@ -88,7 +88,7 @@ task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 
 ```
 1. 完成当前阶段工作
-2. 调用 task.advance({ runId, phaseId?: "指定阶段ID" })
+2. 调用 task_advance({ runId, phaseId?: "指定阶段ID" })
 3. 检查返回结果：
    - isComplete: true → 所有阶段完成，进入结果记录 + 事件生成 + 归档
    - isComplete: false → 继续下一阶段
@@ -97,7 +97,7 @@ task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 ## 查询任务
 
 ```
-1. 调用 task.get({ runId })
+1. 调用 task_get({ runId })
 2. 系统依次检查：
    - 先查 `.agentstasks/{runId}.json`
    - 回退到 `.agentstasks/archive/{runId}.json`
@@ -108,7 +108,7 @@ task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 
 ```
 1. 确认任务状态为 "completed"
-2. 调用 task.archive({ runId })
+2. 调用 task_archive({ runId })
 3. task.json 移动到 `.agentstasks/archive/{runId}.json`
 ```
 
@@ -116,16 +116,16 @@ task.update({ runId, status: "新状态", reason?: "变更原因（可选）" })
 
 ```
 用户："构建一个 REST API"
-  → task.create({ prompt: "构建一个 REST API", taskType: "coding" })
+  → task_create({ prompt: "构建一个 REST API", taskType: "coding" })
   → status: draft
-  → task.update({ status: "pending_approval" })
+  → task_update({ status: "pending_approval" })
   → [用户确认]
-  → task.update({ status: "active" })
+  → task_update({ status: "active" })
   → [执行阶段1]
-  → task.advance({ runId })
+  → task_advance({ runId })
   → [执行阶段2]
-  → task.advance({ runId }) → isComplete: true
-  → task.update({ outcome: { summary: "API 构建完成", artifacts: ["src/api.js"] } })
-  → event.report({ runId })  [参见 event-management 技能]
-  → task.archive({ runId })
+  → task_advance({ runId }) → isComplete: true
+  → task_update({ outcome: { summary: "API 构建完成", artifacts: ["src/api.js"] } })
+  → event_report({ runId })  [参见 event-management 技能]
+  → task_archive({ runId })
 ```

@@ -77,7 +77,7 @@ interface ReportEventError {
 3. 从 `templates.event` 加载模板
 4. 渲染后写入 `{baseDir}/.agentsevents/{date}/{runId}.md`
    - `date` 由 `task.createdAt` 解析为 `YYYY-MM-DD`
-5. 返回 `eventFilePath`，由 Tool Handler 层决定是否调用 `task.update` 关联
+5. 返回 `eventFilePath`，由 Tool Handler 层决定是否调用 `task_update` 关联
 
 ---
 

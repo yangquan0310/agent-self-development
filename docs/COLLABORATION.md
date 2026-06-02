@@ -42,8 +42,8 @@ description: >
 |------|----------|---------|------|
 | 目录结构 | `src/` 下具体文件/目录路径 | Architect | ❌ ~~`src/objects/TaskObject.js`~~ → Architect 写 |
 | 文件迁移 | 具体删除/迁移/重命名清单 | Architect / Developer | ❌ ~~删除 `src/common/cognitive-trace.js`~~ → Architect 写 |
-| 工具命名 | 工具的具体名称、参数、返回值 | Architect | ❌ ~~暴露 7 个工具：`task.create` 参数为 `runId`、`prompt`~~ → Architect 写 |
-| 工作流 | Agent 具体工具调用序列 | Architect | ❌ ~~Agent 先调用 `task.create`，再调用 `task.advance`~~ → Architect 写 |
+| 工具命名 | 工具的具体名称、参数、返回值 | Architect | ❌ ~~暴露 7 个工具：`task_create` 参数为 `runId`、`prompt`~~ → Architect 写 |
+| 工作流 | Agent 具体工具调用序列 | Architect | ❌ ~~Agent 先调用 `task_create`，再调用 `task_advance`~~ → Architect 写 |
 | 废弃清单 | 具体废弃项列表 | Developer（实现时确认） | ❌ ~~废弃 `task.files`、`task.diagnose`~~ → Developer 实现时通过 `[DOC_UPDATE]` 记录 |
 | 代码实现 | 任何代码逻辑、算法细节 | Developer | ❌ ~~`TaskObject.create()` 内部实现~~ → Developer 写 |
 
@@ -51,7 +51,7 @@ description: >
 > ✅ v4.3.0 应暴露任务管理工具和事件报告工具，使 Agent 能够自主完成 task 全生命周期管理和事件总结报告生成。
 
 **PM 不应写（示例）**：
-> ❌ ~~暴露 7 个工具：`task.create`、`task.update`……`task.create` 的关键参数为 `runId`、`prompt`……~~
+> ❌ ~~暴露 7 个工具：`task_create`、`task_update`……`task_create` 的关键参数为 `runId`、`prompt`……~~
 
 ## Architect 规则
 

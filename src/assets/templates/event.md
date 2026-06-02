@@ -1,6 +1,6 @@
 # Event: {{runId}}
 
-> 本文件由 event.report 在任务完成后从 task.json 生成。
+> 本文件由 event_report 在任务完成后从 task.json 生成。
 
 ---
 
@@ -74,7 +74,7 @@
 
 ### 5.5 下一步行动
 
-- 查询完整事件：`event.query({ runId: "{{runId}}" })`
+- 查询完整事件：`event_query({ runId: "{{runId}}" })`
 - 执行六维度平衡性判断
 - 自主决定同化/顺应，直接更新对应人格文件
 

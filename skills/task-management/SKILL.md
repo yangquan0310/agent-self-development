@@ -19,18 +19,18 @@ description: >
 
 | 工具 | 用途 | 触发时机 |
 |------|------|----------|
-| `task.create` | 创建 draft 任务 | 收到新需求，需要制定计划 |
-| `task.update` | 通用更新入口 | 状态变更、记录偏差、记录归因、记录结果、关联事件文件 |
-| `task.advance` | 推进阶段 | 当前阶段已完成 |
-| `task.get` | 查询任务 | 需要查看进度或历史状态 |
-| `task.archive` | 归档任务 | 任务已完成，清理活跃目录 |
+| `task_create` | 创建 draft 任务 | 收到新需求，需要制定计划 |
+| `task_update` | 通用更新入口 | 状态变更、记录偏差、记录归因、记录结果、关联事件文件 |
+| `task_advance` | 推进阶段 | 当前阶段已完成 |
+| `task_get` | 查询任务 | 需要查看进度或历史状态 |
+| `task_archive` | 归档任务 | 任务已完成，清理活跃目录 |
 
 ## 核心工作流
 
 ### 创建任务
 
 ```
-task.create({
+task_create({
   prompt: "用户需求",
   taskType?: "task | coding | research | documentation",
   planInput?: { goal, constraints, successCriteria, phases }
@@ -43,17 +43,17 @@ task.create({
 ### 推进阶段
 
 ```
-task.advance({ runId, phaseId? })
+task_advance({ runId, phaseId? })
 ```
 
 - 检查返回的 `isComplete`：
   - `true` → 全部完成，进入结果记录 + 事件生成 + 归档
   - `false` → 继续下一阶段
 
-### 记录偏差（通过 task.update）
+### 记录偏差（通过 task_update）
 
 ```
-task.update({
+task_update({
   runId,
   deviation: { type, description, impact? }
 })
@@ -61,19 +61,19 @@ task.update({
 
 偏差类型：`scope_creep`（范围蔓延）、`technical_debt`（技术债务）、`output_mismatch`（输出不符）、`doc_lag`（文档滞后）、`context_loss`（上下文丢失）、`file_mismatch`（文件不匹配）、`other`
 
-### 记录归因（通过 task.update）
+### 记录归因（通过 task_update）
 
 ```
-task.update({
+task_update({
   runId,
   attribution: { rootCause, strategy, impact? }
 })
 ```
 
-### 记录结果（通过 task.update）
+### 记录结果（通过 task_update）
 
 ```
-task.update({
+task_update({
   runId,
   outcome: { summary, artifacts?, metrics? }
 })
@@ -87,7 +87,7 @@ draft → pending_approval → active → completed
                     ↓ revising → draft
 ```
 
-所有状态变更通过 `task.update({ status })` 完成。
+所有状态变更通过 `task_update({ status })` 完成。
 
 ## 参考资料
 
@@ -96,7 +96,7 @@ draft → pending_approval → active → completed
 
 ## 关键规则
 
-- **task.update 是唯一更新入口** — 所有变更（状态/偏差/归因/结果/事件路径）都通过它完成
+- **task_update 是唯一更新入口** — 所有变更（状态/偏差/归因/结果/事件路径）都通过它完成
 - **不要直接读写 task.json** — 所有操作通过工具调用
 - **归档不可逆** — task.json 移动到 `.agentstasks/archive/`
-- **task.get 支持双路径回退** — 先查活跃目录，再查归档目录
+- **task_get 支持双路径回退** — 先查活跃目录，再查归档目录

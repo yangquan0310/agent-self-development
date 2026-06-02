@@ -15,7 +15,7 @@
 | `deviations` | array | 否 | 偏差记录数组 |
 | `attributions` | array | 否 | 归因记录数组 |
 | `outcome` | object | 否 | 任务结果 |
-| `eventFilePath` | string | 否 | 关联事件文件路径（由 event.report 自动回写） |
+| `eventFilePath` | string | 否 | 关联事件文件路径（由 event_report 自动回写） |
 
 ## Plan 对象
 

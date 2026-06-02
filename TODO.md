@@ -26,9 +26,9 @@ author: Yang Quan
 **注入时机矩阵**：
 | # | 触发时机 | 监听工具 | 条件 | 注入内容 |
 |---|----------|----------|------|----------|
-| M1 | 任务创建后 | `task.create` | 返回成功 | 提醒：制定计划 → 拆解 TODO |
-| M2 | 偏差记录后 | `task.update` | 检测到 deviation 字段 | 提醒：执行偏差分析 → 归因分析 |
-| M3 | 事件生成后 | `event.report` | 返回成功 | 提醒：六维度平衡性判断 |
+| M1 | 任务创建后 | `task_create` | 返回成功 | 提醒：制定计划 → 拆解 TODO |
+| M2 | 偏差记录后 | `task_update` | 检测到 deviation 字段 | 提醒：执行偏差分析 → 归因分析 |
+| M3 | 事件生成后 | `event_report` | 返回成功 | 提醒：六维度平衡性判断 |
 | M4 | 无任务执行时 | `before_prompt_build` | 检测无 active task | 提醒：创建任务 |
 
 **详细设计**：见 `docs/roadmap/v4.5.0.md`
@@ -86,20 +86,20 @@ author: Yang Quan
   - 交付物：
     - `src/hooks/condition.js`（新增）：条件判断逻辑封装
     - 修改 `src/index.js`：注册 `after_tool_call` hook
-    - M1：`task.create` 返回成功后注入提醒（idempotencyKey: `agent-self-development:task-created`）
-    - M3：`event.report` 返回成功后注入提醒（idempotencyKey: `agent-self-development:event-generated`）
+    - M1：`task_create` 返回成功后注入提醒（idempotencyKey: `agent-self-development:task-created`）
+    - M3：`event_report` 返回成功后注入提醒（idempotencyKey: `agent-self-development:event-generated`）
   - 验收标准：
     - `after_tool_call` hook 正确注册 ✅
-    - `task.create` 后收到提醒 ✅
-    - `event.report` 后收到提醒 ✅
+    - `task_create` 后收到提醒 ✅
+    - `event_report` 后收到提醒 ✅
   - 里程碑：M1 🔖 commit: `feat: P0-1 after_tool_call Hook 注册 + M1/M3 条件触发`
 
 - [ ] **P0-2：`after_tool_call` + M2 条件触发** — Developer
   - 来源问题：偏差记录后需要触发偏差分析提醒
   - 交付物：
     - 修改 `src/hooks/condition.js`：新增 deviation 检测逻辑
-    - M2：`task.update` 含 deviation 字段时注入提醒（idempotencyKey: `reg:deviation-detected`）
-  - 验收标准：`task.update` 含 deviation 后收到偏差分析提醒
+    - M2：`task_update` 含 deviation 字段时注入提醒（idempotencyKey: `reg:deviation-detected`）
+  - 验收标准：`task_update` 含 deviation 后收到偏差分析提醒
   - 里程碑：M2
 
 - [ ] **P0-3：`before_prompt_build` + M4 条件降频** — Developer
@@ -168,7 +168,7 @@ author: Yang Quan
   - 来源问题：当前 tools 仍包含 guide.* 工具和多余工具；需适配扁平化 Handler
   - 交付物：
     - `src/tools/index.js`：注册入口，适配 OpenClaw 新规范 `api.registerTool({ name, parameters, execute })`
-    - 注册 8 个命名空间工具：`task.create` / `task.update` / `task.advance` / `task.get` / `task.archive` / `event.report` / `event.query` / `event.archive`
+    - 注册 8 个命名空间工具：`task_create` / `task_update` / `task_advance` / `task_get` / `task_archive` / `event_report` / `event_query` / `event_archive`
     - 旧工具名（含 guide.*、task.deviate、task.attribute、task.files、task.diagnose）零残留
   - 验收标准：
     - 8 个工具注册成功；旧注册方式零残留
@@ -187,9 +187,9 @@ author: Yang Quan
   - 交付物：
     - `src/utils/resolve.js`（替代 path.js）
     - `src/objects/task.js` + `src/objects/event.js`（裸动词、返回 {error}、不 throw）
-    - `src/tools/handlers.js`（中间适配层，event.report 关联 eventFilePath）
+    - `src/tools/handlers.js`（中间适配层，event_report 关联 eventFilePath）
     - `src/index.js` → `initialize(api, config)` 接口
-    - 补充 `event.archive` 工具（第 8 个）
+    - 补充 `event_archive` 工具（第 8 个）
   - 验收标准：98/98 测试通过；代码结构符合 Architect 规范
   - 里程碑：M1 🔖 commit: `feat: M1 架构对齐 — 8 工具、扁平化 Handler、initialize 接口`
 
@@ -220,7 +220,7 @@ author: Yang Quan
   - 交付物：`grep` 全量验证旧模块/旧工具名零残留
   - 验收标准：
     - `grep -r "Metacognition\|WorkingMemory\|Personality\|Heartbeat\|State\|Flow\|Memory\|Log\|CaseIndex\|Skills\|TaskObject\|EventObject" src/` 零匹配 ✅
-    - `grep -r "task.query\|task.files\|task.diagnose\|task.deviate\|task.attribute\|event.record\|event.query\|guide\." src/` 零匹配 ✅
+    - `grep -r "task.query\|task.files\|task.diagnose\|task.deviate\|task.attribute\|event.record\|event_query\|guide\." src/` 零匹配 ✅
     - `grep -r "metacognition/\|working-memory/\|personality/\|objects/\|common/adapters/\|assets/\|templates/" src/` 零匹配 ✅
     - `grep -r "inputSchema\|registerTool(name\|recordTrace\|cognitiveTrace" src/` 零匹配 ✅
   - 里程碑：M1
@@ -350,9 +350,9 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 - **2026-05-19 ~ 2026-05-20**：Developer 修复 Reviewer 全部意见：
   - ✅ BLOCKER #1 `archiveTask` 文件移动（`rename` 到 `archive/`）
   - ✅ BLOCKER #3 `writeJson/writeMarkdown` 原子写（temp+rename）
-  - ✅ BLOCKER #2 `event.query` — PM 后续确认补充，已实现 + schema + 6 测试
+  - ✅ BLOCKER #2 `event_query` — PM 后续确认补充，已实现 + schema + 6 测试
   - ✅ WARNING #6~9 全部修复（event.md 文件名 / taskType enum / 动态计数 / 死代码删除）
-  - ✅ WARNING #4~5 已确认（`task.get` / `event.report` 为 PM 批准的正式命名）
+  - ✅ WARNING #4~5 已确认（`task_get` / `event_report` 为 PM 批准的正式命名）
   - 新生成测试报告 `docs/reports/test-2026-05-19-06-10-47.md`（98/98 通过）
 - **2026-05-19 13:45**：Architect 完成全部 specs + ADR 重写，输出 `[ARCH_READY]`。PM 确认 7 份交付物，采纳全部 4 项建议（S1~S4）。`docs/COLLABORATION.md` 全文中文化完成。
 - **2026-05-19 12:15**：PM 接受 Architect 2 项建议——M1 延至 05-23，P1-4 零残留验证提升为 M1 验收标准。

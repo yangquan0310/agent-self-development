@@ -97,7 +97,7 @@ export async function report(params, context) {
   const content = lines.join('\n');
   await writeMarkdown(eventFilePath, content);
 
-  // NOTE: eventFilePath 的 task 关联更新由 tools/handlers.js 负责调用 task.update
+  // NOTE: eventFilePath 的 task 关联更新由 tools/handlers.js 负责调用 task_update
   return { runId, eventFilePath };
 }
 

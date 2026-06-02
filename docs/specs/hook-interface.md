@@ -46,7 +46,7 @@ type REMINDERS = {
 | `REMINDERS.taskCreated` | 制定计划 → 拆解 TODO → 执行监控 → 归因分析 → 事件记录 | M1（after_tool_call） |
 | `REMINDERS.deviationDetected` | 偏差分类 → 归因分析 → 影响评估 → 调整策略 | M2（after_tool_call） |
 | `REMINDERS.eventGenerated` | 六维度复盘：自我认知、风格判断、信念验证、身份一致性、技能评估、程序性记忆 | M3（after_tool_call） |
-| `REMINDERS.noActiveTask` | 评估工作 → task.create → task.update → event.* | M4（before_prompt_build） |
+| `REMINDERS.noActiveTask` | 评估工作 → task_create → task_update → event.* | M4（before_prompt_build） |
 
 ---
 
@@ -64,7 +64,7 @@ function evaluateAfterToolCall(event: AfterToolCallEvent): InjectionDecision;
 
 ```typescript
 interface AfterToolCallEvent {
-  toolName: string;    // 工具名称，如 'task.create'
+  toolName: string;    // 工具名称，如 'task_create'
   params: object;      // 调用参数（透传，不做解析）
   result: object;      // OpenClaw 返回对象，结构为 { content: [{ type: 'text', text: string }] }
 }
@@ -84,9 +84,9 @@ interface InjectionDecision {
 
 | 条件 | toolName | result 解析后 | additional check | idempotencyKey |
 |------|----------|--------------|-----------------|----------------|
-| M1 | `task.create` | isSuccess=true | `parsedResult.runId` 存在 | `agent-self-development:task-created` |
-| M2 | `task.update` | isSuccess=true | `parsedResult.deviationRecorded === true` | `agent-self-development:deviation-detected` |
-| M3 | `event.report` | isSuccess=true | `parsedResult.eventFilePath` 存在 | `agent-self-development:event-generated` |
+| M1 | `task_create` | isSuccess=true | `parsedResult.runId` 存在 | `agent-self-development:task-created` |
+| M2 | `task_update` | isSuccess=true | `parsedResult.deviationRecorded === true` | `agent-self-development:deviation-detected` |
+| M3 | `event_report` | isSuccess=true | `parsedResult.eventFilePath` 存在 | `agent-self-development:event-generated` |
 | — | 其他 | — | — | 不注入 |
 
 ### 4.5 内部逻辑
@@ -109,13 +109,13 @@ export function evaluateAfterToolCall(event) {
   const isSuccess = parsedResult && !parsedResult.error;
 
   // Step 3: 匹配条件
-  if (toolName === 'task.create' && isSuccess && parsedResult.runId) {
+  if (toolName === 'task_create' && isSuccess && parsedResult.runId) {
     return { shouldInject: true, idempotencyKey: 'agent-self-development:task-created', prependContext: REMINDERS.taskCreated };
   }
-  if (toolName === 'task.update' && isSuccess && parsedResult.deviationRecorded) {
+  if (toolName === 'task_update' && isSuccess && parsedResult.deviationRecorded) {
     return { shouldInject: true, idempotencyKey: 'agent-self-development:deviation-detected', prependContext: REMINDERS.deviationDetected };
   }
-  if (toolName === 'event.report' && isSuccess && parsedResult.eventFilePath) {
+  if (toolName === 'event_report' && isSuccess && parsedResult.eventFilePath) {
     return { shouldInject: true, idempotencyKey: 'agent-self-development:event-generated', prependContext: REMINDERS.eventGenerated };
   }
 
@@ -126,33 +126,33 @@ export function evaluateAfterToolCall(event) {
 ### 4.6 示例
 
 ```javascript
-// M1: task.create 成功
+// M1: task_create 成功
 evaluateAfterToolCall({
-  toolName: 'task.create',
+  toolName: 'task_create',
   params: { runId: 'abc123', ... },
   result: { content: [{ type: 'text', text: '{"runId":"abc123","task":{...}}' }] }
 });
 // → { shouldInject: true, idempotencyKey: 'agent-self-development:task-created', prependContext: REMINDERS.taskCreated }
 
-// M2: task.update 含 deviation
+// M2: task_update 含 deviation
 evaluateAfterToolCall({
-  toolName: 'task.update',
+  toolName: 'task_update',
   params: { runId: 'abc123', deviation: { type: 'output', description: '...' } },
   result: { content: [{ type: 'text', text: '{"deviationRecorded":true}' }] }
 });
 // → { shouldInject: true, idempotencyKey: 'agent-self-development:deviation-detected', prependContext: REMINDERS.deviationDetected }
 
-// 不注入：task.get
+// 不注入：task_get
 evaluateAfterToolCall({
-  toolName: 'task.get',
+  toolName: 'task_get',
   params: { runId: 'abc123' },
   result: { content: [{ type: 'text', text: '{"task":{...}}' }] }
 });
 // → { shouldInject: false }
 
-// 不注入：task.update 但 error
+// 不注入：task_update 但 error
 evaluateAfterToolCall({
-  toolName: 'task.update',
+  toolName: 'task_update',
   params: { runId: 'not-exist' },
   result: { content: [{ type: 'text', text: '{"error":"task not found"}' }] }
 });
@@ -260,9 +260,9 @@ await evaluateBeforePromptBuild({ baseDir: '/empty-project' });
 
 | idempotencyKey | 触发场景 | 去重范围 |
 |----------------|---------|---------|
-| `agent-self-development:task-created` | M1 | 单次 task.create 调用 |
-| `agent-self-development:deviation-detected` | M2 | 单次含 deviation 的 task.update |
-| `agent-self-development:event-generated` | M3 | 单次 event.report 调用 |
+| `agent-self-development:task-created` | M1 | 单次 task_create 调用 |
+| `agent-self-development:deviation-detected` | M2 | 单次含 deviation 的 task_update |
+| `agent-self-development:event-generated` | M3 | 单次 event_report 调用 |
 | `agent-self-development:no-active-task` | M4 | before_prompt_build 触发周期 |
 
 ### 6.2 去重机制
@@ -273,9 +273,9 @@ await evaluateBeforePromptBuild({ baseDir: '/empty-project' });
 
 | 场景 | 是否重复注入 |
 |------|------------|
-| Agent 连续两次调用 `task.create` | key 不同（按调用），不重复 |
-| Agent 调用 `task.create` 后立即再次 before_prompt_build | key 不同，不重复 |
-| 同一 deviation 被 `task.update` 两次 | key 相同（按调用），去重 |
+| Agent 连续两次调用 `task_create` | key 不同（按调用），不重复 |
+| Agent 调用 `task_create` 后立即再次 before_prompt_build | key 不同，不重复 |
+| 同一 deviation 被 `task_update` 两次 | key 相同（按调用），去重 |
 
 ---
 
@@ -298,7 +298,7 @@ await evaluateBeforePromptBuild({ baseDir: '/empty-project' });
 // src/index.js
 function registerSessionHooks(api, logger, context) {
   api.on('after_tool_call', async (event) => {
-    if (!['task.create', 'task.update', 'event.report'].includes(event.toolName)) return;
+    if (!['task_create', 'task_update', 'event_report'].includes(event.toolName)) return;
     const { shouldInject, idempotencyKey, prependContext } = evaluateAfterToolCall(event);
     if (shouldInject) {
       await enqueueInjection(api, logger, idempotencyKey, prependContext);
@@ -335,14 +335,14 @@ async function enqueueInjection(api, logger, idempotencyKey, prependContext) {
 
 | 用例 | 输入 | 期望 |
 |------|------|------|
-| task.create 成功 | toolName='task.create', result含runId | shouldInject=true, key='task-created' |
-| task.create 失败 | toolName='task.create', result含error | shouldInject=false |
-| task.update 含deviation | toolName='task.update', result含deviationRecorded=true | shouldInject=true, key='deviation-detected' |
-| task.update 无deviation | toolName='task.update', result不含deviationRecorded | shouldInject=false |
-| event.report 成功 | toolName='event.report', result含eventFilePath | shouldInject=true, key='event-generated' |
-| event.report 失败 | toolName='event.report', result含error | shouldInject=false |
-| task.get | toolName='task.get', 任意result | shouldInject=false |
-| task.advance | toolName='task.advance', 任意result | shouldInject=false |
+| task_create 成功 | toolName='task_create', result含runId | shouldInject=true, key='task-created' |
+| task_create 失败 | toolName='task_create', result含error | shouldInject=false |
+| task_update 含deviation | toolName='task_update', result含deviationRecorded=true | shouldInject=true, key='deviation-detected' |
+| task_update 无deviation | toolName='task_update', result不含deviationRecorded | shouldInject=false |
+| event_report 成功 | toolName='event_report', result含eventFilePath | shouldInject=true, key='event-generated' |
+| event_report 失败 | toolName='event_report', result含error | shouldInject=false |
+| task_get | toolName='task_get', 任意result | shouldInject=false |
+| task_advance | toolName='task_advance', 任意result | shouldInject=false |
 
 ### 9.2 evaluateBeforePromptBuild 测试用例
 

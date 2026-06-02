@@ -122,14 +122,14 @@ Agent 可通过 `api.callTool()` 调用以下工具：
 
 | 工具 | 功能 | 必填参数 |
 |------|------|----------|
-| `task.create` | 创建 draft task | `prompt` |
-| `task.update` | 更新 task（状态/偏差/归因/结果/事件路径） | `runId` |
-| `task.advance` | 推进到下一阶段 | `runId` |
-| `task.get` | 查询完整 task JSON（支持双路径扫描） | `runId` |
-| `task.archive` | 归档 completed task | `runId` |
-| `event.report` | 从 task.json 生成 event.md | `runId` |
-| `event.query` | 查询事件记录 | — |
-| `event.archive` | 归档事件文件 | `runId` |
+| `task_create` | 创建 draft task | `prompt` |
+| `task_update` | 更新 task（状态/偏差/归因/结果/事件路径） | `runId` |
+| `task_advance` | 推进到下一阶段 | `runId` |
+| `task_get` | 查询完整 task JSON（支持双路径扫描） | `runId` |
+| `task_archive` | 归档 completed task | `runId` |
+| `event_report` | 从 task.json 生成 event.md | `runId` |
+| `event_query` | 查询事件记录 | — |
+| `event_archive` | 归档事件文件 | `runId` |
 
 **状态机**：
 ```
@@ -140,17 +140,17 @@ draft → pending_approval → active → completed
 
 **Agent 典型工作流**：
 ```
-1. task.create({ prompt: "..." }) → 获取 runId
-2. task.update({ runId, status: "pending_approval" })
-3. task.update({ runId, status: "active" })
-4. 执行任务中... task.advance({ runId }) 推进阶段
-5. 发现偏差 → task.update({ runId, deviation: {...} })
-6. 分析归因 → task.update({ runId, attribution: {...} })
-7. 任务完成 → task.update({ runId, status: "completed", outcome: {...} })
-8. event.report({ runId }) → 生成事件文件，自动关联 task.eventFilePath
-9. event.query({ runId, date, type }) → 按需查询历史事件
-10. event.archive({ runId }) → 归档事件文件
-11. task.archive({ runId }) → 归档任务
+1. task_create({ prompt: "..." }) → 获取 runId
+2. task_update({ runId, status: "pending_approval" })
+3. task_update({ runId, status: "active" })
+4. 执行任务中... task_advance({ runId }) 推进阶段
+5. 发现偏差 → task_update({ runId, deviation: {...} })
+6. 分析归因 → task_update({ runId, attribution: {...} })
+7. 任务完成 → task_update({ runId, status: "completed", outcome: {...} })
+8. event_report({ runId }) → 生成事件文件，自动关联 task.eventFilePath
+9. event_query({ runId, date, type }) → 按需查询历史事件
+10. event_archive({ runId }) → 归档事件文件
+11. task_archive({ runId }) → 归档任务
 ```
 
 ---
@@ -190,7 +190,7 @@ dev（开发分支）
 
 | 类型 | 使用场景 | 示例 |
 |------|---------|------|
-| `feat` | 新增功能 | `feat: 添加 task.advance Handler` |
+| `feat` | 新增功能 | `feat: 添加 task_advance Handler` |
 | `fix` | 修复问题 | `fix: 修复空指针异常` |
 | `docs` | 文档更新 | `docs: 更新 API 文档` |
 | `refactor` | 代码重构 | `refactor: 扁平化 Handler 架构` |

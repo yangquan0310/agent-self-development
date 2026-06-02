@@ -65,24 +65,24 @@ describe('registry & adapter', () => {
       }
     });
 
-    it('task.create parameters require baseDir and prompt', () => {
+    it('task_create parameters require baseDir and prompt', () => {
       const api = createMockApi();
       registerTools(api);
-      const schema = api.tools.get('task.create').parameters;
+      const schema = api.tools.get('task_create').parameters;
       assert.deepStrictEqual(schema.required.sort(), ['baseDir', 'prompt'].sort());
     });
 
-    it('task.update parameters require baseDir and runId', () => {
+    it('task_update parameters require baseDir and runId', () => {
       const api = createMockApi();
       registerTools(api);
-      const schema = api.tools.get('task.update').parameters;
+      const schema = api.tools.get('task_update').parameters;
       assert.deepStrictEqual(schema.required.sort(), ['baseDir', 'runId'].sort());
     });
 
     it('execute returns correct format on success', async () => {
       const api = createMockApi();
       registerTools(api);
-      const tool = api.tools.get('task.create');
+      const tool = api.tools.get('task_create');
       const result = await tool.execute('id-1', { prompt: 'Test registry', baseDir: process.cwd() });
       assert.ok(result.content);
       assert.strictEqual(result.content[0].type, 'text');
@@ -94,21 +94,21 @@ describe('registry & adapter', () => {
     it('execute returns error format on failure', async () => {
       const api = createMockApi();
       registerTools(api);
-      const tool = api.tools.get('task.get');
+      const tool = api.tools.get('task_get');
       const result = await tool.execute('id-1', { runId: 'no-such-task', baseDir: process.cwd() });
       assert.ok(result.isError);
       assert.ok(result.content[0].text.includes('error'));
     });
 
-    it('event.report updates task eventFilePath', async () => {
+    it('event_report updates task eventFilePath', async () => {
       const api = createMockApi();
       registerTools(api);
       const baseDir = process.cwd();
 
-      const createTool = api.tools.get('task.create');
-      const updateTool = api.tools.get('task.update');
-      const reportTool = api.tools.get('event.report');
-      const getTool = api.tools.get('task.get');
+      const createTool = api.tools.get('task_create');
+      const updateTool = api.tools.get('task_update');
+      const reportTool = api.tools.get('event_report');
+      const getTool = api.tools.get('task_get');
 
       const created = await createTool.execute('id-1', { prompt: 'Test report', baseDir });
       const { runId } = JSON.parse(created.content[0].text);
@@ -126,15 +126,15 @@ describe('registry & adapter', () => {
       assert.strictEqual(task.eventFilePath, reportResult.eventFilePath);
     });
 
-    it('event.archive archives event file', async () => {
+    it('event_archive archives event file', async () => {
       const api = createMockApi();
       registerTools(api);
       const baseDir = process.cwd();
 
-      const createTool = api.tools.get('task.create');
-      const updateTool = api.tools.get('task.update');
-      const reportTool = api.tools.get('event.report');
-      const archiveEventTool = api.tools.get('event.archive');
+      const createTool = api.tools.get('task_create');
+      const updateTool = api.tools.get('task_update');
+      const reportTool = api.tools.get('event_report');
+      const archiveEventTool = api.tools.get('event_archive');
 
       const created = await createTool.execute('id-1', { prompt: 'Test archive', baseDir });
       const { runId } = JSON.parse(created.content[0].text);

@@ -47,7 +47,7 @@ src/
 |------|------|------|
 | 函数名 | 动词前缀，camelCase | `createTask()`, `updateTask()`, `generateReport()` |
 | 文件名 | 小写，语义化 | `handlers.js`, `schemas.js`, `adapter.js` |
-| 工具名 | 命名空间 + 动词，snake_case | `task.create`, `event.report` |
+| 工具名 | 命名空间 + 动词，snake_case | `task_create`, `event_report` |
 | 常量 | 全大写 SNAKE_CASE | `VALID_STATUSES`, `STATE_MACHINE` |
 
 ---
@@ -134,7 +134,7 @@ export async function create(params, context) {
 
 ```javascript
 api.registerTool({
-  name: 'task.create',
+  name: 'task_create',
   description: '创建 draft task',
   parameters: { type: 'object', properties: { ... } },
   async execute(_id, params) {
@@ -224,7 +224,7 @@ api.registerTool({
 ## 7. 结果
 ```
 
-**生成规则**：task 完成后，`event.report` 从 task.json 一次性凝练渲染，不再增量追加。
+**生成规则**：task 完成后，`event_report` 从 task.json 一次性凝练渲染，不再增量追加。
 
 ---
 
@@ -241,7 +241,7 @@ api.registerTool({
 - **最小变更**：只修改必要的部分，不重构无关代码
 - **扁平化**：Handler 直接操作文件，不引入中间抽象
 - **防御式编程**：工具参数校验在 Tool Handler 层和 Handler 函数内部双重进行
-- **日志前缀**：使用 `[task.create]` `[event.report]` 等工具名前缀
+- **日志前缀**：使用 `[task_create]` `[event_report]` 等工具名前缀
 - **版本注释**：重大变更添加 `// v4.3.0: description`
 
 ---

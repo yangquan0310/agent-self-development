@@ -52,11 +52,11 @@ interface ToolSpec {
 
 ## 3. 工具详细定义
 
-### 3.1 task.create
+### 3.1 task_create
 
 ```json
 {
-  "name": "task.create",
+  "name": "task_create",
   "description": "创建一个新的任务草案。根据用户输入生成任务计划和阶段。",
   "parameters": {
     "type": "object",
@@ -74,11 +74,11 @@ interface ToolSpec {
 
 ---
 
-### 3.2 task.update
+### 3.2 task_update
 
 ```json
 {
-  "name": "task.update",
+  "name": "task_update",
   "description": "更新任务状态、记录偏差、归因、结果或关联 event.md。至少提供一个可选字段。",
   "parameters": {
     "type": "object",
@@ -122,7 +122,7 @@ interface ToolSpec {
 
 **Handler**：`objects/task.update(params, context)` → `{ task, updatedFields }`
 
-**特殊说明**：`task.update` 是 task.json 的**唯一更新入口**。内部按顺序处理：
+**特殊说明**：`task_update` 是 task.json 的**唯一更新入口**。内部按顺序处理：
 1. `status` → 状态机校验
 2. `deviation` → 追加偏差
 3. `attribution` → 追加归因 + 标记偏差
@@ -131,11 +131,11 @@ interface ToolSpec {
 
 ---
 
-### 3.3 task.advance
+### 3.3 task_advance
 
 ```json
 {
-  "name": "task.advance",
+  "name": "task_advance",
   "description": "推进任务到下一阶段，或标记指定阶段为已完成。",
   "parameters": {
     "type": "object",
@@ -152,11 +152,11 @@ interface ToolSpec {
 
 ---
 
-### 3.4 task.get
+### 3.4 task_get
 
 ```json
 {
-  "name": "task.get",
+  "name": "task_get",
   "description": "查询任务完整状态。支持从活跃目录或归档目录读取。",
   "parameters": {
     "type": "object",
@@ -174,11 +174,11 @@ interface ToolSpec {
 
 ---
 
-### 3.5 task.archive
+### 3.5 task_archive
 
 ```json
 {
-  "name": "task.archive",
+  "name": "task_archive",
   "description": "归档已完成的任务。仅允许归档 status=completed 的任务。",
   "parameters": {
     "type": "object",
@@ -194,11 +194,11 @@ interface ToolSpec {
 
 ---
 
-### 3.6 event.report
+### 3.6 event_report
 
 ```json
 {
-  "name": "event.report",
+  "name": "event_report",
   "description": "为已完成的任务生成 event.md 报告。仅当 task.status=completed 时允许调用。",
   "parameters": {
     "type": "object",
@@ -239,11 +239,11 @@ export async function report(params, context) {
 
 ---
 
-### 3.7 event.query
+### 3.7 event_query
 
 ```json
 {
-  "name": "event.query",
+  "name": "event_query",
   "description": "查询 event.md 文件列表。支持按 runId、日期、事件类型筛选。",
   "parameters": {
     "type": "object",
@@ -260,11 +260,11 @@ export async function report(params, context) {
 
 ---
 
-### 3.8 event.archive
+### 3.8 event_archive
 
 ```json
 {
-  "name": "event.archive",
+  "name": "event_archive",
   "description": "归档指定 runId 的 event.md 文件。",
   "parameters": {
     "type": "object",
@@ -326,14 +326,14 @@ export async function initialize(api, config) {
 
 | 工具 | 前置校验 |
 |------|----------|
-| `task.create` | runId 格式、prompt 非空、runId 不存在 |
-| `task.update` | runId 存在、状态机合法、至少一个可选字段 |
-| `task.advance` | runId 存在 |
-| `task.get` | runId 存在（不存在返回 null，不报错） |
-| `task.archive` | runId 存在、status === completed |
-| `event.report` | runId 存在、status === completed |
-| `event.query` | 无（返回空列表也是有效结果） |
-| `event.archive` | runId 存在、event.md 文件存在 |
+| `task_create` | runId 格式、prompt 非空、runId 不存在 |
+| `task_update` | runId 存在、状态机合法、至少一个可选字段 |
+| `task_advance` | runId 存在 |
+| `task_get` | runId 存在（不存在返回 null，不报错） |
+| `task_archive` | runId 存在、status === completed |
+| `event_report` | runId 存在、status === completed |
+| `event_query` | 无（返回空列表也是有效结果） |
+| `event_archive` | runId 存在、event.md 文件存在 |
 
 ---
 

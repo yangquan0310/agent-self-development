@@ -18,23 +18,23 @@ v4.5.0 采用**钩子 + 工具**混合架构：Hook 负责精准注入时机，T
 
 | 里程碑 | 触发时机 | 事件 | 用途 |
 |--------|----------|------|------|
-| M1 | task.create | 计划阶段 | 注入目标约束 |
-| M2 | task.update 含 deviation | 偏差检测 | 触发归因分析 |
-| M3 | event.report | 任务完成 | 生成事件文件 |
+| M1 | task_create | 计划阶段 | 注入目标约束 |
+| M2 | task_update 含 deviation | 偏差检测 | 触发归因分析 |
+| M3 | event_report | 任务完成 | 生成事件文件 |
 | M4 | 无任务执行 | 定期检查 | 适时提醒 |
 
 **8 个命名空间工具**：
 
 | 工具 | 功能 | 说明 |
 |------|------|------|
-| `task.create` | 创建 draft task | 基于 prompt 自动推断 plan，写入 `.agentstasks/{runId}.json` |
-| `task.update` | 更新 task | 唯一更新入口，支持 status / deviation / attribution / outcome / eventFilePath |
-| `task.advance` | 推进阶段 | 推进到下一阶段或指定 phaseId |
-| `task.get` | 查询 task | 返回完整 task.json（支持活跃/归档双路径回退） |
-| `task.archive` | 归档 task | 移动 task.json 到 `.agentstasks/archive/` |
-| `event.report` | 生成事件文件 | 任务完成后从 task.json 凝练生成 event.md |
-| `event.query` | 查询事件 | 按 runId / date / type 筛选 |
-| `event.archive` | 归档事件 | 移动 event.md 到 `.agentsevents/archive/` |
+| `task_create` | 创建 draft task | 基于 prompt 自动推断 plan，写入 `.agentstasks/{runId}.json` |
+| `task_update` | 更新 task | 唯一更新入口，支持 status / deviation / attribution / outcome / eventFilePath |
+| `task_advance` | 推进阶段 | 推进到下一阶段或指定 phaseId |
+| `task_get` | 查询 task | 返回完整 task.json（支持活跃/归档双路径回退） |
+| `task_archive` | 归档 task | 移动 task.json 到 `.agentstasks/archive/` |
+| `event_report` | 生成事件文件 | 任务完成后从 task.json 凝练生成 event.md |
+| `event_query` | 查询事件 | 按 runId / date / type 筛选 |
+| `event_archive` | 归档事件 | 移动 event.md 到 `.agentsevents/archive/` |
 
 **状态机**：
 ```
@@ -100,9 +100,9 @@ openclaw plugins enable agent-self-development
 {
   "tools": {
     "alsoAllow": [
-      "task.create", "task.update", "task.advance",
-      "task.get", "task.archive",
-      "event.report", "event.query", "event.archive"
+      "task_create", "task_update", "task_advance",
+      "task_get", "task_archive",
+      "event_report", "event_query", "event_archive"
     ]
   }
 }

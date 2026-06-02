@@ -17,20 +17,20 @@ description: >
 
 | 工具 | 用途 | 触发时机 |
 |------|------|----------|
-| `event.report` | 生成事件文件 | 任务已完成，需要从 task.json 凝练生成事件总结 |
-| `event.query` | 查询事件 | 回顾历史偏差、归因或任务总结 |
-| `event.archive` | 归档事件 | 事件文件不再需要频繁访问 |
+| `event_report` | 生成事件文件 | 任务已完成，需要从 task.json 凝练生成事件总结 |
+| `event_query` | 查询事件 | 回顾历史偏差、归因或任务总结 |
+| `event_archive` | 归档事件 | 事件文件不再需要频繁访问 |
 
 ## 核心工作流
 
 ### 事件生成后的人格调节（重要）
 
-`event.report` 成功后会返回 `reflectionPrompt`，提示 Agent 执行六维度平衡性判断。
+`event_report` 成功后会返回 `reflectionPrompt`，提示 Agent 执行六维度平衡性判断。
 
 **调节闭环**：
 
 ```
-event.report({ runId }) → 生成 event.md（含"回顾与调节"章节）
+event_report({ runId }) → 生成 event.md（含"回顾与调节"章节）
   → Agent 读取 event.md 中的计划/执行/偏差/归因/结果
   → 六维度平衡性判断（自我认知、风格、信念、身份、程序性记忆、技能）
   → 对比现有结构与本次经验 → 判断是否不平衡
@@ -47,7 +47,7 @@ event.report({ runId }) → 生成 event.md（含"回顾与调节"章节）
 
 ```
 1. 确认任务状态为 "completed"
-2. 调用 event.report({ runId })
+2. 调用 event_report({ runId })
    - 读取对应 task.json（活跃目录 → 归档目录回退）
    - 使用模板渲染 event.md
    - 写入 `.agentsevents/{YYYY-MM-DD}/{runId}.md`
@@ -62,7 +62,7 @@ event.report({ runId }) → 生成 event.md（含"回顾与调节"章节）
 ### 查询事件
 
 ```
-event.query({ runId?, date?, type? })
+event_query({ runId?, date?, type? })
 ```
 
 - `runId`：精确匹配任务 ID
@@ -72,7 +72,7 @@ event.query({ runId?, date?, type? })
 ### 归档事件
 
 ```
-event.archive({ runId })
+event_archive({ runId })
 ```
 
 - 移动 event.md 到 `.agentsevents/archive/{日期}-{runId}.md`
@@ -80,12 +80,12 @@ event.archive({ runId })
 ## 任务与事件的协作关系
 
 ```
-task.create → [执行：task.advance / task.update] → 任务完成
-  → event.report({ runId }) → [可选] event.archive({ runId })
-  → task.archive({ runId })
+task_create → [执行：task_advance / task_update] → 任务完成
+  → event_report({ runId }) → [可选] event_archive({ runId })
+  → task_archive({ runId })
 ```
 
-**时机建议**：在 `task.archive` 之前调用 `event.report`，此时 task.json 仍在活跃目录中便于读取。
+**时机建议**：在 `task_archive` 之前调用 `event_report`，此时 task.json 仍在活跃目录中便于读取。
 
 ## 参考资料
 
@@ -94,7 +94,7 @@ task.create → [执行：task.advance / task.update] → 任务完成
 
 ## 关键规则
 
-- **一次性生成**：event.report 从当前 task.json 状态完整渲染 event.md
+- **一次性生成**：event_report 从当前 task.json 状态完整渲染 event.md
 - **不增量追加**：执行期间所有数据写入 task.json，完成后一次性生成事件文件
-- **自动关联**：event.report 自动将 eventFilePath 回写到 task.json
-- **只读查询**：event.query 不修改任何文件
+- **自动关联**：event_report 自动将 eventFilePath 回写到 task.json
+- **只读查询**：event_query 不修改任何文件
