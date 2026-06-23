@@ -4,7 +4,7 @@ OpenClaw 插件 — Agent 自我发展工具集
 
 > **核心原则**：用户领航 → Agent 执行 → 插件只记录（Plugin asks, Agent decides, Plugin records）
 >
-> **当前版本**：v4.5.0
+> **当前版本**：v4.5.1
 >
 > **设计哲学**：钩子加工具，暴露工具加适时提醒
 

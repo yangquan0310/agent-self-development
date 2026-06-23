@@ -4,7 +4,7 @@
 > **审阅人**: Reviewer  
 > **审查范围**: v4.3.0 M1/M2 核心代码（TaskObject + EventObject + 命名空间 Tool 注册 + schemas + 模板 + 入口）  
 > **测试环境**: Node.js v22.22.2 / Linux x64  
-> **代码基线**: `/root/data/disk/仓库/agent-self-development/`  
+> **代码基线**: `/root/data/disk/OneDrive/Applications/openclaw repository/agent-self-development/`  
 
 ---
 

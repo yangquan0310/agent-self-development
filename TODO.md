@@ -6,8 +6,8 @@ author: Yang Quan
 
 # TODO.md — Agent Autobiography 进度看板
 
-> 项目：`agent-self-development`（原 `agent-self-development`）| 当前版本：`v4.3.0`（工具插件重构中）
-> 更新日期：2026-05-26
+> 项目：`agent-self-development`| 当前版本：`v4.5.1`
+> 更新日期：2026-06-02
 > 维护者：PM（产品经理）
 
 ---
@@ -123,15 +123,15 @@ author: Yang Quan
 
 #### P1：重要项
 
-- [ ] **P1-1：openclaw.plugin.json 同步更新** — Developer
+- [x] **P1-1：openclaw.plugin.json 同步更新** — Developer
   - 交付物：更新 `openclaw.plugin.json`
-  - 验收标准：`version` 更新为 `4.5.0`
-  - 里程碑：M4
+  - 验收标准：`version` 更新为 `4.5.1`（v4.5.0 → v4.5.1 工具名重命名后同步升级）
+  - 里程碑：M4 ✅ 已完成（2026-06-02）
 
-- [ ] **P1-2：changelog + 发布 v4.5.0** — Developer
-  - 交付物：更新 `docs/changelog/unreleased.md`，发布 v4.5.0
-  - 验收标准：changelog 完整记录变更；版本标签已推送
-  - 里程碑：M4
+- [x] **P1-2：changelog + 发布 v4.5.1** — Developer
+  - 交付物：更新 `docs/changelog/unreleased.md`，发布 v4.5.1
+  - 验收标准：changelog 完整记录 v4.5.1 工具重命名变更；版本标签已推送
+  - 里程碑：M4 ✅ 已完成（2026-06-02）
 
 ---
 
@@ -306,9 +306,9 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 | 角色 | 当前状态 |
 |------|----------|
-| **PM** | v4.5.0 APPROVED，等待 P1-1/P1-2 完成发布 |
-| **Developer** | ✅ v4.5.0 代码审查通过，等待 P1-1/P1-2 完成发布 |
-| **Reviewer** | ✅ v4.5.0 审查通过 — `[APPROVED]` |
+| **PM** | v4.5.1 已发布（2026-06-02），准备启动 v4.6.0 ADAPT Loop 规划 |
+| **Developer** | ✅ v4.5.1 发布完成 — 工具名点分→下划线（35 文件 / 388 处），98/98 测试通过 |
+| **Reviewer** | ✅ v4.5.1 审查通过 — `[CONDITIONAL_PASS]`（详见 `docs/reports/test-2026-06-02-23-35-24.md`） |
 | **Architect** | ✅ **`[ARCH_APPROVED]`** — ADR-014 扁平化架构已批准，specs v3.0.0 + CONVENTIONS 已交付 |
 
 ---
@@ -329,9 +329,10 @@ v4.3.0 以下模块、工具、概念**全部废弃**：
 
 | 版本 | 日期 | 核心变化 | 状态 |
 |------|------|----------|------|
-| **v4.5.0** | 2026-05-29（预计） | Hook 注入时机精细化：条件触发精准提醒 | 🔨 开发中 |
+| **v4.5.1** | 2026-06-02 | 工具命名规范变更：8 个工具名从点分改为下划线（35 文件 / 388 处） | ✅ 已发布 |
+| **v4.5.0** | 2026-05-26 | Hook 注入时机精细化：条件触发精准提醒（M1-M4） | ✅ 已完成 |
 | **v4.3.0** | 2026-05-26 | 扁平化 Tool Plugin：8 个 Handler 直接 IO，移除重框架 | ✅ 已完成 |
-| v4.2.0 | 2026-06-01 | Cognitive Intelligence + 架构风险评估修复 | ✅ 已完成 |
+| v4.2.0 | 2026-05-13 | Cognitive Intelligence + 架构风险评估修复 | ✅ 已完成 |
 | v4.1.0 | 2026-05-11 | Tool-Driven Agent Autonomy | ✅ 已发布 |
 | v4.0.0 | 2026-05-01 | 项目上下文层 + 双系统架构 | ✅ 已发布 |
 

@@ -4,6 +4,33 @@
 
 ---
 
+# v4.5.1
+
+> 发布日期：2026-06-02
+
+## Changed
+
+- **工具命名规范变更**：8 个工具名从点分改为下划线
+  - `task.create` → `task_create`
+  - `task.update` → `task_update`
+  - `task.advance` → `task_advance`
+  - `task.get` → `task_get`
+  - `task.archive` → `task_archive`
+  - `event.report` → `event_report`
+  - `event.query` → `event_query`
+  - `event.archive` → `event_archive`
+- 35 个文件 / 388 处机械替换 + 1 处手动（`src/tools/handlers.js:62` `reflectionPrompt` 字符串内）
+- 命名空间方法调用（`task.create(` 等）、属性访问（`task.updatedAt` 等）、模块路径（`objects/task.create`）未误改
+- 历史档案（`docs/reference/`、`docs/architecture/`、`docs/roadmap/`、`.agents/sessions/` 等 281 处）保留点分不变
+- `package.json` / `openclaw.plugin.json` / `metadata.json` version 同步更新至 4.5.1
+
+## Test
+
+- 98/98 自动化用例通过（25 suites, 721ms）
+- 详见 `docs/reports/test-2026-06-02-23-35-24.md`
+
+---
+
 # v4.5.0
 
 > 发布日期：2026-05-26
